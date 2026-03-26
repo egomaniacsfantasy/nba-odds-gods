@@ -34,10 +34,6 @@ interface SeededTeam {
   teamId: number;
 }
 
-function pickHash(lockedPicks: LockedPicks): string {
-  return JSON.stringify(Array.from(lockedPicks.entries()).sort((a, b) => a[0] - b[0]));
-}
-
 function createCounter(teamId: number): SimulationTeamCounter {
   return {
     teamId,
