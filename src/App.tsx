@@ -4,7 +4,7 @@
 // Updated: 2026-03-26
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdvancementPanel } from './components/AdvancementPanel';
-import { PlayoffBracketTab } from './components/PlayoffBracketTab';
+import { PlayoffSection } from './components/PlayoffSection';
 import { ProgressBar } from './components/ProgressBar';
 import { ScheduleView } from './components/ScheduleView';
 import { SimControls } from './components/SimControls';
@@ -83,7 +83,7 @@ export default function App({ initialPath }: AppProps) {
     return stored === 'american' ? 'american' : 'implied';
   });
   const [isSimulating, setIsSimulating] = useState(false);
-  const [activeTab, setActiveTab] = useState<'schedule' | 'playoffs'>(() => pathToTab(initialPath));
+  const [activeTab] = useState<'schedule' | 'playoffs'>('schedule');
   const [mobileTab, setMobileTab] = useState<'schedule' | 'standings'>('schedule');
   const [activeConference, setActiveConference] = useState<ConferenceKey>('East');
   const [advancementSort, setAdvancementSort] = useState<AdvancementSortKey>('pChampion');
@@ -309,11 +309,7 @@ export default function App({ initialPath }: AppProps) {
     cancelScheduledSimulation();
   }, [cancelScheduledSimulation]);
 
-  const handleNavigate = useCallback((tab: 'schedule' | 'playoffs') => {
-    const nextPath = tab === 'playoffs' ? '/playoffs' : '/';
-    setActiveTab(tab);
-    window.history.pushState({}, '', nextPath);
-  }, []);
+  const handleNavigate = useCallback((_tab: 'schedule' | 'playoffs') => {}, []);
 
   const handleOddsFormatChange = useCallback((format: OddsFormat) => { setOddsFormat(format); }, []);
 
@@ -385,7 +381,7 @@ export default function App({ initialPath }: AppProps) {
         onOddsFormatChange={handleOddsFormatChange}
         onNavigate={handleNavigate}
         isScrolled={isScrolled}
-        playoffsUnlocked={allGamesPicked}
+        playoffsUnlocked={false}
       />
       <main className="app-shell">
         <section className="hero-header">
@@ -394,8 +390,7 @@ export default function App({ initialPath }: AppProps) {
           <p className="subtitle">Pick every game. Watch the playoff picture shift. The Oracle sees all.</p>
         </section>
 
-        {activeTab === 'schedule' ? (
-          <>
+        <>
             <SimControls
               canUndo={undoStack.length > 0}
               canReset={lockedPicks.size > 0}
@@ -411,13 +406,13 @@ export default function App({ initialPath }: AppProps) {
               onReSimulate={() => {}}
               onUndo={handleUndo}
               onReset={() => setResetOpen(true)}
-              onGoToPlayoffs={() => handleNavigate('playoffs')}
+              onGoToPlayoffs={() => {}}
             />
             <ProgressBar
               pickedCount={pickedCount}
               totalCount={totalPickableGames}
               unlocked={allGamesPicked}
-              onGoToPlayoffs={() => handleNavigate('playoffs')}
+              onGoToPlayoffs={() => {}}
             />
             <div className="main-layout desktop-layout">
               <section className="schedule-panel">
@@ -431,6 +426,15 @@ export default function App({ initialPath }: AppProps) {
                   showPickHint={showPickHint}
                   simSweepDelays={new Map()}
                   disableInteractions={isSimulating}
+                  onPick={handlePick}
+                />
+                <PlayoffSection
+                  lockedPicks={lockedPicks}
+                  east={projectedStandings.east}
+                  west={projectedStandings.west}
+                  teamsById={NBA_TEAM_LOOKUP}
+                  advancements={currentAdvancements}
+                  allGamesPicked={allGamesPicked}
                   onPick={handlePick}
                 />
               </section>
@@ -471,6 +475,15 @@ export default function App({ initialPath }: AppProps) {
                     disableInteractions={isSimulating}
                     onPick={handlePick}
                   />
+                  <PlayoffSection
+                    lockedPicks={lockedPicks}
+                    east={projectedStandings.east}
+                    west={projectedStandings.west}
+                    teamsById={NBA_TEAM_LOOKUP}
+                    advancements={currentAdvancements}
+                    allGamesPicked={allGamesPicked}
+                    onPick={handlePick}
+                  />
                 </section>
               ) : (
                 <section className="mobile-panel">
@@ -506,20 +519,6 @@ export default function App({ initialPath }: AppProps) {
               </button>
             </div>
           </>
-        ) : (
-          <PlayoffBracketTab
-            lockedPicks={lockedPicks}
-            allGamesPicked={allGamesPicked}
-            pickedCount={pickedCount}
-            totalCount={totalPickableGames}
-            east={projectedStandings.east}
-            west={projectedStandings.west}
-            teamsById={NBA_TEAM_LOOKUP}
-            advancements={currentAdvancements}
-            onPick={handlePick}
-            onBack={() => handleNavigate('schedule')}
-          />
-        )}
       </main>
       {resetOpen ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setResetOpen(false)}>

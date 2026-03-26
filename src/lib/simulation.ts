@@ -29,6 +29,15 @@ export const R1_GAME_IDS = {
   east: [9201, 9202, 9203, 9204] as const,  // [1v8, 4v5, 2v7, 3v6]
   west: [9211, 9212, 9213, 9214] as const,
 } as const;
+export const R2_GAME_IDS = {
+  east: [9301, 9302] as const,  // [winner(1v8) v winner(4v5), winner(2v7) v winner(3v6)]
+  west: [9311, 9312] as const,
+} as const;
+export const CF_GAME_IDS = {
+  east: 9401,
+  west: 9411,
+} as const;
+export const FINALS_GAME_ID = 9501;
 
 interface SeededTeam {
   seed: number;
@@ -168,6 +177,8 @@ function simulateConferenceBracket(
   random: () => number,
 ): number {
   const r1Ids = isEast ? R1_GAME_IDS.east : R1_GAME_IDS.west;
+  const r2Ids = isEast ? R2_GAME_IDS.east : R2_GAME_IDS.west;
+  const cfId = isEast ? CF_GAME_IDS.east : CF_GAME_IDS.west;
   // Quarterfinals order matches R1_GAME_IDS: [1v8, 4v5, 2v7, 3v6]
   const quarterfinals = [
     [seededTeams[0], seededTeams[7]],
@@ -195,13 +206,22 @@ function simulateConferenceBracket(
     };
   });
 
+  // R2: [winner(1v8) vs winner(4v5), winner(2v7) vs winner(3v6)]
   const semifinals = [
     [roundOneWinners[0], roundOneWinners[1]],
     [roundOneWinners[2], roundOneWinners[3]],
   ] as const;
 
-  const conferenceFinalists = semifinals.map(([teamA, teamB]) => {
-    const winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random);
+  const conferenceFinalists = semifinals.map(([teamA, teamB], i) => {
+    const lockedWinner = lockedPicks.get(r2Ids[i]);
+    let winnerId: number;
+    if (lockedWinner !== undefined &&
+        (lockedWinner === teamA.teamId || lockedWinner === teamB.teamId)) {
+      for (let _i = 0; _i < 7; _i += 1) random();
+      winnerId = lockedWinner;
+    } else {
+      winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random);
+    }
     const counter = counters.get(winnerId);
     if (counter) counter.confFinalsCount += 1;
     return {
@@ -210,12 +230,21 @@ function simulateConferenceBracket(
     };
   });
 
-  const conferenceChampionId = simulateSeries(
-    conferenceFinalists[0],
-    conferenceFinalists[1],
-    regularSeasonWins,
-    random,
-  );
+  // Conference Finals
+  const lockedCF = lockedPicks.get(cfId);
+  let conferenceChampionId: number;
+  if (lockedCF !== undefined &&
+      (lockedCF === conferenceFinalists[0].teamId || lockedCF === conferenceFinalists[1].teamId)) {
+    for (let _i = 0; _i < 7; _i += 1) random();
+    conferenceChampionId = lockedCF;
+  } else {
+    conferenceChampionId = simulateSeries(
+      conferenceFinalists[0],
+      conferenceFinalists[1],
+      regularSeasonWins,
+      random,
+    );
+  }
   const championCounter = counters.get(conferenceChampionId);
   if (championCounter) championCounter.finalsCount += 1;
 
@@ -301,12 +330,20 @@ export function simulateNbaFullSeason(
       westBracket, regularSeasonWins, counters, lockedPicks, false, random,
     );
 
-    const finalsWinnerId = simulateSeries(
-      { seed: 1, teamId: eastChampionId },
-      { seed: 1, teamId: westChampionId },
-      regularSeasonWins,
-      random,
-    );
+    const lockedFinals = lockedPicks.get(FINALS_GAME_ID);
+    let finalsWinnerId: number;
+    if (lockedFinals !== undefined &&
+        (lockedFinals === eastChampionId || lockedFinals === westChampionId)) {
+      for (let _i = 0; _i < 7; _i += 1) random();
+      finalsWinnerId = lockedFinals;
+    } else {
+      finalsWinnerId = simulateSeries(
+        { seed: 1, teamId: eastChampionId },
+        { seed: 1, teamId: westChampionId },
+        regularSeasonWins,
+        random,
+      );
+    }
     const championCounter = counters.get(finalsWinnerId);
     if (championCounter) championCounter.championCount += 1;
   }
