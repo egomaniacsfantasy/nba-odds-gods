@@ -1,5 +1,5 @@
 // Auto-generated from nba_snapshot.xlsx + nba_standings.xlsx — do not edit manually
-// Updated: 2026-03-25
+// Updated: 2026-03-26
 
 import type { HeadToHeadRecord, NbaTeam } from '../types';
 import { clamp, clampInt, fnv1a, mulberry32 } from '../lib/rng';

@@ -1,10 +1,10 @@
 // Auto-generated App.tsx — uses pre-computed MC results by default
 // When no picks are locked, shows nba_mc_results data directly.
 // After any pick, runs 10,000-iteration MC simulation using model p_home_wins.
-// Updated: 2026-03-25
+// Updated: 2026-03-26
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdvancementPanel } from './components/AdvancementPanel';
-import { PlayoffLockedTab } from './components/PlayoffLockedTab';
+import { PlayoffBracketTab } from './components/PlayoffBracketTab';
 import { ProgressBar } from './components/ProgressBar';
 import { ScheduleView } from './components/ScheduleView';
 import { SimControls } from './components/SimControls';
@@ -303,8 +303,11 @@ export default function App({ initialPath }: AppProps) {
 
   const handlePick = useCallback(
     (gameId: number, teamId: number) => {
-      const game = NBA_SCHEDULE.find((scheduleGame) => scheduleGame.gameId === gameId);
-      if (!game || game.isCompleted) return;
+      // Playoff game IDs (9001+) bypass the schedule lookup
+      if (gameId < 9000) {
+        const game = NBA_SCHEDULE.find((scheduleGame) => scheduleGame.gameId === gameId);
+        if (!game || game.isCompleted) return;
+      }
       const nextPicks = cloneLockedPicks(lockedPicks);
       const shouldUnpick = nextPicks.get(gameId) === teamId;
       if (shouldUnpick) { nextPicks.delete(gameId); } else { nextPicks.set(gameId, teamId); }
@@ -477,13 +480,16 @@ export default function App({ initialPath }: AppProps) {
             </div>
           </>
         ) : (
-          <PlayoffLockedTab
-            unlocked={allGamesPicked}
+          <PlayoffBracketTab
+            lockedPicks={lockedPicks}
+            allGamesPicked={allGamesPicked}
             pickedCount={pickedCount}
             totalCount={totalPickableGames}
             east={projectedStandings.east}
             west={projectedStandings.west}
             teamsById={NBA_TEAM_LOOKUP}
+            advancements={currentAdvancements}
+            onPick={handlePick}
             onBack={() => handleNavigate('schedule')}
           />
         )}
