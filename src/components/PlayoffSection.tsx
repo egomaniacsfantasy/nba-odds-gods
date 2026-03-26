@@ -77,24 +77,6 @@ function fmt(v: number): string {
   return `${Math.round(v * 100)}%`;
 }
 
-/** P(hsId wins best-of-7 series, hsId has home court). */
-function seriesWinPct(hsId: number, lsId: number): number {
-  const pH = getMatchupProb(hsId, lsId, 'home');
-  const pA = getMatchupProb(hsId, lsId, 'away');
-  const memo = new Map<string, number>();
-  function dp(hw: number, lw: number): number {
-    if (hw === 4) return 1.0;
-    if (lw === 4) return 0.0;
-    const k = `${hw}_${lw}`;
-    if (memo.has(k)) return memo.get(k)!;
-    const p = _HS_HOME_R.has(hw + lw + 1) ? pH : pA;
-    const v = p * dp(hw + 1, lw) + (1 - p) * dp(hw, lw + 1);
-    memo.set(k, v);
-    return v;
-  }
-  return dp(0, 0);
-}
-
 function seriesWinPctNeutral(aId: number, bId: number): number {
   const pN = getMatchupProb(aId, bId, 'neutral');
   const memo = new Map<string, number>();
