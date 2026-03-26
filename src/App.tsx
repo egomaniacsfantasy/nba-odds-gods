@@ -496,6 +496,7 @@ export default function App(_props: AppProps) {
                     activeConference={activeConference}
                     changedTeamIds={changedTeamIds}
                     lockedRecord={lockedRecord}
+                    expWins={currentExpWins}
                     onConferenceChange={setActiveConference}
                   />
                   <AdvancementPanel
