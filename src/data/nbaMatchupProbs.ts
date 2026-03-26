@@ -453,5 +453,6 @@ export function getMatchupProb(teamAId: number, teamBId: number, loc: 'home'|'aw
   const [pLoHome, pHiHome, pNeu] = row;
   if (loc === 'neutral') return teamAId < teamBId ? pNeu : 1 - pNeu;
   if (loc === 'home')    return teamAId < teamBId ? pLoHome : 1 - pHiHome;
-  return teamAId < teamBId ? 1 - pLoHome : pHiHome;
+  /* away: teamA is away, teamB is home */
+  return teamAId < teamBId ? pHiHome : 1 - pLoHome;
 }
