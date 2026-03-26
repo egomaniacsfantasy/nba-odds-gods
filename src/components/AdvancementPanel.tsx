@@ -22,10 +22,7 @@ const PROBABILITY_COLUMNS: Array<{
   key: AdvancementSortKey;
   label: string;
 }> = [
-  { key: 'pTop6', label: 'Top 6' },
-  { key: 'pPlayIn', label: 'Play-In' },
   { key: 'pMakesPlayoffs', label: 'Playoffs' },
-  { key: 'pWinsR1', label: 'R1' },
   { key: 'pConfFinals', label: 'Conf' },
   { key: 'pFinals', label: 'Finals' },
   { key: 'pChampion', label: 'Champ' },
@@ -41,111 +38,101 @@ export function AdvancementPanel({
   isSimulating,
   onSort,
 }: AdvancementPanelProps) {
-  const confidenceBand = rows.slice(0, 8);
-
   return (
-    <section className={isSimulating ? 'side-panel-section advancement-panel--simulating' : 'side-panel-section'}>
+    <section
+      className={isSimulating ? 'side-panel-section advancement-panel advancement-panel--simulating' : 'side-panel-section advancement-panel'}
+    >
       <div className="panel-header">
         <div>
-          <p className="panel-kicker">Monte Carlo</p>
+          <p className="advancement-panel-header">Oracle Futures</p>
           <h2 className="panel-title">Advancement Probabilities</h2>
         </div>
-        <span className={isSimulating ? 'sim-badge is-busy' : 'sim-badge'}>{isSimulating ? 'Simulating' : 'Live'}</span>
+        <span className={isSimulating ? 'sim-badge is-busy' : 'sim-badge'}>
+          {isSimulating ? 'Simulating' : 'Live'}
+        </span>
       </div>
 
       <div className="advancement-table-wrap">
-        <div className="advancement-table">
-          <div className="advancement-table__header">
-            <button type="button" className={sortHeaderClass(sortKey, 'team')} onClick={() => onSort('team')}>
-              Team
-              {sortIndicator(sortKey, 'team', sortDirection)}
-            </button>
-            <button type="button" className={sortHeaderClass(sortKey, 'seed')} onClick={() => onSort('seed')}>
-              Seed
-              {sortIndicator(sortKey, 'seed', sortDirection)}
-            </button>
-            {PROBABILITY_COLUMNS.map((column) => (
-              <button
-                key={column.key}
-                type="button"
-                className={sortHeaderClass(sortKey, column.key)}
-                onClick={() => onSort(column.key)}
-              >
-                {column.label}
-                {sortIndicator(sortKey, column.key, sortDirection)}
-              </button>
-            ))}
-          </div>
+        <table className="advancement-table">
+          <thead>
+            <tr>
+              <th className={sortHeaderClass(sortKey, 'team')} onClick={() => onSort('team')}>
+                Team
+                {sortIndicator(sortKey, 'team', sortDirection)}
+              </th>
+              <th className={sortHeaderClass(sortKey, 'seed')} onClick={() => onSort('seed')}>
+                Seed
+                {sortIndicator(sortKey, 'seed', sortDirection)}
+              </th>
+              {PROBABILITY_COLUMNS.map((column) => (
+                <th
+                  key={column.key}
+                  className={sortHeaderClass(sortKey, column.key)}
+                  onClick={() => onSort(column.key)}
+                >
+                  {column.label}
+                  {sortIndicator(sortKey, column.key, sortDirection)}
+                </th>
+              ))}
+            </tr>
+          </thead>
 
-          {rows.map((row) => {
-            const team = teamsById.get(row.teamId);
+          <tbody>
+            {rows.map((row) => {
+              const team = teamsById.get(row.teamId);
 
-            if (!team) {
-              return null;
-            }
+              if (!team) {
+                return null;
+              }
 
-            return (
-              <div key={row.teamId} className="advancement-row">
-                <div className="advancement-team">
-                  <span className="team-logo-wrap">
-                    <img
-                      className="advancement-logo"
-                      src={team.logoUrl}
-                      alt={team.name}
-                      loading="lazy"
-                      onError={(event: { currentTarget: HTMLImageElement }) => {
-                        event.currentTarget.style.display = 'none';
-                        const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+              return (
+                <tr key={row.teamId}>
+                  <td className="advancement-team-cell">
+                    <span className="team-logo-wrap">
+                      <img
+                        className="advancement-logo"
+                        src={team.logoUrl}
+                        alt={team.name}
+                        loading="lazy"
+                        onError={(event: { currentTarget: HTMLImageElement }) => {
+                          event.currentTarget.style.display = 'none';
+                          const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
 
-                        if (fallback) {
-                          fallback.style.display = 'flex';
-                        }
-                      }}
-                    />
-                    <span className="logo-fallback advancement-logo-fallback" style={{ display: 'none' }}>
-                      {team.abbr}
+                          if (fallback) {
+                            fallback.style.display = 'flex';
+                          }
+                        }}
+                      />
+                      <span className="logo-fallback advancement-logo-fallback" style={{ display: 'none' }}>
+                        {team.abbr}
+                      </span>
                     </span>
-                  </span>
-                  <span>{team.abbr}</span>
-                </div>
-                <div className="advancement-seed">{row.seedLabel}</div>
-                {PROBABILITY_COLUMNS.map((column) => (
-                  <div
-                    key={column.key}
-                    className={probabilityClassName(row[column.key as keyof TeamAdvancement] as number)}
-                  >
-                    <span>{formatProbabilityCell(row[column.key as keyof TeamAdvancement] as number, oddsFormat)}</span>
-                    {renderDelta(deltaMap.get(`${row.teamId}:${column.key}`), oddsFormat)}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="confidence-band">
-        {confidenceBand.map((row) => {
-          const team = teamsById.get(row.teamId);
-
-          if (!team) {
-            return null;
-          }
-
-          return (
-            <p key={row.teamId} className="confidence-band__row">
-              {team.abbr}: Currently {row.seedLabel} seed · {Math.round(row.pTop6 * 100)}% top-6 ·{' '}
-              {Math.round(row.pPlayIn * 100)}% play-in
-            </p>
-          );
-        })}
+                    <span>{team.abbr}</span>
+                  </td>
+                  <td>{formatSeed(row)}</td>
+                  {PROBABILITY_COLUMNS.map((column) => (
+                    <td
+                      key={column.key}
+                      className={`${probabilityClassName(row[column.key as keyof TeamAdvancement] as number)} ${
+                        column.key === 'pChampion' ? 'champ-cell' : ''
+                      }`}
+                    >
+                      <span>{formatProbabilityCell(row[column.key as keyof TeamAdvancement] as number, oddsFormat)}</span>
+                      {renderDelta(deltaMap.get(`${row.teamId}:${column.key}`), oddsFormat)}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </section>
   );
 }
 
 function sortHeaderClass(activeSort: AdvancementSortKey, headerKey: AdvancementSortKey): string {
-  return activeSort === headerKey ? 'advancement-header is-active' : 'advancement-header';
+  return activeSort === headerKey ? 'sorted' : '';
 }
 
 function sortIndicator(
@@ -161,23 +148,19 @@ function sortIndicator(
 }
 
 function probabilityClassName(value: number): string {
-  if (value >= 0.75) {
-    return 'advancement-cell probability-band probability-band--high';
-  }
-
   if (value >= 0.5) {
-    return 'advancement-cell probability-band probability-band--mid-high';
+    return 'prob-high';
   }
 
-  if (value >= 0.25) {
-    return 'advancement-cell probability-band probability-band--mid';
+  if (value >= 0.2) {
+    return 'prob-medium';
   }
 
   if (value >= 0.05) {
-    return 'advancement-cell probability-band probability-band--low';
+    return 'prob-low';
   }
 
-  return 'advancement-cell advancement-cell--dim';
+  return value < 0.01 ? 'prob-zero' : '';
 }
 
 function renderDelta(delta: number | undefined, oddsFormat: OddsFormat) {
@@ -185,9 +168,17 @@ function renderDelta(delta: number | undefined, oddsFormat: OddsFormat) {
     return null;
   }
 
-  return (
-    <span className={delta >= 0 ? 'delta-badge delta-badge--up' : 'delta-badge delta-badge--down'}>
-      {formatDelta(delta, oddsFormat)}
-    </span>
-  );
+  return <span className={delta >= 0 ? 'delta-badge delta-up' : 'delta-badge delta-down'}>{formatDelta(delta, oddsFormat)}</span>;
+}
+
+function formatSeed(row: TeamAdvancement): string {
+  if (row.seed === null) {
+    return '—';
+  }
+
+  if (row.seed >= 7 && row.seed <= 10) {
+    return 'PI';
+  }
+
+  return `${row.seed}`;
 }

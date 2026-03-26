@@ -11,6 +11,8 @@ interface DateGroupProps {
   justPickedKey: string | null;
   firstHintGameId: number | null;
   showPickHint: boolean;
+  simSweepDelays: Map<number, number>;
+  disableInteractions: boolean;
   onPick: (gameId: number, teamId: number) => void;
 }
 
@@ -35,6 +37,8 @@ export function DateGroup({
   justPickedKey,
   firstHintGameId,
   showPickHint,
+  simSweepDelays,
+  disableInteractions,
   onPick,
 }: DateGroupProps) {
   const resolvedCount = games.filter((game) => game.isCompleted || lockedPicks.has(game.gameId)).length;
@@ -102,6 +106,8 @@ export function DateGroup({
                 oddsFormat={oddsFormat}
                 justPickedKey={justPickedKey}
                 showHint={showPickHint && firstHintGameId === game.gameId}
+                simSweepDelayMs={simSweepDelays.get(game.gameId) ?? null}
+                disableInteractions={disableInteractions}
                 onPick={onPick}
               />
             );

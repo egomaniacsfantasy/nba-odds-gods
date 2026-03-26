@@ -59,7 +59,12 @@ export function ToolNav({
           <a className="nav-link desktop-only" href="https://bracket.oddsgods.net">
             The Bracket Lab
           </a>
-          <a className="nav-link desktop-only" href="https://wato.oddsgods.net">
+          <a
+            className="nav-link desktop-only"
+            href="https://wato.oddsgods.net"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             What Are the Odds?
           </a>
         </div>

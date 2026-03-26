@@ -9,6 +9,8 @@ interface GameCardProps {
   oddsFormat: OddsFormat;
   justPickedKey: string | null;
   showHint: boolean;
+  simSweepDelayMs: number | null;
+  disableInteractions: boolean;
   onPick: (gameId: number, teamId: number) => void;
 }
 
@@ -20,6 +22,8 @@ export function GameCard({
   oddsFormat,
   justPickedKey,
   showHint,
+  simSweepDelayMs,
+  disableInteractions,
   onPick,
 }: GameCardProps) {
   const winnerId = game.isCompleted ? game.actualWinnerId : selectedWinnerId;
@@ -35,21 +39,25 @@ export function GameCard({
     cardClassName.push('game-card--completed');
   }
 
+  if (simSweepDelayMs !== null) {
+    cardClassName.push('game-card--sim-filling');
+  }
+
+  const cardStyle =
+    simSweepDelayMs === null ? undefined : ({ '--sim-delay': `${simSweepDelayMs}ms` } as { [key: string]: string });
+  const awayDisplayName = awayTeam.name.replace(`${awayTeam.city} `, '');
+  const homeDisplayName = homeTeam.name.replace(`${homeTeam.city} `, '');
+
   return (
-    <article className={cardClassName.join(' ')}>
+    <article className={cardClassName.join(' ')} style={cardStyle}>
       {game.isCompleted ? <span className="game-card__final">Final</span> : null}
-      {showHint && !winnerId && !game.isCompleted ? (
-        <div className="pick-hint">
-          <span className="pick-hint-arrow">→</span>
-          <span className="pick-hint-text">Click a team to pick the winner</span>
-        </div>
-      ) : null}
+      {showHint && !winnerId && !game.isCompleted ? <div className="pick-hint">Click a team to pick the winner</div> : null}
 
       <button
         type="button"
         className={rowClassName(awayTeam.id, winnerId, justPickedKey === `${game.gameId}-${awayTeam.id}`)}
         onClick={() => onPick(game.gameId, awayTeam.id)}
-        disabled={game.isCompleted}
+        disabled={game.isCompleted || disableInteractions}
         style={{ '--prob-width': `${(awayProbability * 100).toFixed(1)}%` } as { [key: string]: string }}
       >
         <div className="team-logo-wrap">
@@ -73,7 +81,8 @@ export function GameCard({
         </div>
         <div className="team-row__identity">
           <span className="team-row__abbr team-abbr">{awayTeam.abbr}</span>
-          <span className="team-row__name">{awayTeam.name}</span>
+          <span className="team-row__city">{awayTeam.city}</span>
+          <span className="team-row__name">{awayDisplayName}</span>
         </div>
         <span className="team-row__odds">{formatOdds(awayProbability, oddsFormat)}</span>
       </button>
@@ -82,7 +91,7 @@ export function GameCard({
         type="button"
         className={rowClassName(homeTeam.id, winnerId, justPickedKey === `${game.gameId}-${homeTeam.id}`)}
         onClick={() => onPick(game.gameId, homeTeam.id)}
-        disabled={game.isCompleted}
+        disabled={game.isCompleted || disableInteractions}
         style={{ '--prob-width': `${(homeProbability * 100).toFixed(1)}%` } as { [key: string]: string }}
       >
         <div className="team-logo-wrap">
@@ -106,7 +115,8 @@ export function GameCard({
         </div>
         <div className="team-row__identity">
           <span className="team-row__abbr team-abbr">{homeTeam.abbr}</span>
-          <span className="team-row__name">{homeTeam.name}</span>
+          <span className="team-row__city">{homeTeam.city}</span>
+          <span className="team-row__name">{homeDisplayName}</span>
           <span className="team-row__home">Home</span>
         </div>
         <span className="team-row__odds">{formatOdds(homeProbability, oddsFormat)}</span>

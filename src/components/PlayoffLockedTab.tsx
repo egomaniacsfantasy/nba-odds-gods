@@ -47,26 +47,88 @@ export function PlayoffLockedTab({
             </button>
           </>
         ) : (
-          <div className="playoff-preview">
-            <div>
-              <h3>East Top 8</h3>
-              <ul>
-                {east.slice(0, 8).map((row, index) => (
-                  <li key={row.teamId}>
-                    {index + 1}. {teamsById.get(row.teamId)?.abbr ?? row.teamId}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3>West Top 8</h3>
-              <ul>
-                {west.slice(0, 8).map((row, index) => (
-                  <li key={row.teamId}>
-                    {index + 1}. {teamsById.get(row.teamId)?.abbr ?? row.teamId}
-                  </li>
-                ))}
-              </ul>
+          <div className="playoffs-preview">
+            <h2>Projected Playoff Field</h2>
+            <p className="coming-soon">Interactive playoff rounds arrive in the next sprint.</p>
+
+            <div className="playoff-preview">
+              <div>
+                <h3>Eastern Conference</h3>
+                {east.slice(0, 8).map((row, index) => {
+                  const team = teamsById.get(row.teamId);
+
+                  return (
+                    <div key={row.teamId} className="seed-card">
+                      <span className="seed-number">{index + 1}</span>
+                      <span className="team-logo-wrap">
+                        <img
+                          className="seed-logo"
+                          src={team?.logoUrl}
+                          alt={team?.name ?? String(row.teamId)}
+                          loading="lazy"
+                          onError={(event: { currentTarget: HTMLImageElement }) => {
+                            event.currentTarget.style.display = 'none';
+                            const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+                            if (fallback) {
+                              fallback.style.display = 'flex';
+                            }
+                          }}
+                        />
+                        <span className="logo-fallback seed-logo-fallback" style={{ display: 'none' }}>
+                          {team?.abbr ?? row.teamId}
+                        </span>
+                      </span>
+                      <div className="seed-info">
+                        <div className="seed-name">{team?.name ?? row.teamId}</div>
+                        {index >= 6 ? <div className="seed-note">Play-In Winner</div> : null}
+                      </div>
+                      <span className="seed-record">
+                        {row.wins}-{row.losses}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div>
+                <h3>Western Conference</h3>
+                {west.slice(0, 8).map((row, index) => {
+                  const team = teamsById.get(row.teamId);
+
+                  return (
+                    <div key={row.teamId} className="seed-card">
+                      <span className="seed-number">{index + 1}</span>
+                      <span className="team-logo-wrap">
+                        <img
+                          className="seed-logo"
+                          src={team?.logoUrl}
+                          alt={team?.name ?? String(row.teamId)}
+                          loading="lazy"
+                          onError={(event: { currentTarget: HTMLImageElement }) => {
+                            event.currentTarget.style.display = 'none';
+                            const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+                            if (fallback) {
+                              fallback.style.display = 'flex';
+                            }
+                          }}
+                        />
+                        <span className="logo-fallback seed-logo-fallback" style={{ display: 'none' }}>
+                          {team?.abbr ?? row.teamId}
+                        </span>
+                      </span>
+                      <div className="seed-info">
+                        <div className="seed-name">{team?.name ?? row.teamId}</div>
+                        {index >= 6 ? <div className="seed-note">Play-In Winner</div> : null}
+                      </div>
+                      <span className="seed-record">
+                        {row.wins}-{row.losses}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

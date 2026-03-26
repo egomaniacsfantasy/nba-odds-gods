@@ -9,7 +9,8 @@ interface ScheduleViewProps {
   justPickedKey: string | null;
   firstHintGameId: number | null;
   showPickHint: boolean;
-  isMobile: boolean;
+  simSweepDelays: Map<number, number>;
+  disableInteractions: boolean;
   onPick: (gameId: number, teamId: number) => void;
 }
 
@@ -21,15 +22,12 @@ export function ScheduleView({
   justPickedKey,
   firstHintGameId,
   showPickHint,
-  isMobile,
+  simSweepDelays,
+  disableInteractions,
   onPick,
 }: ScheduleViewProps) {
   return (
     <div className="schedule-view">
-      {showPickHint && isMobile ? (
-        <div className="mobile-hint-toast">Tap a team to pick the winner of each game</div>
-      ) : null}
-
       {groupedGames.map((group) => (
         <DateGroup
           key={group.date}
@@ -40,7 +38,9 @@ export function ScheduleView({
           oddsFormat={oddsFormat}
           justPickedKey={justPickedKey}
           firstHintGameId={firstHintGameId}
-          showPickHint={showPickHint && !isMobile}
+          showPickHint={showPickHint}
+          simSweepDelays={simSweepDelays}
+          disableInteractions={disableInteractions}
           onPick={onPick}
         />
       ))}

@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { formatGamesBack, formatWinPct } from '../lib/formatOdds';
 import type { ConferenceKey, NbaTeam, StandingsRow } from '../types';
 
@@ -64,48 +65,48 @@ export function StandingsTable({
             return null;
           }
 
-          const classes = [
-            'standings-row',
-            changedTeamIds.includes(row.teamId) ? 'standings-row--changed' : '',
-            index === 5 ? 'standings-row--playoff-line' : '',
-            index === 9 ? 'standings-row--playin-line' : '',
-          ]
+          const classes = ['standings-row', changedTeamIds.includes(row.teamId) ? 'standings-row--changed' : '']
             .filter(Boolean)
             .join(' ');
 
           return (
-            <div key={row.teamId} className={classes}>
-              <span className="logo-col">
-                <span className="team-logo-wrap">
-                  <img
-                    className="standings-logo"
-                    src={team.logoUrl}
-                    alt={team.name}
-                    loading="lazy"
-                    onError={(event: { currentTarget: HTMLImageElement }) => {
-                      event.currentTarget.style.display = 'none';
-                      const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+            <Fragment key={row.teamId}>
+              <div className={classes} data-seed={index + 1}>
+                <span className="logo-col">
+                  <span className="team-logo-wrap">
+                    <img
+                      className="standings-logo"
+                      src={team.logoUrl}
+                      alt={team.name}
+                      loading="lazy"
+                      onError={(event: { currentTarget: HTMLImageElement }) => {
+                        event.currentTarget.style.display = 'none';
+                        const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
 
-                      if (fallback) {
-                        fallback.style.display = 'flex';
-                      }
-                    }}
-                  />
-                  <span className="logo-fallback standings-logo-fallback" style={{ display: 'none' }}>
-                    {team.abbr}
+                        if (fallback) {
+                          fallback.style.display = 'flex';
+                        }
+                      }}
+                    />
+                    <span className="logo-fallback standings-logo-fallback" style={{ display: 'none' }}>
+                      {team.abbr}
+                    </span>
                   </span>
                 </span>
-              </span>
-              <span className="team-col">
-                <span className="standings-team__abbr">{team.abbr}</span>
-                <span className="standings-team__division">{team.division.slice(0, 1)}</span>
-              </span>
-              <span className="num-col">{row.wins}</span>
-              <span className="num-col">{row.losses}</span>
-              <span className="pct-col">{formatWinPct(row.winPct)}</span>
-              <span className="gb-col">{formatGamesBack(row.gamesBack)}</span>
-              <span className={seedClassName(index + 1)}>{row.isPlayIn ? `${index + 1} PI` : `${index + 1}`}</span>
-            </div>
+                <span className="team-col">
+                  <span className="standings-team__abbr">{team.abbr}</span>
+                  <span className="standings-team__division">{team.division.slice(0, 1)}</span>
+                </span>
+                <span className="num-col">{row.wins}</span>
+                <span className="num-col">{row.losses}</span>
+                <span className="pct-col">{formatWinPct(row.winPct)}</span>
+                <span className="gb-col">{formatGamesBack(row.gamesBack)}</span>
+                <span className={seedClassName(index + 1)}>{row.isPlayIn ? `${index + 1} PI` : `${index + 1}`}</span>
+              </div>
+
+              {index === 5 ? <div className="tier-divider">Play-In</div> : null}
+              {index === 9 ? <div className="tier-divider">Eliminated</div> : null}
+            </Fragment>
           );
         })}
       </div>

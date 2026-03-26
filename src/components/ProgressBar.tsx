@@ -18,12 +18,9 @@ export function ProgressBar({ pickedCount, totalCount, unlocked, onGoToPlayoffs 
       </div>
       <p className="progress-copy">
         {unlocked ? (
-          <>
-            The Oracle has spoken —{' '}
-            <button type="button" className="progress-link" onClick={onGoToPlayoffs}>
-              Playoffs unlocked! →
-            </button>
-          </>
+          <button type="button" className="playoffs-unlocked-cta" onClick={onGoToPlayoffs}>
+            The Oracle has spoken — Playoffs unlocked! →
+          </button>
         ) : (
           `${pickedCount} / ${totalCount} games picked (${percentage}%)`
         )}

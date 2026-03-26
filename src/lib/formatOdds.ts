@@ -43,7 +43,7 @@ export function formatDelta(probabilityDelta: number, format: OddsFormat): strin
 }
 
 export function formatProbabilityCell(probability: number, format: OddsFormat): string {
-  if (probability <= 0) {
+  if (probability < 0.01) {
     return '—';
   }
 
