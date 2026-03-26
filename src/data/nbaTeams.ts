@@ -16,11 +16,11 @@ interface TeamProfile {
   elo: number;
   baselineWins: number;
   baselineLosses: number;
+  baselineConfWins: number;
+  baselineConfLosses: number;
+  baselineDivWins: number;
+  baselineDivLosses: number;
 }
-
-const TARGET_GAMES_PLAYED = 73;
-const CONFERENCE_GAMES_PLAYED = Math.round((TARGET_GAMES_PLAYED * 52) / 82);
-const DIVISION_GAMES_PLAYED = Math.round((TARGET_GAMES_PLAYED * 16) / 82);
 
 const TEAM_PROFILES: TeamProfile[] = [
   {
@@ -35,6 +35,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1507.1,
     baselineWins: 41,
     baselineLosses: 32,
+    baselineConfWins: 23,
+    baselineConfLosses: 21,
+    baselineDivWins: 8,
+    baselineDivLosses: 6,
   },
   {
     id: 2,
@@ -48,6 +52,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1659.2,
     baselineWins: 48,
     baselineLosses: 24,
+    baselineConfWins: 29,
+    baselineConfLosses: 14,
+    baselineDivWins: 9,
+    baselineDivLosses: 5,
   },
   {
     id: 3,
@@ -61,6 +69,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1296.5,
     baselineWins: 17,
     baselineLosses: 56,
+    baselineConfWins: 12,
+    baselineConfLosses: 32,
+    baselineDivWins: 3,
+    baselineDivLosses: 12,
   },
   {
     id: 4,
@@ -74,6 +86,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1583.6,
     baselineWins: 38,
     baselineLosses: 34,
+    baselineConfWins: 22,
+    baselineConfLosses: 22,
+    baselineDivWins: 11,
+    baselineDivLosses: 5,
   },
   {
     id: 5,
@@ -87,6 +103,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1381.0,
     baselineWins: 29,
     baselineLosses: 43,
+    baselineConfWins: 17,
+    baselineConfLosses: 29,
+    baselineDivWins: 4,
+    baselineDivLosses: 11,
   },
   {
     id: 6,
@@ -100,6 +120,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1645.2,
     baselineWins: 45,
     baselineLosses: 28,
+    baselineConfWins: 29,
+    baselineConfLosses: 18,
+    baselineDivWins: 10,
+    baselineDivLosses: 5,
   },
   {
     id: 7,
@@ -113,6 +137,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1677.7,
     baselineWins: 52,
     baselineLosses: 20,
+    baselineConfWins: 34,
+    baselineConfLosses: 12,
+    baselineDivWins: 10,
+    baselineDivLosses: 4,
   },
   {
     id: 8,
@@ -126,6 +154,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1332.0,
     baselineWins: 16,
     baselineLosses: 57,
+    baselineConfWins: 12,
+    baselineConfLosses: 33,
+    baselineDivWins: 3,
+    baselineDivLosses: 10,
   },
   {
     id: 9,
@@ -139,6 +171,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1538.0,
     baselineWins: 39,
     baselineLosses: 34,
+    baselineConfWins: 23,
+    baselineConfLosses: 20,
+    baselineDivWins: 7,
+    baselineDivLosses: 7,
   },
   {
     id: 10,
@@ -152,6 +188,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1403.5,
     baselineWins: 29,
     baselineLosses: 43,
+    baselineConfWins: 20,
+    baselineConfLosses: 27,
+    baselineDivWins: 9,
+    baselineDivLosses: 6,
   },
   {
     id: 11,
@@ -165,6 +205,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1661.0,
     baselineWins: 48,
     baselineLosses: 25,
+    baselineConfWins: 31,
+    baselineConfLosses: 15,
+    baselineDivWins: 12,
+    baselineDivLosses: 3,
   },
   {
     id: 12,
@@ -178,6 +222,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1525.5,
     baselineWins: 38,
     baselineLosses: 34,
+    baselineConfWins: 24,
+    baselineConfLosses: 23,
+    baselineDivWins: 9,
+    baselineDivLosses: 7,
   },
   {
     id: 13,
@@ -191,6 +239,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1470.3,
     baselineWins: 40,
     baselineLosses: 33,
+    baselineConfWins: 23,
+    baselineConfLosses: 23,
+    baselineDivWins: 9,
+    baselineDivLosses: 7,
   },
   {
     id: 14,
@@ -204,6 +256,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1507.8,
     baselineWins: 40,
     baselineLosses: 32,
+    baselineConfWins: 29,
+    baselineConfLosses: 16,
+    baselineDivWins: 4,
+    baselineDivLosses: 10,
   },
   {
     id: 15,
@@ -217,6 +273,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1258.0,
     baselineWins: 17,
     baselineLosses: 55,
+    baselineConfWins: 11,
+    baselineConfLosses: 34,
+    baselineDivWins: 2,
+    baselineDivLosses: 12,
   },
   {
     id: 16,
@@ -230,6 +290,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1371.4,
     baselineWins: 23,
     baselineLosses: 50,
+    baselineConfWins: 12,
+    baselineConfLosses: 33,
+    baselineDivWins: 4,
+    baselineDivLosses: 11,
   },
   {
     id: 17,
@@ -243,6 +307,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1590.5,
     baselineWins: 46,
     baselineLosses: 28,
+    baselineConfWins: 28,
+    baselineConfLosses: 16,
+    baselineDivWins: 7,
+    baselineDivLosses: 5,
   },
   {
     id: 18,
@@ -256,6 +324,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1477.3,
     baselineWins: 35,
     baselineLosses: 38,
+    baselineConfWins: 23,
+    baselineConfLosses: 22,
+    baselineDivWins: 6,
+    baselineDivLosses: 6,
   },
   {
     id: 19,
@@ -269,6 +341,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1579.2,
     baselineWins: 43,
     baselineLosses: 29,
+    baselineConfWins: 23,
+    baselineConfLosses: 22,
+    baselineDivWins: 7,
+    baselineDivLosses: 6,
   },
   {
     id: 20,
@@ -282,6 +358,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1546.7,
     baselineWins: 37,
     baselineLosses: 36,
+    baselineConfWins: 22,
+    baselineConfLosses: 23,
+    baselineDivWins: 8,
+    baselineDivLosses: 6,
   },
   {
     id: 21,
@@ -295,6 +375,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1562.7,
     baselineWins: 47,
     baselineLosses: 26,
+    baselineConfWins: 30,
+    baselineConfLosses: 16,
+    baselineDivWins: 8,
+    baselineDivLosses: 7,
   },
   {
     id: 22,
@@ -308,6 +392,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1391.5,
     baselineWins: 24,
     baselineLosses: 48,
+    baselineConfWins: 19,
+    baselineConfLosses: 28,
+    baselineDivWins: 6,
+    baselineDivLosses: 8,
   },
   {
     id: 23,
@@ -321,6 +409,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1572.5,
     baselineWins: 45,
     baselineLosses: 28,
+    baselineConfWins: 28,
+    baselineConfLosses: 21,
+    baselineDivWins: 9,
+    baselineDivLosses: 7,
   },
   {
     id: 24,
@@ -334,6 +426,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1384.3,
     baselineWins: 25,
     baselineLosses: 48,
+    baselineConfWins: 16,
+    baselineConfLosses: 30,
+    baselineDivWins: 7,
+    baselineDivLosses: 8,
   },
   {
     id: 25,
@@ -347,6 +443,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1753.4,
     baselineWins: 57,
     baselineLosses: 16,
+    baselineConfWins: 37,
+    baselineConfLosses: 9,
+    baselineDivWins: 11,
+    baselineDivLosses: 3,
   },
   {
     id: 26,
@@ -360,6 +460,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1507.6,
     baselineWins: 40,
     baselineLosses: 33,
+    baselineConfWins: 25,
+    baselineConfLosses: 21,
+    baselineDivWins: 10,
+    baselineDivLosses: 6,
   },
   {
     id: 27,
@@ -373,6 +477,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1457.9,
     baselineWins: 37,
     baselineLosses: 37,
+    baselineConfWins: 25,
+    baselineConfLosses: 20,
+    baselineDivWins: 7,
+    baselineDivLosses: 8,
   },
   {
     id: 28,
@@ -386,6 +494,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1316.6,
     baselineWins: 19,
     baselineLosses: 54,
+    baselineConfWins: 12,
+    baselineConfLosses: 35,
+    baselineDivWins: 3,
+    baselineDivLosses: 10,
   },
   {
     id: 29,
@@ -399,6 +511,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1722.4,
     baselineWins: 55,
     baselineLosses: 18,
+    baselineConfWins: 32,
+    baselineConfLosses: 14,
+    baselineDivWins: 12,
+    baselineDivLosses: 3,
   },
   {
     id: 30,
@@ -412,6 +528,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     elo: 1316.3,
     baselineWins: 21,
     baselineLosses: 52,
+    baselineConfWins: 11,
+    baselineConfLosses: 33,
+    baselineDivWins: 1,
+    baselineDivLosses: 12,
   },
 ];
 
@@ -420,14 +540,7 @@ function logoUrl(profile: TeamProfile): string {
 }
 
 function createTeam(profile: TeamProfile): NbaTeam {
-  // Use exact current wins/losses — do NOT normalize via TARGET_GAMES_PLAYED
-  // (doing so adds rounding error and makes total games wrong when combined with remaining schedule)
-  const wins = profile.baselineWins;
-  const losses = profile.baselineLosses;
-  const confWins = deriveConferenceWins(profile, wins, losses);
-  const confLosses = CONFERENCE_GAMES_PLAYED - confWins;
-  const divWins = deriveDivisionWins(profile, wins, losses, confWins);
-  const divLosses = DIVISION_GAMES_PLAYED - divWins;
+  // Use actual wins/losses and conf/div records from current standings
   return {
     id: profile.id,
     name: `${profile.city} ${profile.name}`,
@@ -437,34 +550,13 @@ function createTeam(profile: TeamProfile): NbaTeam {
     division: profile.division,
     logoUrl: logoUrl(profile),
     primaryColor: profile.primaryColor,
-    wins,
-    losses,
-    divWins,
-    divLosses,
-    confWins,
-    confLosses,
+    wins: profile.baselineWins,
+    losses: profile.baselineLosses,
+    confWins: profile.baselineConfWins,
+    confLosses: profile.baselineConfLosses,
+    divWins: profile.baselineDivWins,
+    divLosses: profile.baselineDivLosses,
   };
-}
-
-function deriveConferenceWins(profile: TeamProfile, wins: number, losses: number): number {
-  const winPct = wins / (wins + losses);
-  const bonus = clamp((profile.elo - 1500) / 120, -2.5, 2.5);
-  const minimum = Math.max(0, CONFERENCE_GAMES_PLAYED - losses);
-  const maximum = Math.min(wins, CONFERENCE_GAMES_PLAYED);
-  return clampInt(winPct * CONFERENCE_GAMES_PLAYED + bonus, minimum, maximum);
-}
-
-function deriveDivisionWins(
-  profile: TeamProfile,
-  wins: number,
-  losses: number,
-  conferenceWins: number,
-): number {
-  const winPct = wins / (wins + losses);
-  const bonus = clamp((profile.elo - 1500) / 220, -1.4, 1.4);
-  const minimum = Math.max(0, DIVISION_GAMES_PLAYED - (CONFERENCE_GAMES_PLAYED - conferenceWins));
-  const maximum = Math.min(conferenceWins, wins, DIVISION_GAMES_PLAYED);
-  return clampInt(winPct * DIVISION_GAMES_PLAYED + bonus, minimum, maximum);
 }
 
 function pairKey(teamAId: number, teamBId: number): string {

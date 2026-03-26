@@ -9,7 +9,6 @@
 import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { getSeriesGameProb, RoundKey } from '../data/nbaSeriesGameProbs';
 import { getPlayinProb } from '../data/nbaPlayinProbs';
-import { getTeamRating } from '../data/nbaTeams';
 import type {
   LockedPicks,
   NbaGame,
@@ -55,22 +54,11 @@ function incrementSeedCount(counter: SimulationTeamCounter, seed: number): void 
   counter.seedCounts.set(seed, (counter.seedCounts.get(seed) ?? 0) + 1);
 }
 
-function simulateSingleGame(
-  teamAId: number,
-  teamBId: number,
-  homeTeamId: number,
-  random: () => number,
-): number {
-  const awayTeamId = homeTeamId === teamAId ? teamBId : teamAId;
-  // Use LightGBM matchup probs (same model as regular season pHomeWins)
-  const homeWins = random() < getMatchupProb(homeTeamId, awayTeamId, 'home');
-  return homeWins ? homeTeamId : awayTeamId;
-}
-
 function decideHomeCourt(
   teamA: SeededTeam,
   teamB: SeededTeam,
   regularSeasonWins: Map<number, number>,
+  random: () => number,
 ): number {
   // NBA rule: home court = better regular-season record (matches Python CELL 15/13).
   // Seed used only as tiebreaker when simulated wins are equal.
@@ -82,7 +70,8 @@ function decideHomeCourt(
   if (teamA.seed !== teamB.seed) {
     return teamA.seed < teamB.seed ? teamA.teamId : teamB.teamId;
   }
-  return getTeamRating(teamA.teamId) >= getTeamRating(teamB.teamId) ? teamA.teamId : teamB.teamId;
+  // Final tiebreaker: random (matches Python's random.shuffle tiebreak)
+  return random() < 0.5 ? teamA.teamId : teamB.teamId;
 }
 
 function simulateSeries(
@@ -92,17 +81,19 @@ function simulateSeries(
   roundKey: RoundKey,
   random: () => number,
 ): number {
-  const homeCourtTeamId = decideHomeCourt(teamA, teamB, regularSeasonWins);
+  const homeCourtTeamId = decideHomeCourt(teamA, teamB, regularSeasonWins, random);
   const challengerId = homeCourtTeamId === teamA.teamId ? teamB.teamId : teamA.teamId;
   // Game-by-game using SERIES_GAME_PROB lookup — identical to Python MC CELL 15.
   // getSeriesGameProb encodes home/away (games 1,2,5,7 = hs home) + series state.
   let hsW = 0;
   let lsW = 0;
+  // Always run all 7 games to keep RNG stream length constant (locked path also consumes 7).
+  // Games after the series is clinched still consume one draw each but don't affect the winner.
   for (let g = 1; g <= 7; g++) {
-    if (hsW === 4 || lsW === 4) break;
-    const p = getSeriesGameProb(roundKey, homeCourtTeamId, challengerId, g, hsW, lsW);
-    if (random() < p) hsW += 1;
-    else lsW += 1;
+    const seriesOver = hsW === 4 || lsW === 4;
+    const p = seriesOver ? 0.5 : getSeriesGameProb(roundKey, homeCourtTeamId, challengerId, g, hsW, lsW);
+    if (random() < p) { if (!seriesOver) hsW += 1; }
+    else { if (!seriesOver) lsW += 1; }
   }
   return hsW === 4 ? homeCourtTeamId : challengerId;
 }
@@ -192,6 +183,8 @@ function simulateConferenceBracket(
     let winnerId: number;
     if (lockedWinner !== undefined &&
         (lockedWinner === teamA.teamId || lockedWinner === teamB.teamId)) {
+      // Consume 7 draws to keep RNG stream aligned with unlocked iterations (best-of-7 max)
+      for (let _i = 0; _i < 7; _i += 1) random();
       winnerId = lockedWinner;
     } else {
       winnerId = simulateSeries(teamA, teamB, regularSeasonWins, `${conf}_r1` as RoundKey, random);

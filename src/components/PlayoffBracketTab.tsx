@@ -1,7 +1,6 @@
 // Auto-generated PlayoffBracketTab.tsx — do not edit manually
 // Updated: 2026-03-26
 import { useMemo } from 'react';
-import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { getSeriesWinProb, RoundKey } from '../data/nbaSeriesGameProbs';
 import { getPlayinProb, PlayinSlot } from '../data/nbaPlayinProbs';
 import { PLAYIN_GAME_IDS, R1_GAME_IDS } from '../lib/simulation';

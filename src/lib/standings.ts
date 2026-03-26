@@ -1,452 +1,260 @@
-import { NBA_BASELINE_HEAD_TO_HEAD, NBA_BASELINE_POINT_DIFF, NBA_TEAM_LOOKUP } from '../data/nbaTeams';
-import type {
-  HeadToHeadRecord,
-  LeagueStandingsState,
-  LockedPicks,
-  NbaGame,
-  NbaTeam,
-  ResolvedGame,
-  StandingsRow,
-  TeamSeasonState,
-} from '../types';
-import { clamp } from './rng';
+// Auto-generated standings.ts — do not edit manually
+// Updated: 2026-03-26
+// Full NBA tiebreaker: H2H → div leader → div record → conf record → random
+// Matches Python CELL 12 _tiebreak() exactly.
+import type { LockedPicks, NbaGame, NbaTeam, StandingsRow } from '../types';
 
-function pairKey(teamAId: number, teamBId: number): string {
-  return teamAId < teamBId ? `${teamAId}-${teamBId}` : `${teamBId}-${teamAId}`;
+function _wlPct(w: number, l: number): number {
+  return w + l > 0 ? w / (w + l) : 0;
 }
 
-function parsePairKey(value: string): [number, number] {
-  const [teamAId, teamBId] = value.split('-').map(Number);
-  return [teamAId, teamBId];
+function _h2hKey(a: number, b: number): string {
+  return `${Math.min(a, b)}:${Math.max(a, b)}`;
 }
 
-function cloneHeadToHeadMap(): Map<string, HeadToHeadRecord> {
-  return new Map(
-    Array.from(NBA_BASELINE_HEAD_TO_HEAD.entries()).map(([key, record]) => [key, { ...record }]),
-  );
-}
-
-function createInitialStates(teams: NbaTeam[]): Map<number, TeamSeasonState> {
-  return new Map(
-    teams.map((team) => [
-      team.id,
-      {
-        teamId: team.id,
-        conference: team.conference,
-        division: team.division,
-        wins: team.wins,
-        losses: team.losses,
-        divWins: team.divWins,
-        divLosses: team.divLosses,
-        confWins: team.confWins,
-        confLosses: team.confLosses,
-        pointDifferential: NBA_BASELINE_POINT_DIFF.get(team.id) ?? 0,
-        recentResults: [],
-        resultsByOpponent: new Map<number, HeadToHeadRecord>(),
-      },
-    ]),
-  );
-}
-
-function hydrateOpponentRecords(
-  states: Map<number, TeamSeasonState>,
-  headToHead: Map<string, HeadToHeadRecord>,
-): void {
-  for (const [key, record] of headToHead.entries()) {
-    const [lowerId, higherId] = parsePairKey(key);
-    const lowerState = states.get(lowerId);
-    const higherState = states.get(higherId);
-
-    if (!lowerState || !higherState) {
-      continue;
+function _h2hWinPct(h2h: Map<string, [number, number]>, tid: number, group: number[]): number {
+  let w = 0; let total = 0;
+  for (const opp of group) {
+    if (opp === tid) continue;
+    const key = _h2hKey(tid, opp);
+    const rec = h2h.get(key);
+    if (rec) {
+      const tw = tid < opp ? rec[0] : rec[1];
+      const tl = tid < opp ? rec[1] : rec[0];
+      w += tw; total += tw + tl;
     }
-
-    lowerState.resultsByOpponent.set(higherId, { w: record.w, l: record.l });
-    higherState.resultsByOpponent.set(lowerId, { w: record.l, l: record.w });
   }
+  return total > 0 ? w / total : 0;
 }
 
-function updateHeadToHead(
-  headToHead: Map<string, HeadToHeadRecord>,
-  winnerId: number,
-  loserId: number,
-): void {
-  const key = pairKey(winnerId, loserId);
-  const current = headToHead.get(key) ?? { w: 0, l: 0 };
-
-  if (winnerId < loserId) {
-    current.w += 1;
-  } else {
-    current.l += 1;
-  }
-
-  headToHead.set(key, current);
+interface _SimState {
+  wins: number; losses: number;
+  confWins: number; confLosses: number;
+  divWins: number; divLosses: number;
 }
 
-function updateOpponentRecords(
-  states: Map<number, TeamSeasonState>,
-  winnerId: number,
-  loserId: number,
-): void {
-  const winnerState = states.get(winnerId);
-  const loserState = states.get(loserId);
-
-  if (!winnerState || !loserState) {
-    return;
+function _computeDivLeaders(
+  teams: NbaTeam[],
+  state: Map<number, _SimState>,
+): Set<number> {
+  const byDiv = new Map<string, number[]>();
+  for (const t of teams) {
+    const g = byDiv.get(t.division) ?? [];
+    g.push(t.id);
+    byDiv.set(t.division, g);
   }
-
-  const winnerRecord = winnerState.resultsByOpponent.get(loserId) ?? { w: 0, l: 0 };
-  winnerRecord.w += 1;
-  winnerState.resultsByOpponent.set(loserId, winnerRecord);
-
-  const loserRecord = loserState.resultsByOpponent.get(winnerId) ?? { w: 0, l: 0 };
-  loserRecord.l += 1;
-  loserState.resultsByOpponent.set(winnerId, loserRecord);
+  const leaders = new Set<number>();
+  for (const members of byDiv.values()) {
+    const maxW = Math.max(...members.map((id) => state.get(id)!.wins));
+    const top = members.filter((id) => state.get(id)!.wins === maxW);
+    if (top.length === 1) { leaders.add(top[0]); continue; }
+    const minL = Math.min(...top.map((id) => state.get(id)!.losses));
+    const final = top.filter((id) => state.get(id)!.losses === minL);
+    if (final.length === 1) leaders.add(final[0]);
+  }
+  return leaders;
 }
 
-function isSameConference(game: ResolvedGame): boolean {
-  const homeTeam = NBA_TEAM_LOOKUP.get(game.homeTeamId);
-  const awayTeam = NBA_TEAM_LOOKUP.get(game.awayTeamId);
-  return homeTeam?.conference === awayTeam?.conference;
-}
+function _tiebreak(
+  group: number[],
+  state: Map<number, _SimState>,
+  h2h: Map<string, [number, number]>,
+  divLeaders: Set<number>,
+  divMap: Map<number, string>,
+  random: () => number,
+): number[] {
+  if (group.length <= 1) return [...group];
 
-function isSameDivision(game: ResolvedGame): boolean {
-  const homeTeam = NBA_TEAM_LOOKUP.get(game.homeTeamId);
-  const awayTeam = NBA_TEAM_LOOKUP.get(game.awayTeamId);
-  return homeTeam?.conference === awayTeam?.conference && homeTeam?.division === awayTeam?.division;
-}
-
-function applyResolvedGame(
-  states: Map<number, TeamSeasonState>,
-  headToHead: Map<string, HeadToHeadRecord>,
-  game: ResolvedGame,
-): void {
-  const winnerState = states.get(game.winnerId);
-  const loserState = states.get(game.loserId);
-
-  if (!winnerState || !loserState) {
-    return;
-  }
-
-  winnerState.wins += 1;
-  loserState.losses += 1;
-  winnerState.pointDifferential += game.estimatedMargin;
-  loserState.pointDifferential -= game.estimatedMargin;
-  winnerState.recentResults.push('W');
-  loserState.recentResults.push('L');
-
-  if (isSameConference(game)) {
-    winnerState.confWins += 1;
-    loserState.confLosses += 1;
-  }
-
-  if (isSameDivision(game)) {
-    winnerState.divWins += 1;
-    loserState.divLosses += 1;
-  }
-
-  updateHeadToHead(headToHead, game.winnerId, game.loserId);
-  updateOpponentRecords(states, game.winnerId, game.loserId);
-}
-
-function headToHeadPct(team: TeamSeasonState, group: TeamSeasonState[]): number {
-  let wins = 0;
-  let losses = 0;
-
-  for (const opponent of group) {
-    if (opponent.teamId === team.teamId) {
-      continue;
+  // Step 1: H2H win% among tied group (remaining schedule only)
+  const h2hPcts = group.map((t) => Math.round(_h2hWinPct(h2h, t, group) * 1e8));
+  if (new Set(h2hPcts).size > 1) {
+    const buckets = new Map<number, number[]>();
+    group.forEach((t, i) => { buckets.set(h2hPcts[i], [...(buckets.get(h2hPcts[i]) ?? []), t]); });
+    const result: number[] = [];
+    for (const k of [...buckets.keys()].sort((a, b) => b - a)) {
+      result.push(..._tiebreak(buckets.get(k)!, state, h2h, divLeaders, divMap, random));
     }
-
-    const record = team.resultsByOpponent.get(opponent.teamId);
-
-    if (!record) {
-      continue;
-    }
-
-    wins += record.w;
-    losses += record.l;
+    return result;
   }
 
-  const games = wins + losses;
-  return games === 0 ? 0.5 : wins / games;
-}
-
-function winPct(wins: number, losses: number): number {
-  const games = wins + losses;
-  return games === 0 ? 0 : wins / games;
-}
-
-function recordVsProjectedPlayoffTeamsPct(
-  team: TeamSeasonState,
-  projectedPlayoffIds: Set<number> | null,
-): number {
-  if (!projectedPlayoffIds) {
-    return 0;
+  // Step 2: Division leader status
+  const nLead = group.filter((t) => divLeaders.has(t)).length;
+  if (nLead > 0 && nLead < group.length) {
+    const lead = group.filter((t) => divLeaders.has(t));
+    const rest = group.filter((t) => !divLeaders.has(t));
+    return [
+      ..._tiebreak(lead, state, h2h, divLeaders, divMap, random),
+      ..._tiebreak(rest, state, h2h, divLeaders, divMap, random),
+    ];
   }
 
-  let wins = 0;
-  let losses = 0;
-
-  for (const playoffTeamId of projectedPlayoffIds) {
-    if (playoffTeamId === team.teamId) {
-      continue;
-    }
-
-    const record = team.resultsByOpponent.get(playoffTeamId);
-
-    if (!record) {
-      continue;
-    }
-
-    wins += record.w;
-    losses += record.l;
-  }
-
-  const games = wins + losses;
-
-  if (games === 0) {
-    return winPct(team.confWins, team.confLosses);
-  }
-
-  return wins / games;
-}
-
-function sortTieGroup(
-  group: TeamSeasonState[],
-  projectedPlayoffIds: Set<number> | null,
-): TeamSeasonState[] {
-  const allSameDivision = group.every((team) => team.division === group[0].division);
-
-  return [...group].sort((teamA, teamB) => {
-    const teamAHeadToHead = headToHeadPct(teamA, group);
-    const teamBHeadToHead = headToHeadPct(teamB, group);
-
-    if (teamAHeadToHead !== teamBHeadToHead) {
-      return teamBHeadToHead - teamAHeadToHead;
-    }
-
-    if (allSameDivision) {
-      const teamADivPct = winPct(teamA.divWins, teamA.divLosses);
-      const teamBDivPct = winPct(teamB.divWins, teamB.divLosses);
-
-      if (teamADivPct !== teamBDivPct) {
-        return teamBDivPct - teamADivPct;
+  // Step 3: Division record (only when all in same division)
+  const divs = new Set(group.map((t) => divMap.get(t) ?? ''));
+  if (divs.size === 1) {
+    const divPcts = group.map((t) => {
+      const s = state.get(t)!;
+      return Math.round(_wlPct(s.divWins, s.divLosses) * 1e8);
+    });
+    if (new Set(divPcts).size > 1) {
+      const buckets = new Map<number, number[]>();
+      group.forEach((t, i) => { buckets.set(divPcts[i], [...(buckets.get(divPcts[i]) ?? []), t]); });
+      const result: number[] = [];
+      for (const k of [...buckets.keys()].sort((a, b) => b - a)) {
+        result.push(..._tiebreak(buckets.get(k)!, state, h2h, divLeaders, divMap, random));
       }
+      return result;
     }
-
-    const teamAConfPct = winPct(teamA.confWins, teamA.confLosses);
-    const teamBConfPct = winPct(teamB.confWins, teamB.confLosses);
-
-    if (teamAConfPct !== teamBConfPct) {
-      return teamBConfPct - teamAConfPct;
-    }
-
-    const teamAPlayoffPct = recordVsProjectedPlayoffTeamsPct(teamA, projectedPlayoffIds);
-    const teamBPlayoffPct = recordVsProjectedPlayoffTeamsPct(teamB, projectedPlayoffIds);
-
-    if (teamAPlayoffPct !== teamBPlayoffPct) {
-      return teamBPlayoffPct - teamAPlayoffPct;
-    }
-
-    if (teamA.pointDifferential !== teamB.pointDifferential) {
-      return teamB.pointDifferential - teamA.pointDifferential;
-    }
-
-    return teamA.teamId - teamB.teamId;
-  });
-}
-
-function groupTiedTeams(sortedTeams: TeamSeasonState[]): TeamSeasonState[][] {
-  const groups: TeamSeasonState[][] = [];
-
-  for (const team of sortedTeams) {
-    const lastGroup = groups[groups.length - 1];
-
-    if (!lastGroup) {
-      groups.push([team]);
-      continue;
-    }
-
-    const lastTeam = lastGroup[0];
-
-    if (team.wins === lastTeam.wins && team.losses === lastTeam.losses) {
-      lastGroup.push(team);
-      continue;
-    }
-
-    groups.push([team]);
   }
 
-  return groups;
+  // Step 4: Conference record
+  const confPcts = group.map((t) => {
+    const s = state.get(t)!;
+    return Math.round(_wlPct(s.confWins, s.confLosses) * 1e8);
+  });
+  if (new Set(confPcts).size > 1) {
+    const buckets = new Map<number, number[]>();
+    group.forEach((t, i) => { buckets.set(confPcts[i], [...(buckets.get(confPcts[i]) ?? []), t]); });
+    const result: number[] = [];
+    for (const k of [...buckets.keys()].sort((a, b) => b - a)) {
+      result.push(..._tiebreak(buckets.get(k)!, state, h2h, divLeaders, divMap, random));
+    }
+    return result;
+  }
+
+  // Step 5: Random (Fisher-Yates with sim RNG — matches Python random.shuffle)
+  const shuffled = [...group];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
-function rankConference(
-  teams: TeamSeasonState[],
-  projectedPlayoffIds: Set<number> | null,
-): TeamSeasonState[] {
-  const winSorted = [...teams].sort((teamA, teamB) => {
-    if (teamA.wins !== teamB.wins) {
-      return teamB.wins - teamA.wins;
-    }
+function _seedConference(
+  confTeams: NbaTeam[],
+  state: Map<number, _SimState>,
+  h2h: Map<string, [number, number]>,
+  random: () => number,
+): StandingsRow[] {
+  const divLeaders = _computeDivLeaders(confTeams, state);
+  const divMap = new Map(confTeams.map((t) => [t.id, t.division]));
 
-    return teamA.losses - teamB.losses;
+  // Sort: wins desc, losses asc — group ties together
+  const sorted = [...confTeams].sort((a, b) => {
+    const sa = state.get(a.id)!; const sb = state.get(b.id)!;
+    if (sb.wins !== sa.wins) return sb.wins - sa.wins;
+    return sa.losses - sb.losses;
   });
 
-  const groups = groupTiedTeams(winSorted);
-  return groups.flatMap((group) =>
-    group.length === 1 ? group : sortTieGroup(group, projectedPlayoffIds),
-  );
-}
+  const result: number[] = [];
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i + 1;
+    const si = state.get(sorted[i].id)!;
+    while (j < sorted.length) {
+      const sj = state.get(sorted[j].id)!;
+      if (sj.wins !== si.wins || sj.losses !== si.losses) break;
+      j++;
+    }
+    result.push(..._tiebreak(
+      sorted.slice(i, j).map((t) => t.id),
+      state, h2h, divLeaders, divMap, random,
+    ));
+    i = j;
+  }
 
-function conferenceRows(orderedTeams: TeamSeasonState[]): StandingsRow[] {
-  const leader = orderedTeams[0];
-
-  return orderedTeams.map((team, index) => {
-    const seed = index + 1;
-    const gamesBack =
-      leader.teamId === team.teamId
-        ? 0
-        : (leader.wins - team.wins + team.losses - leader.losses) / 2;
-    const streak = deriveStreak(team.recentResults);
-    const isPlayIn = seed >= 7 && seed <= 10;
-    const isEliminated = seed > 10;
-
+  const best = state.get(result[0])!.wins;
+  return result.map((teamId, idx) => {
+    const s = state.get(teamId)!;
+    const seed = idx + 1;
+    const seedLbl = seed >= 7 && seed <= 10 ? `${seed} (PI)` : `${seed}`;
+    const gb = best - s.wins;
     return {
-      teamId: team.teamId,
-      wins: team.wins,
-      losses: team.losses,
-      winPct: winPct(team.wins, team.losses),
-      gamesBack,
-      divWins: team.divWins,
-      divLosses: team.divLosses,
-      confWins: team.confWins,
-      confLosses: team.confLosses,
+      teamId,
+      wins: s.wins,
+      losses: s.losses,
+      winPct: _wlPct(s.wins, s.losses),
+      confWins: s.confWins,
+      confLosses: s.confLosses,
+      divWins: s.divWins,
+      divLosses: s.divLosses,
+      gamesBack: gb,
       projectedSeed: seed <= 10 ? seed : null,
-      seedLabel: isPlayIn ? `${seed} (PI)` : `${seed}`,
-      isPlayIn,
-      isEliminated,
-      streak,
+      seedLabel: seedLbl,
     };
   });
 }
 
-function deriveStreak(recentResults: Array<'W' | 'L'>): string {
-  if (recentResults.length === 0) {
-    return '—';
-  }
-
-  const latest = recentResults[recentResults.length - 1];
-  let streakLength = 0;
-
-  for (let index = recentResults.length - 1; index >= 0; index -= 1) {
-    if (recentResults[index] !== latest) {
-      break;
-    }
-
-    streakLength += 1;
-  }
-
-  return `${latest}${streakLength}`;
-}
-
-function buildRows(
-  states: Map<number, TeamSeasonState>,
-): Pick<LeagueStandingsState, 'east' | 'west'> {
-  const eastStates = Array.from(states.values()).filter((state) => state.conference === 'East');
-  const westStates = Array.from(states.values()).filter((state) => state.conference === 'West');
-  const eastPreliminary = rankConference(eastStates, null);
-  const westPreliminary = rankConference(westStates, null);
-  const eastPlayoffIds = new Set(eastPreliminary.slice(0, 10).map((team) => team.teamId));
-  const westPlayoffIds = new Set(westPreliminary.slice(0, 10).map((team) => team.teamId));
-  const east = conferenceRows(rankConference(eastStates, eastPlayoffIds));
-  const west = conferenceRows(rankConference(westStates, westPlayoffIds));
-
-  return { east, west };
-}
-
-function estimatedMargin(game: NbaGame, winnerId: number): number {
-  const winnerProbability =
-    winnerId === game.homeTeamId ? game.pHomeWins : 1 - game.pHomeWins;
-  return Number(clamp(Math.abs(winnerProbability - 0.5) * 20 + 1.5, 1, 10).toFixed(1));
-}
-
-export function cloneLockedPicks(lockedPicks: LockedPicks): LockedPicks {
-  return new Map(lockedPicks);
-}
-
-export function getMostLikelyWinner(game: NbaGame): number {
-  return game.pHomeWins >= 0.5 ? game.homeTeamId : game.awayTeamId;
-}
-
-export function buildResolvedGames(
+function _runStandings(
   lockedPicks: LockedPicks,
   schedule: NbaGame[],
-  random?: () => number,
-): ResolvedGame[] {
-  return schedule.map((game) => {
-    let winnerId = game.actualWinnerId;
-    let wasCompleted = Boolean(game.isCompleted && game.actualWinnerId);
-    let wasLocked = false;
-
-    if (!winnerId && lockedPicks.has(game.gameId)) {
-      if (random) random(); // keep RNG stream aligned across iterations
-      winnerId = lockedPicks.get(game.gameId);
-      wasLocked = true;
-    }
-
-    if (!winnerId && random) {
-      winnerId = random() < game.pHomeWins ? game.homeTeamId : game.awayTeamId;
-    }
-
-    if (!winnerId) {
-      winnerId = getMostLikelyWinner(game);
-    }
-
-    const loserId = winnerId === game.homeTeamId ? game.awayTeamId : game.homeTeamId;
-
-    return {
-      gameId: game.gameId,
-      gameDate: game.gameDate,
-      homeTeamId: game.homeTeamId,
-      awayTeamId: game.awayTeamId,
-      winnerId,
-      loserId,
-      wasCompleted,
-      wasLocked,
-      estimatedMargin: estimatedMargin(game, winnerId),
-    };
-  });
-}
-
-export function computeStandingsFromResolvedGames(
   teams: NbaTeam[],
-  resolvedGames: ResolvedGame[],
-): LeagueStandingsState {
-  const states = createInitialStates(teams);
-  const headToHead = cloneHeadToHeadMap();
-  hydrateOpponentRecords(states, headToHead);
+  random: (() => number) | null,
+): { east: StandingsRow[]; west: StandingsRow[] } {
+  const state = new Map<number, _SimState>(
+    teams.map((t) => [t.id, {
+      wins: t.wins, losses: t.losses,
+      confWins: t.confWins, confLosses: t.confLosses,
+      divWins: t.divWins, divLosses: t.divLosses,
+    }]),
+  );
 
-  for (const game of resolvedGames) {
-    applyResolvedGame(states, headToHead, game);
+  const teamConf = new Map(teams.map((t) => [t.id, t.conference]));
+  const teamDiv  = new Map(teams.map((t) => [t.id, t.division]));
+  const h2h = new Map<string, [number, number]>();
+
+  for (const game of schedule) {
+    const homeState = state.get(game.homeTeamId);
+    const awayState = state.get(game.awayTeamId);
+    if (!homeState || !awayState) continue;
+
+    let homeWins: boolean;
+    if (lockedPicks.has(game.gameId)) {
+      if (random) random(); // keep RNG stream aligned — consume draw even for locked games
+      homeWins = lockedPicks.get(game.gameId) === game.homeTeamId;
+    } else if (random) {
+      homeWins = random() < game.pHomeWins;
+    } else {
+      homeWins = game.pHomeWins >= 0.5;
+    }
+
+    if (homeWins) { homeState.wins++; awayState.losses++; }
+    else          { awayState.wins++; homeState.losses++; }
+
+    const sameConf = teamConf.get(game.homeTeamId) === teamConf.get(game.awayTeamId);
+    const sameDiv  = teamDiv.get(game.homeTeamId)  === teamDiv.get(game.awayTeamId);
+
+    if (sameConf) {
+      if (homeWins) { homeState.confWins++; awayState.confLosses++; }
+      else          { awayState.confWins++; homeState.confLosses++; }
+    }
+    if (sameDiv) {
+      if (homeWins) { homeState.divWins++; awayState.divLosses++; }
+      else          { awayState.divWins++; homeState.divLosses++; }
+    }
+
+    // Track H2H for remaining games (used in tiebreaker)
+    if (random) {
+      const lo = Math.min(game.homeTeamId, game.awayTeamId);
+      const hi = Math.max(game.homeTeamId, game.awayTeamId);
+      const key = _h2hKey(lo, hi);
+      const rec: [number, number] = h2h.get(key) ?? [0, 0];
+      if (homeWins) {
+        if (game.homeTeamId === lo) rec[0]++; else rec[1]++;
+      } else {
+        if (game.awayTeamId === lo) rec[0]++; else rec[1]++;
+      }
+      h2h.set(key, rec);
+    }
   }
 
-  const rows = buildRows(states);
-
+  const rng = random ?? (() => Math.random());
+  const east = teams.filter((t) => t.conference === 'East');
+  const west = teams.filter((t) => t.conference === 'West');
   return {
-    east: rows.east,
-    west: rows.west,
-    states,
-    headToHead,
+    east: _seedConference(east, state, h2h, rng),
+    west: _seedConference(west, state, h2h, rng),
   };
-}
-
-export function computeProjectedStandings(
-  lockedPicks: LockedPicks,
-  schedule: NbaGame[],
-  teams: NbaTeam[],
-): LeagueStandingsState {
-  return computeStandingsFromResolvedGames(teams, buildResolvedGames(lockedPicks, schedule));
 }
 
 export function computeSimulatedStandings(
@@ -454,18 +262,28 @@ export function computeSimulatedStandings(
   schedule: NbaGame[],
   teams: NbaTeam[],
   random: () => number,
-): LeagueStandingsState {
-  return computeStandingsFromResolvedGames(teams, buildResolvedGames(lockedPicks, schedule, random));
+): { east: StandingsRow[]; west: StandingsRow[] } {
+  return _runStandings(lockedPicks, schedule, teams, random);
+}
+
+export function computeProjectedStandings(
+  lockedPicks: LockedPicks,
+  schedule: NbaGame[],
+  teams: NbaTeam[],
+): { east: StandingsRow[]; west: StandingsRow[] } {
+  return _runStandings(lockedPicks, schedule, teams, null);
+}
+
+export function cloneLockedPicks(lockedPicks: LockedPicks): LockedPicks {
+  return new Map(lockedPicks);
 }
 
 export function groupGamesByDate(schedule: NbaGame[]): Map<string, NbaGame[]> {
-  const grouped = new Map<string, NbaGame[]>();
-
+  const byDate = new Map<string, NbaGame[]>();
   for (const game of schedule) {
-    const games = grouped.get(game.gameDate) ?? [];
+    const games = byDate.get(game.gameDate) ?? [];
     games.push(game);
-    grouped.set(game.gameDate, games);
+    byDate.set(game.gameDate, games);
   }
-
-  return grouped;
+  return byDate;
 }

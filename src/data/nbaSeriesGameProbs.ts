@@ -8,7 +8,6 @@ const _TI = new Map<number, number>((_T as unknown as number[]).map((id, i) => [
 const N_T = 0;
 const _R = ["east_r1","west_r1","east_r2","west_r2","east_cf","west_cf","finals"] as const;
 const _RI = new Map<string, number>((_R as unknown as string[]).map((r, i) => [r, i]));
-const N_R = 7;
 const _STATES: [number, number, number][] = [[1,0,0],[2,0,1],[2,1,0],[3,0,2],[3,1,1],[3,2,0],[4,0,3],[4,1,2],[4,2,1],[4,3,0],[5,1,3],[5,2,2],[5,3,1],[6,2,3],[6,3,2],[7,3,3]];
 const _SI = new Map<string, number>(_STATES.map(([g, hw, lw], i) => [`${g}_${hw}_${lw}`, i]));
 const N_S = 16;
