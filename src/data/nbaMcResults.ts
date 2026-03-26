@@ -1,0 +1,73 @@
+// Auto-generated from nba_mc_results.xlsx + nba_standings.xlsx
+// Updated: 2026-03-25 — do not edit manually
+
+import type { TeamAdvancement, StandingsRow } from '../types';
+
+export const NBA_MC_ADVANCEMENT: Map<number, TeamAdvancement> = new Map([
+  [25, { teamId: 25, seed: 1, seedLabel: "1", pTop6: 1.0, pPlayIn: 0.0, pMakesPlayoffs: 1.0, pWinsR1: 0.91, pConfFinals: 0.749, pFinals: 0.573, pChampion: 0.443 }],
+  [29, { teamId: 29, seed: 2, seedLabel: "2", pTop6: 1.0, pPlayIn: 0.0, pMakesPlayoffs: 1.0, pWinsR1: 0.829, pConfFinals: 0.592, pFinals: 0.227, pChampion: 0.136 }],
+  [7, { teamId: 7, seed: 1, seedLabel: "1", pTop6: 1.0, pPlayIn: 0.0, pMakesPlayoffs: 1.0, pWinsR1: 0.72, pConfFinals: 0.332, pFinals: 0.124, pChampion: 0.032 }],
+  [2, { teamId: 2, seed: 2, seedLabel: "2", pTop6: 1.0, pPlayIn: 0.0, pMakesPlayoffs: 1.0, pWinsR1: 0.795, pConfFinals: 0.468, pFinals: 0.298, pChampion: 0.115 }],
+  [11, { teamId: 11, seed: 3, seedLabel: "3", pTop6: 1.0, pPlayIn: 0.0, pMakesPlayoffs: 1.0, pWinsR1: 0.792, pConfFinals: 0.43, pFinals: 0.265, pChampion: 0.098 }],
+  [21, { teamId: 21, seed: 3, seedLabel: "3", pTop6: 1.0, pPlayIn: 0.0, pMakesPlayoffs: 1.0, pWinsR1: 0.678, pConfFinals: 0.235, pFinals: 0.078, pChampion: 0.033 }],
+  [6, { teamId: 6, seed: 4, seedLabel: "4", pTop6: 1.0, pPlayIn: 0.0, pMakesPlayoffs: 1.0, pWinsR1: 0.772, pConfFinals: 0.477, pFinals: 0.222, pChampion: 0.074 }],
+  [17, { teamId: 17, seed: 4, seedLabel: "4", pTop6: 1.0, pPlayIn: 0.0, pMakesPlayoffs: 1.0, pWinsR1: 0.692, pConfFinals: 0.213, pFinals: 0.081, pChampion: 0.037 }],
+  [19, { teamId: 19, seed: 5, seedLabel: "5", pTop6: 0.994, pPlayIn: 0.006, pMakesPlayoffs: 0.999, pWinsR1: 0.299, pConfFinals: 0.055, pFinals: 0.011, pChampion: 0.003 }],
+  [23, { teamId: 23, seed: 5, seedLabel: "5", pTop6: 0.995, pPlayIn: 0.005, pMakesPlayoffs: 0.999, pWinsR1: 0.329, pConfFinals: 0.062, pFinals: 0.011, pChampion: 0.003 }],
+  [1, { teamId: 1, seed: 6, seedLabel: "6", pTop6: 0.665, pPlayIn: 0.335, pMakesPlayoffs: 0.919, pWinsR1: 0.274, pConfFinals: 0.104, pFinals: 0.035, pChampion: 0.007 }],
+  [14, { teamId: 14, seed: 6, seedLabel: "6", pTop6: 0.743, pPlayIn: 0.257, pMakesPlayoffs: 0.917, pWinsR1: 0.163, pConfFinals: 0.043, pFinals: 0.009, pChampion: 0.001 }],
+  [26, { teamId: 26, seed: 7, seedLabel: "7 (PI)", pTop6: 0.011, pPlayIn: 0.989, pMakesPlayoffs: 0.795, pWinsR1: 0.084, pConfFinals: 0.024, pFinals: 0.003, pChampion: 0.0 }],
+  [9, { teamId: 9, seed: 8, seedLabel: "8 (PI)", pTop6: 0.241, pPlayIn: 0.759, pMakesPlayoffs: 0.657, pWinsR1: 0.145, pConfFinals: 0.038, pFinals: 0.01, pChampion: 0.002 }],
+  [13, { teamId: 13, seed: 8, seedLabel: "8 (PI)", pTop6: 0.136, pPlayIn: 0.864, pMakesPlayoffs: 0.499, pWinsR1: 0.055, pConfFinals: 0.007, pFinals: 0.001, pChampion: 0.0 }],
+  [4, { teamId: 4, seed: 8, seedLabel: "8 (PI)", pTop6: 0.161, pPlayIn: 0.839, pMakesPlayoffs: 0.68, pWinsR1: 0.241, pConfFinals: 0.094, pFinals: 0.035, pChampion: 0.008 }],
+  [12, { teamId: 12, seed: 9, seedLabel: "9 (PI)", pTop6: 0.053, pPlayIn: 0.947, pMakesPlayoffs: 0.328, pWinsR1: 0.045, pConfFinals: 0.007, pFinals: 0.001, pChampion: 0.0 }],
+  [20, { teamId: 20, seed: 8, seedLabel: "8 (PI)", pTop6: 0.0, pPlayIn: 1.0, pMakesPlayoffs: 0.766, pWinsR1: 0.149, pConfFinals: 0.063, pFinals: 0.015, pChampion: 0.005 }],
+  [27, { teamId: 27, seed: 9, seedLabel: "9 (PI)", pTop6: 0.0, pPlayIn: 1.0, pMakesPlayoffs: 0.29, pWinsR1: 0.021, pConfFinals: 0.004, pFinals: 0.0, pChampion: 0.0 }],
+  [18, { teamId: 18, seed: 10, seedLabel: "10 (PI)", pTop6: 0.0, pPlayIn: 1.0, pMakesPlayoffs: 0.151, pWinsR1: 0.009, pConfFinals: 0.002, pFinals: 0.0, pChampion: 0.0 }],
+  [5, { teamId: 5, seed: 11, seedLabel: "11", pTop6: 0.0, pPlayIn: 0.0, pMakesPlayoffs: 0.0, pWinsR1: 0.0, pConfFinals: 0.0, pFinals: 0.0, pChampion: 0.0 }],
+  [10, { teamId: 10, seed: 12, seedLabel: "12", pTop6: 0.0, pPlayIn: 0.0, pMakesPlayoffs: 0.0, pWinsR1: 0.0, pConfFinals: 0.0, pFinals: 0.0, pChampion: 0.0 }],
+  [24, { teamId: 24, seed: 11, seedLabel: "11", pTop6: 0.0, pPlayIn: 0.0, pMakesPlayoffs: 0.0, pWinsR1: 0.0, pConfFinals: 0.0, pFinals: 0.0, pChampion: 0.0 }],
+  [22, { teamId: 22, seed: 12, seedLabel: "12", pTop6: 0.0, pPlayIn: 0.0, pMakesPlayoffs: 0.0, pWinsR1: 0.0, pConfFinals: 0.0, pFinals: 0.0, pChampion: 0.0 }],
+  [16, { teamId: 16, seed: 13, seedLabel: "13", pTop6: 0.0, pPlayIn: 0.0, pMakesPlayoffs: 0.0, pWinsR1: 0.0, pConfFinals: 0.0, pFinals: 0.0, pChampion: 0.0 }],
+  [30, { teamId: 30, seed: 14, seedLabel: "14", pTop6: 0.0, pPlayIn: 0.0, pMakesPlayoffs: 0.0, pWinsR1: 0.0, pConfFinals: 0.0, pFinals: 0.0, pChampion: 0.0 }],
+  [28, { teamId: 28, seed: 15, seedLabel: "15", pTop6: 0.0, pPlayIn: 0.0, pMakesPlayoffs: 0.0, pWinsR1: 0.0, pConfFinals: 0.0, pFinals: 0.0, pChampion: 0.0 }],
+  [3, { teamId: 3, seed: 13, seedLabel: "13", pTop6: 0.0, pPlayIn: 0.0, pMakesPlayoffs: 0.0, pWinsR1: 0.0, pConfFinals: 0.0, pFinals: 0.0, pChampion: 0.0 }],
+  [8, { teamId: 8, seed: 14, seedLabel: "14", pTop6: 0.0, pPlayIn: 0.0, pMakesPlayoffs: 0.0, pWinsR1: 0.0, pConfFinals: 0.0, pFinals: 0.0, pChampion: 0.0 }],
+  [15, { teamId: 15, seed: 14, seedLabel: "14", pTop6: 0.0, pPlayIn: 0.0, pMakesPlayoffs: 0.0, pWinsR1: 0.0, pConfFinals: 0.0, pFinals: 0.0, pChampion: 0.0 }],
+]);
+
+export const NBA_MC_EAST_STANDINGS: StandingsRow[] = [
+  { teamId: 7, wins: 52, losses: 20, winPct: 0.7222, gamesBack: 0.0, divWins: 10, divLosses: 4, confWins: 34, confLosses: 12, projectedSeed: 1, seedLabel: "1", isPlayIn: false, isEliminated: false, streak: "L 1" },
+  { teamId: 2, wins: 48, losses: 24, winPct: 0.6667, gamesBack: 4.0, divWins: 9, divLosses: 5, confWins: 29, confLosses: 14, projectedSeed: 2, seedLabel: "2", isPlayIn: false, isEliminated: false, streak: "W 1" },
+  { teamId: 11, wins: 48, losses: 25, winPct: 0.6575, gamesBack: 4.5, divWins: 12, divLosses: 3, confWins: 31, confLosses: 15, projectedSeed: 3, seedLabel: "3", isPlayIn: false, isEliminated: false, streak: "W 7" },
+  { teamId: 6, wins: 45, losses: 28, winPct: 0.6164, gamesBack: 7.5, divWins: 10, divLosses: 5, confWins: 29, confLosses: 18, projectedSeed: 4, seedLabel: "4", isPlayIn: false, isEliminated: false, streak: "L 1" },
+  { teamId: 1, wins: 41, losses: 32, winPct: 0.5616, gamesBack: 11.5, divWins: 8, divLosses: 6, confWins: 23, confLosses: 21, projectedSeed: 6, seedLabel: "6", isPlayIn: false, isEliminated: false, streak: "W 3" },
+  { teamId: 14, wins: 40, losses: 31, winPct: 0.5634, gamesBack: 11.5, divWins: 4, divLosses: 10, confWins: 29, confLosses: 16, projectedSeed: 6, seedLabel: "6", isPlayIn: false, isEliminated: false, streak: "W 1" },
+  { teamId: 9, wins: 39, losses: 34, winPct: 0.5342, gamesBack: 13.5, divWins: 7, divLosses: 7, confWins: 23, confLosses: 20, projectedSeed: 8, seedLabel: "8 (PI)", isPlayIn: true, isEliminated: false, streak: "W 1" },
+  { teamId: 13, wins: 40, losses: 33, winPct: 0.5479, gamesBack: 12.5, divWins: 9, divLosses: 7, confWins: 23, confLosses: 23, projectedSeed: 8, seedLabel: "8 (PI)", isPlayIn: true, isEliminated: false, streak: "W 1" },
+  { teamId: 4, wins: 38, losses: 34, winPct: 0.5278, gamesBack: 14.0, divWins: 11, divLosses: 5, confWins: 22, confLosses: 22, projectedSeed: 8, seedLabel: "8 (PI)", isPlayIn: true, isEliminated: false, streak: "W 4" },
+  { teamId: 12, wins: 38, losses: 34, winPct: 0.5278, gamesBack: 14.0, divWins: 9, divLosses: 7, confWins: 24, confLosses: 23, projectedSeed: 9, seedLabel: "9 (PI)", isPlayIn: true, isEliminated: false, streak: "L 6" },
+  { teamId: 5, wins: 29, losses: 43, winPct: 0.4028, gamesBack: 23.0, divWins: 4, divLosses: 11, confWins: 17, confLosses: 29, projectedSeed: null, seedLabel: "11", isPlayIn: false, isEliminated: true, streak: "L 1" },
+  { teamId: 10, wins: 29, losses: 42, winPct: 0.4085, gamesBack: 22.5, divWins: 9, divLosses: 6, confWins: 20, confLosses: 27, projectedSeed: null, seedLabel: "12", isPlayIn: false, isEliminated: true, streak: "L 1" },
+  { teamId: 3, wins: 17, losses: 55, winPct: 0.2361, gamesBack: 35.0, divWins: 3, divLosses: 12, confWins: 12, confLosses: 32, projectedSeed: null, seedLabel: "13", isPlayIn: false, isEliminated: true, streak: "L 8" },
+  { teamId: 8, wins: 16, losses: 57, winPct: 0.2192, gamesBack: 36.5, divWins: 3, divLosses: 10, confWins: 12, confLosses: 33, projectedSeed: null, seedLabel: "14", isPlayIn: false, isEliminated: true, streak: "L 1" },
+  { teamId: 15, wins: 16, losses: 55, winPct: 0.2254, gamesBack: 35.5, divWins: 2, divLosses: 12, confWins: 11, confLosses: 34, projectedSeed: null, seedLabel: "14", isPlayIn: false, isEliminated: true, streak: "L 16" },
+];
+
+export const NBA_MC_WEST_STANDINGS: StandingsRow[] = [
+  { teamId: 25, wins: 57, losses: 16, winPct: 0.7808, gamesBack: 0.0, divWins: 11, divLosses: 3, confWins: 37, confLosses: 9, projectedSeed: 1, seedLabel: "1", isPlayIn: false, isEliminated: false, streak: "L 1" },
+  { teamId: 29, wins: 55, losses: 18, winPct: 0.7534, gamesBack: 2.0, divWins: 12, divLosses: 3, confWins: 32, confLosses: 14, projectedSeed: 2, seedLabel: "2", isPlayIn: false, isEliminated: false, streak: "W 7" },
+  { teamId: 21, wins: 47, losses: 26, winPct: 0.6438, gamesBack: 10.0, divWins: 8, divLosses: 7, confWins: 30, confLosses: 16, projectedSeed: 3, seedLabel: "3", isPlayIn: false, isEliminated: false, streak: "W 1" },
+  { teamId: 17, wins: 45, losses: 28, winPct: 0.6164, gamesBack: 12.0, divWins: 7, divLosses: 5, confWins: 27, confLosses: 16, projectedSeed: 4, seedLabel: "4", isPlayIn: false, isEliminated: false, streak: "W 3" },
+  { teamId: 19, wins: 43, losses: 28, winPct: 0.6056, gamesBack: 13.0, divWins: 7, divLosses: 6, confWins: 23, confLosses: 21, projectedSeed: 5, seedLabel: "5", isPlayIn: false, isEliminated: false, streak: "L 1" },
+  { teamId: 23, wins: 44, losses: 28, winPct: 0.6111, gamesBack: 12.5, divWins: 9, divLosses: 7, confWins: 27, confLosses: 21, projectedSeed: 5, seedLabel: "5", isPlayIn: false, isEliminated: false, streak: "W 1" },
+  { teamId: 26, wins: 40, losses: 33, winPct: 0.5479, gamesBack: 17.0, divWins: 10, divLosses: 6, confWins: 25, confLosses: 21, projectedSeed: 7, seedLabel: "7 (PI)", isPlayIn: true, isEliminated: false, streak: "L 1" },
+  { teamId: 20, wins: 36, losses: 36, winPct: 0.5, gamesBack: 20.5, divWins: 8, divLosses: 6, confWins: 22, confLosses: 23, projectedSeed: 8, seedLabel: "8 (PI)", isPlayIn: true, isEliminated: false, streak: "W 2" },
+  { teamId: 27, wins: 36, losses: 37, winPct: 0.4932, gamesBack: 21.0, divWins: 7, divLosses: 8, confWins: 25, confLosses: 20, projectedSeed: 9, seedLabel: "9 (PI)", isPlayIn: true, isEliminated: false, streak: "W 1" },
+  { teamId: 18, wins: 34, losses: 38, winPct: 0.4722, gamesBack: 22.5, divWins: 6, divLosses: 6, confWins: 23, confLosses: 22, projectedSeed: 10, seedLabel: "10 (PI)", isPlayIn: true, isEliminated: false, streak: "W 1" },
+  { teamId: 24, wins: 25, losses: 48, winPct: 0.3425, gamesBack: 32.0, divWins: 7, divLosses: 8, confWins: 16, confLosses: 30, projectedSeed: null, seedLabel: "11", isPlayIn: false, isEliminated: true, streak: "L 2" },
+  { teamId: 22, wins: 24, losses: 48, winPct: 0.3333, gamesBack: 32.5, divWins: 6, divLosses: 8, confWins: 19, confLosses: 28, projectedSeed: null, seedLabel: "12", isPlayIn: false, isEliminated: true, streak: "L 4" },
+  { teamId: 16, wins: 23, losses: 49, winPct: 0.3194, gamesBack: 33.5, divWins: 4, divLosses: 11, confWins: 12, confLosses: 32, projectedSeed: null, seedLabel: "13", isPlayIn: false, isEliminated: true, streak: "L 4" },
+  { teamId: 30, wins: 21, losses: 51, winPct: 0.2917, gamesBack: 35.5, divWins: 1, divLosses: 12, confWins: 11, confLosses: 33, projectedSeed: null, seedLabel: "14", isPlayIn: false, isEliminated: true, streak: "L 2" },
+  { teamId: 28, wins: 19, losses: 54, winPct: 0.2603, gamesBack: 38.0, divWins: 3, divLosses: 10, confWins: 12, confLosses: 35, projectedSeed: null, seedLabel: "15", isPlayIn: false, isEliminated: true, streak: "L 1" },
+];
