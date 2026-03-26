@@ -143,7 +143,7 @@ export function PlayoffSection({
   lockedPicks, east, west, teamsById, advancements, allGamesPicked, onPick,
 }: PlayoffSectionProps) {
   const { eb, wb } = useMemo(() => {
-    function resolve(rows: StandingsRow[], piIds: typeof PLAYIN_GAME_IDS.east) {
+    function resolve(rows: StandingsRow[], piIds: { sevenVEight: number; nineVTen: number; final: number }) {
       const s7 = rows[6]?.teamId ?? null;
       const s8 = rows[7]?.teamId ?? null;
       const s9 = rows[8]?.teamId ?? null;

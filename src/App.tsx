@@ -74,7 +74,7 @@ function compareAdvancementRows(
   return valueA > valueB ? multiplier : -multiplier;
 }
 
-export default function App({ initialPath }: AppProps) {
+export default function App(_props: AppProps) {
   const [lockedPicks, setLockedPicks] = useState<LockedPicks>(new Map());
   const [undoStack, setUndoStack] = useState<LockedPicks[]>([]);
   const [simResult, setSimResult] = useState<SimulationResult | null>(null);
@@ -238,7 +238,7 @@ export default function App({ initialPath }: AppProps) {
   useEffect(() => {
     function handleResize() { setIsMobile(window.innerWidth < 768); }
     function handleScroll() { setIsScrolled(window.scrollY > 10); }
-    function handlePopState() { setActiveTab(pathToTab(window.location.pathname)); }
+    function handlePopState() { /* single-page layout — no tab switching */ }
     handleScroll();
     window.addEventListener('resize', handleResize);
     window.addEventListener('scroll', handleScroll);
