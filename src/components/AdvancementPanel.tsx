@@ -43,17 +43,14 @@ export function AdvancementPanel({
 }: AdvancementPanelProps) {
   return (
     <section
-      className={isSimulating ? 'side-panel-section advancement-panel advancement-panel--simulating' : 'side-panel-section advancement-panel'}
+      className={
+        isSimulating
+          ? 'side-panel-section advancement-section advancement-panel advancement-panel--simulating'
+          : 'side-panel-section advancement-section advancement-panel'
+      }
     >
-      <div className="panel-header">
-        <div>
-          <p className="advancement-panel-header">Oracle Futures</p>
-          <h2 className="panel-title">Advancement Probabilities</h2>
-        </div>
-        <span className={isSimulating ? 'sim-badge is-busy' : 'sim-badge'}>
-          {isSimulating ? 'Simulating' : 'Live'}
-        </span>
-      </div>
+      <p className="advancement-header">Oracle Futures</p>
+      <h2 className="advancement-title">Championship Odds</h2>
 
       <div className="advancement-table-wrap">
         <table className="advancement-table">
@@ -116,9 +113,8 @@ export function AdvancementPanel({
                   {PROBABILITY_COLUMNS.map((column) => (
                     <td
                       key={column.key}
-                      className={`${probabilityClassName(row[column.key as keyof TeamAdvancement] as number)} ${
-                        column.key === 'pChampion' ? 'champ-cell' : ''
-                      }`}
+                      className={column.key === 'pChampion' ? 'champ-col' : undefined}
+                      data-prob={probabilityBucket(row[column.key as keyof TeamAdvancement] as number)}
                     >
                       <span>{formatProbabilityCell(row[column.key as keyof TeamAdvancement] as number, oddsFormat)}</span>
                       {renderDelta(deltaMap.get(`${row.teamId}:${column.key}`), oddsFormat)}
@@ -135,7 +131,7 @@ export function AdvancementPanel({
 }
 
 function sortHeaderClass(activeSort: AdvancementSortKey, headerKey: AdvancementSortKey): string {
-  return activeSort === headerKey ? 'sorted' : '';
+  return activeSort === headerKey ? 'sort-active' : '';
 }
 
 function sortIndicator(
@@ -150,20 +146,20 @@ function sortIndicator(
   return direction === 'desc' ? ' ▼' : ' ▲';
 }
 
-function probabilityClassName(value: number): string {
-  if (value >= 0.5) {
-    return 'prob-high';
+function probabilityBucket(value: number): 'high' | 'medium' | 'low' | 'zero' | undefined {
+  if (value >= 0.4) {
+    return 'high';
   }
 
-  if (value >= 0.2) {
-    return 'prob-medium';
+  if (value >= 0.15) {
+    return 'medium';
   }
 
-  if (value >= 0.05) {
-    return 'prob-low';
+  if (value >= 0.03) {
+    return 'low';
   }
 
-  return value < 0.01 ? 'prob-zero' : '';
+  return value < 0.01 ? 'zero' : undefined;
 }
 
 function renderDelta(delta: number | undefined, oddsFormat: OddsFormat) {
@@ -171,7 +167,7 @@ function renderDelta(delta: number | undefined, oddsFormat: OddsFormat) {
     return null;
   }
 
-  return <span className={delta >= 0 ? 'delta-badge delta-up' : 'delta-badge delta-down'}>{formatDelta(delta, oddsFormat)}</span>;
+  return <span className={delta >= 0 ? 'prob-delta up' : 'prob-delta down'}>{formatDelta(delta, oddsFormat)}</span>;
 }
 
 function formatSeed(row: TeamAdvancement): string {
@@ -181,6 +177,10 @@ function formatSeed(row: TeamAdvancement): string {
 
   if (row.seed >= 7 && row.seed <= 10) {
     return 'PI';
+  }
+
+  if (row.seed > 10) {
+    return '—';
   }
 
   return `${row.seed}`;

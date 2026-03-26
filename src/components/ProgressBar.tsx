@@ -18,7 +18,7 @@ export function ProgressBar({ pickedCount, totalCount, unlocked, onGoToPlayoffs 
       </div>
       <p className="progress-copy">
         {unlocked ? (
-          <button type="button" className="playoffs-unlocked-cta" onClick={onGoToPlayoffs}>
+          <button type="button" className="playoffs-cta playoffs-unlocked-cta" onClick={onGoToPlayoffs}>
             The Oracle has spoken — Playoffs unlocked! →
           </button>
         ) : (

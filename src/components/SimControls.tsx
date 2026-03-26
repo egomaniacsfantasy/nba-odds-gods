@@ -78,7 +78,7 @@ export function SimControls({
         </div>
 
         {allGamesPicked ? (
-          <button type="button" className="playoffs-unlocked-cta" onClick={onGoToPlayoffs}>
+          <button type="button" className="playoffs-cta playoffs-unlocked-cta" onClick={onGoToPlayoffs}>
             The Oracle has spoken — Playoffs unlocked! →
           </button>
         ) : (
