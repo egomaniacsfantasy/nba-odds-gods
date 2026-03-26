@@ -385,10 +385,17 @@ export default function App({ initialPath }: AppProps) {
               canReset={lockedPicks.size > 0}
               allGamesPicked={allGamesPicked}
               isSimulating={isSimulating}
+              isAutoFilling={false}
               isMobile={isMobile}
+              isScrolled={isScrolled}
+              canResimulate={false}
+              pickedCount={pickedCount}
+              totalCount={totalPickableGames}
               onSimulateRest={handleSimulateRest}
+              onReSimulate={() => {}}
               onUndo={handleUndo}
               onReset={() => setResetOpen(true)}
+              onGoToPlayoffs={() => handleNavigate('playoffs')}
             />
             <ProgressBar
               pickedCount={pickedCount}
@@ -406,7 +413,8 @@ export default function App({ initialPath }: AppProps) {
                   justPickedKey={justPickedKey}
                   firstHintGameId={firstHintGameId}
                   showPickHint={showPickHint}
-                  isMobile={false}
+                  simSweepDelays={new Map()}
+                  disableInteractions={isSimulating}
                   onPick={handlePick}
                 />
               </section>
@@ -442,7 +450,8 @@ export default function App({ initialPath }: AppProps) {
                     justPickedKey={justPickedKey}
                     firstHintGameId={firstHintGameId}
                     showPickHint={showPickHint}
-                    isMobile={true}
+                    simSweepDelays={new Map()}
+                    disableInteractions={isSimulating}
                     onPick={handlePick}
                   />
                 </section>
