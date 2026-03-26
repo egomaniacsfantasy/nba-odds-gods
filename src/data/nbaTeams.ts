@@ -1,4 +1,5 @@
-// PLACEHOLDER DATA — will be replaced by pipeline output
+// Auto-generated from nba_snapshot.xlsx + nba_standings.xlsx — do not edit manually
+// Updated: 2026-03-25
 
 import type { HeadToHeadRecord, NbaTeam } from '../types';
 import { clamp, clampInt, fnv1a, mulberry32 } from '../lib/rng';
@@ -17,42 +18,9 @@ interface TeamProfile {
   baselineLosses: number;
 }
 
-const TARGET_GAMES_PLAYED = 74;
+const TARGET_GAMES_PLAYED = 72;
 const CONFERENCE_GAMES_PLAYED = Math.round((TARGET_GAMES_PLAYED * 52) / 82);
 const DIVISION_GAMES_PLAYED = Math.round((TARGET_GAMES_PLAYED * 16) / 82);
-
-const NBA_LOGO_MAP: Record<string, string> = {
-  ATL: 'https://a.espncdn.com/i/teamlogos/nba/500/atl.png',
-  BOS: 'https://a.espncdn.com/i/teamlogos/nba/500/bos.png',
-  BKN: 'https://a.espncdn.com/i/teamlogos/nba/500/bkn.png',
-  CHA: 'https://a.espncdn.com/i/teamlogos/nba/500/cha.png',
-  CHI: 'https://a.espncdn.com/i/teamlogos/nba/500/chi.png',
-  CLE: 'https://a.espncdn.com/i/teamlogos/nba/500/cle.png',
-  DET: 'https://a.espncdn.com/i/teamlogos/nba/500/det.png',
-  IND: 'https://a.espncdn.com/i/teamlogos/nba/500/ind.png',
-  MIA: 'https://a.espncdn.com/i/teamlogos/nba/500/mia.png',
-  MIL: 'https://a.espncdn.com/i/teamlogos/nba/500/mil.png',
-  NYK: 'https://a.espncdn.com/i/teamlogos/nba/500/ny.png',
-  ORL: 'https://a.espncdn.com/i/teamlogos/nba/500/orl.png',
-  PHI: 'https://a.espncdn.com/i/teamlogos/nba/500/phi.png',
-  TOR: 'https://a.espncdn.com/i/teamlogos/nba/500/tor.png',
-  WAS: 'https://a.espncdn.com/i/teamlogos/nba/500/wsh.png',
-  DAL: 'https://a.espncdn.com/i/teamlogos/nba/500/dal.png',
-  DEN: 'https://a.espncdn.com/i/teamlogos/nba/500/den.png',
-  GSW: 'https://a.espncdn.com/i/teamlogos/nba/500/gs.png',
-  HOU: 'https://a.espncdn.com/i/teamlogos/nba/500/hou.png',
-  LAC: 'https://a.espncdn.com/i/teamlogos/nba/500/lac.png',
-  LAL: 'https://a.espncdn.com/i/teamlogos/nba/500/lal.png',
-  MEM: 'https://a.espncdn.com/i/teamlogos/nba/500/mem.png',
-  MIN: 'https://a.espncdn.com/i/teamlogos/nba/500/min.png',
-  NOP: 'https://a.espncdn.com/i/teamlogos/nba/500/no.png',
-  OKC: 'https://a.espncdn.com/i/teamlogos/nba/500/okc.png',
-  PHX: 'https://a.espncdn.com/i/teamlogos/nba/500/phx.png',
-  POR: 'https://a.espncdn.com/i/teamlogos/nba/500/por.png',
-  SAC: 'https://a.espncdn.com/i/teamlogos/nba/500/sac.png',
-  SAS: 'https://a.espncdn.com/i/teamlogos/nba/500/sa.png',
-  UTA: 'https://a.espncdn.com/i/teamlogos/nba/500/utah.png',
-};
 
 const TEAM_PROFILES: TeamProfile[] = [
   {
@@ -64,9 +32,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southeast',
     logoId: 1,
     primaryColor: '#e03a3e',
-    elo: 1558,
-    baselineWins: 34,
-    baselineLosses: 34,
+    elo: 1507.1,
+    baselineWins: 40,
+    baselineLosses: 32,
   },
   {
     id: 2,
@@ -77,9 +45,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Atlantic',
     logoId: 2,
     primaryColor: '#007a33',
-    elo: 1696,
-    baselineWins: 49,
-    baselineLosses: 19,
+    elo: 1659.2,
+    baselineWins: 47,
+    baselineLosses: 24,
   },
   {
     id: 3,
@@ -90,9 +58,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Atlantic',
     logoId: 17,
     primaryColor: '#000000',
-    elo: 1506,
-    baselineWins: 29,
-    baselineLosses: 39,
+    elo: 1296.5,
+    baselineWins: 17,
+    baselineLosses: 55,
   },
   {
     id: 4,
@@ -103,9 +71,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southeast',
     logoId: 30,
     primaryColor: '#1d1160',
-    elo: 1474,
-    baselineWins: 22,
-    baselineLosses: 46,
+    elo: 1583.6,
+    baselineWins: 38,
+    baselineLosses: 34,
   },
   {
     id: 5,
@@ -116,9 +84,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Central',
     logoId: 4,
     primaryColor: '#ce1141',
-    elo: 1542,
-    baselineWins: 33,
-    baselineLosses: 35,
+    elo: 1381.0,
+    baselineWins: 29,
+    baselineLosses: 42,
   },
   {
     id: 6,
@@ -129,9 +97,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Central',
     logoId: 5,
     primaryColor: '#860038',
-    elo: 1718,
-    baselineWins: 50,
-    baselineLosses: 18,
+    elo: 1645.2,
+    baselineWins: 45,
+    baselineLosses: 27,
   },
   {
     id: 7,
@@ -142,9 +110,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Central',
     logoId: 8,
     primaryColor: '#1d42ba',
-    elo: 1606,
-    baselineWins: 39,
-    baselineLosses: 29,
+    elo: 1677.7,
+    baselineWins: 52,
+    baselineLosses: 19,
   },
   {
     id: 8,
@@ -155,9 +123,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Central',
     logoId: 11,
     primaryColor: '#fdbb30',
-    elo: 1592,
-    baselineWins: 37,
-    baselineLosses: 31,
+    elo: 1332.0,
+    baselineWins: 16,
+    baselineLosses: 56,
   },
   {
     id: 9,
@@ -168,9 +136,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southeast',
     logoId: 14,
     primaryColor: '#98002e',
-    elo: 1569,
-    baselineWins: 35,
-    baselineLosses: 33,
+    elo: 1538.0,
+    baselineWins: 38,
+    baselineLosses: 34,
   },
   {
     id: 10,
@@ -181,9 +149,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Central',
     logoId: 15,
     primaryColor: '#00471b',
-    elo: 1638,
-    baselineWins: 42,
-    baselineLosses: 26,
+    elo: 1403.5,
+    baselineWins: 29,
+    baselineLosses: 42,
   },
   {
     id: 11,
@@ -194,9 +162,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Atlantic',
     logoId: 18,
     primaryColor: '#f58426',
-    elo: 1658,
-    baselineWins: 44,
-    baselineLosses: 24,
+    elo: 1661.0,
+    baselineWins: 48,
+    baselineLosses: 25,
   },
   {
     id: 12,
@@ -207,9 +175,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southeast',
     logoId: 19,
     primaryColor: '#0077c0',
-    elo: 1598,
+    elo: 1525.5,
     baselineWins: 38,
-    baselineLosses: 30,
+    baselineLosses: 34,
   },
   {
     id: 13,
@@ -220,9 +188,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Atlantic',
     logoId: 20,
     primaryColor: '#006bb6',
-    elo: 1492,
-    baselineWins: 27,
-    baselineLosses: 41,
+    elo: 1470.3,
+    baselineWins: 39,
+    baselineLosses: 33,
   },
   {
     id: 14,
@@ -233,9 +201,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Atlantic',
     logoId: 28,
     primaryColor: '#ce1141',
-    elo: 1512,
-    baselineWins: 30,
-    baselineLosses: 38,
+    elo: 1507.8,
+    baselineWins: 40,
+    baselineLosses: 31,
   },
   {
     id: 15,
@@ -246,9 +214,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southeast',
     logoId: 27,
     primaryColor: '#002b5c',
-    elo: 1448,
-    baselineWins: 18,
-    baselineLosses: 50,
+    elo: 1258.0,
+    baselineWins: 16,
+    baselineLosses: 55,
   },
   {
     id: 16,
@@ -259,9 +227,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southwest',
     logoId: 6,
     primaryColor: '#00538c',
-    elo: 1578,
-    baselineWins: 36,
-    baselineLosses: 32,
+    elo: 1371.4,
+    baselineWins: 23,
+    baselineLosses: 49,
   },
   {
     id: 17,
@@ -272,9 +240,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Northwest',
     logoId: 7,
     primaryColor: '#0e2240',
-    elo: 1652,
-    baselineWins: 43,
-    baselineLosses: 25,
+    elo: 1590.5,
+    baselineWins: 45,
+    baselineLosses: 28,
   },
   {
     id: 18,
@@ -285,9 +253,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Pacific',
     logoId: 9,
     primaryColor: '#1d428a',
-    elo: 1614,
-    baselineWins: 39,
-    baselineLosses: 29,
+    elo: 1477.3,
+    baselineWins: 34,
+    baselineLosses: 38,
   },
   {
     id: 19,
@@ -298,9 +266,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southwest',
     logoId: 10,
     primaryColor: '#ce1141',
-    elo: 1684,
-    baselineWins: 47,
-    baselineLosses: 21,
+    elo: 1579.2,
+    baselineWins: 43,
+    baselineLosses: 28,
   },
   {
     id: 20,
@@ -311,9 +279,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Pacific',
     logoId: 12,
     primaryColor: '#c8102e',
-    elo: 1585,
-    baselineWins: 37,
-    baselineLosses: 31,
+    elo: 1546.7,
+    baselineWins: 36,
+    baselineLosses: 36,
   },
   {
     id: 21,
@@ -324,9 +292,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Pacific',
     logoId: 13,
     primaryColor: '#552583',
-    elo: 1621,
-    baselineWins: 40,
-    baselineLosses: 28,
+    elo: 1562.7,
+    baselineWins: 46,
+    baselineLosses: 26,
   },
   {
     id: 22,
@@ -337,9 +305,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southwest',
     logoId: 29,
     primaryColor: '#5d76a9',
-    elo: 1668,
-    baselineWins: 45,
-    baselineLosses: 23,
+    elo: 1391.5,
+    baselineWins: 24,
+    baselineLosses: 47,
   },
   {
     id: 23,
@@ -350,9 +318,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Northwest',
     logoId: 16,
     primaryColor: '#0c2340',
-    elo: 1629,
-    baselineWins: 41,
-    baselineLosses: 27,
+    elo: 1572.5,
+    baselineWins: 44,
+    baselineLosses: 28,
   },
   {
     id: 24,
@@ -363,9 +331,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southwest',
     logoId: 3,
     primaryColor: '#0c2340',
-    elo: 1486,
-    baselineWins: 26,
-    baselineLosses: 42,
+    elo: 1384.3,
+    baselineWins: 25,
+    baselineLosses: 48,
   },
   {
     id: 25,
@@ -376,9 +344,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Northwest',
     logoId: 25,
     primaryColor: '#007ac1',
-    elo: 1744,
-    baselineWins: 53,
-    baselineLosses: 14,
+    elo: 1753.4,
+    baselineWins: 57,
+    baselineLosses: 15,
   },
   {
     id: 26,
@@ -389,9 +357,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Pacific',
     logoId: 21,
     primaryColor: '#1d1160',
-    elo: 1536,
-    baselineWins: 32,
-    baselineLosses: 36,
+    elo: 1507.6,
+    baselineWins: 40,
+    baselineLosses: 33,
   },
   {
     id: 27,
@@ -402,9 +370,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Northwest',
     logoId: 22,
     primaryColor: '#e03a3e',
-    elo: 1499,
-    baselineWins: 28,
-    baselineLosses: 40,
+    elo: 1457.9,
+    baselineWins: 36,
+    baselineLosses: 37,
   },
   {
     id: 28,
@@ -415,9 +383,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Pacific',
     logoId: 23,
     primaryColor: '#5a2d81',
-    elo: 1549,
-    baselineWins: 34,
-    baselineLosses: 34,
+    elo: 1316.6,
+    baselineWins: 19,
+    baselineLosses: 54,
   },
   {
     id: 29,
@@ -428,9 +396,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southwest',
     logoId: 24,
     primaryColor: '#c4ced4',
-    elo: 1529,
-    baselineWins: 31,
-    baselineLosses: 37,
+    elo: 1722.4,
+    baselineWins: 54,
+    baselineLosses: 18,
   },
   {
     id: 30,
@@ -441,18 +409,14 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Northwest',
     logoId: 26,
     primaryColor: '#002b5c',
-    elo: 1462,
-    baselineWins: 20,
-    baselineLosses: 48,
+    elo: 1316.3,
+    baselineWins: 21,
+    baselineLosses: 51,
   },
 ];
 
-export function getTeamLogoUrl(abbr: string): string {
-  return NBA_LOGO_MAP[abbr] || `https://a.espncdn.com/i/teamlogos/nba/500/${abbr.toLowerCase()}.png`;
-}
-
 function logoUrl(profile: TeamProfile): string {
-  return getTeamLogoUrl(profile.abbr);
+  return `https://a.espncdn.com/i/teamlogos/nba/500/${profile.logoId}.png`;
 }
 
 function createTeam(profile: TeamProfile): NbaTeam {
@@ -464,7 +428,6 @@ function createTeam(profile: TeamProfile): NbaTeam {
   const confLosses = CONFERENCE_GAMES_PLAYED - confWins;
   const divWins = deriveDivisionWins(profile, wins, losses, confWins);
   const divLosses = DIVISION_GAMES_PLAYED - divWins;
-
   return {
     id: profile.id,
     name: `${profile.city} ${profile.name}`,
@@ -524,7 +487,6 @@ function winProbabilityForNeutralCourt(teamAId: number, teamBId: number): number
 
 function buildBaselineHeadToHead(): Map<string, HeadToHeadRecord> {
   const records = new Map<string, HeadToHeadRecord>();
-
   for (let index = 0; index < TEAM_PROFILES.length; index += 1) {
     for (let opponentIndex = index + 1; opponentIndex < TEAM_PROFILES.length; opponentIndex += 1) {
       const team = TEAM_PROFILES[index];
@@ -533,31 +495,18 @@ function buildBaselineHeadToHead(): Map<string, HeadToHeadRecord> {
       const random = mulberry32(fnv1a(`${team.id}-${opponent.id}-baseline`));
       const expectedWins = winProbabilityForNeutralCourt(team.id, opponent.id) * meetings + (random() - 0.5);
       const winsForLowerId = clampInt(expectedWins, 0, meetings);
-
-      records.set(pairKey(team.id, opponent.id), {
-        w: winsForLowerId,
-        l: meetings - winsForLowerId,
-      });
+      records.set(pairKey(team.id, opponent.id), { w: winsForLowerId, l: meetings - winsForLowerId });
     }
   }
-
   return records;
 }
 
 export const NBA_TEAMS: NbaTeam[] = TEAM_PROFILES.map(createTeam);
-
-export const NBA_TEAM_LOOKUP = new Map<number, NbaTeam>(
-  NBA_TEAMS.map((team) => [team.id, team]),
-);
-
-export const NBA_TEAM_RATINGS = new Map<number, number>(
-  TEAM_PROFILES.map((profile) => [profile.id, profile.elo]),
-);
-
+export const NBA_TEAM_LOOKUP = new Map<number, NbaTeam>(NBA_TEAMS.map((team) => [team.id, team]));
+export const NBA_TEAM_RATINGS = new Map<number, number>(TEAM_PROFILES.map((profile) => [profile.id, profile.elo]));
 export const NBA_BASELINE_POINT_DIFF = new Map<number, number>(
   TEAM_PROFILES.map((profile) => [profile.id, Number(clamp((profile.elo - 1500) / 20, -10, 10).toFixed(1))]),
 );
-
 export const NBA_BASELINE_HEAD_TO_HEAD = buildBaselineHeadToHead();
 
 export function getTeamRating(teamId: number): number {

@@ -1,273 +1,158 @@
-// PLACEHOLDER DATA — will be replaced by pipeline output
+// Auto-generated from nba_schedule_remaining.xlsx — do not edit manually
+// Updated: 2026-03-25
 
-import type { NbaGame, NbaTeam } from '../types';
-import { fnv1a, mulberry32 } from '../lib/rng';
-import { getHomeWinProbability, getTeamRating, NBA_TEAMS } from './nbaTeams';
+import type { NbaGame } from '../types';
 
-const SEASON_START_UTC = Date.UTC(2025, 9, 21);
-const START_DATE = '2026-03-24';
-const END_DATE = '2026-04-13';
-const DAILY_GAME_TARGETS = [6, 6, 5, 6, 6, 5, 6, 6, 5, 6, 6, 5, 6, 6, 5, 6, 6, 5, 6, 6, 6];
-const SCHEDULE_SEED = fnv1a('nba-placeholder-schedule-v1');
-const COMPLETED_DATE = START_DATE;
-
-function pairKey(teamAId: number, teamBId: number): string {
-  return teamAId < teamBId ? `${teamAId}-${teamBId}` : `${teamBId}-${teamAId}`;
-}
-
-function buildDateRange(startDate: string, endDate: string): string[] {
-  const dates: string[] = [];
-  const cursor = new Date(`${startDate}T00:00:00Z`);
-  const end = new Date(`${endDate}T00:00:00Z`);
-
-  while (cursor <= end) {
-    dates.push(cursor.toISOString().slice(0, 10));
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-
-  return dates;
-}
-
-function dayNumber(dateString: string): number {
-  const gameDate = new Date(`${dateString}T00:00:00Z`);
-  return Math.round((gameDate.getTime() - SEASON_START_UTC) / 86400000) + 1;
-}
-
-function sameConference(teamA: NbaTeam, teamB: NbaTeam): boolean {
-  return teamA.conference === teamB.conference;
-}
-
-function sameDivision(teamA: NbaTeam, teamB: NbaTeam): boolean {
-  return sameConference(teamA, teamB) && teamA.division === teamB.division;
-}
-
-function maxFutureMeetings(teamA: NbaTeam, teamB: NbaTeam): number {
-  if (sameDivision(teamA, teamB)) {
-    return 2;
-  }
-
-  if (sameConference(teamA, teamB)) {
-    return 2;
-  }
-
-  return 1;
-}
-
-function choosePrimaryTeam(
-  teams: NbaTeam[],
-  remainingGames: Map<number, number>,
-  usedToday: Set<number>,
-  lastPlayed: Map<number, number>,
-  dateIndex: number,
-  random: () => number,
-): NbaTeam | null {
-  const available = teams.filter(
-    (team) => (remainingGames.get(team.id) ?? 0) > 0 && !usedToday.has(team.id),
-  );
-
-  if (available.length === 0) {
-    return null;
-  }
-
-  const ranked = [...available].sort((teamA, teamB) => {
-    const restA = dateIndex - (lastPlayed.get(teamA.id) ?? -8);
-    const restB = dateIndex - (lastPlayed.get(teamB.id) ?? -8);
-    const scoreA = (remainingGames.get(teamA.id) ?? 0) * 10 + Math.min(restA, 4) * 2;
-    const scoreB = (remainingGames.get(teamB.id) ?? 0) * 10 + Math.min(restB, 4) * 2;
-    return scoreB - scoreA;
-  });
-
-  const pool = ranked.slice(0, Math.min(6, ranked.length));
-  return pool[Math.floor(random() * pool.length)] ?? ranked[0] ?? null;
-}
-
-function chooseOpponent(
-  primaryTeam: NbaTeam,
-  teams: NbaTeam[],
-  remainingGames: Map<number, number>,
-  usedToday: Set<number>,
-  lastPlayed: Map<number, number>,
-  matchupCounts: Map<string, number>,
-  dateIndex: number,
-  random: () => number,
-): NbaTeam | null {
-  const candidates = teams
-    .filter(
-      (team) =>
-        team.id !== primaryTeam.id &&
-        (remainingGames.get(team.id) ?? 0) > 0 &&
-        !usedToday.has(team.id),
-    )
-    .map((team) => {
-      const pair = pairKey(primaryTeam.id, team.id);
-      const existingMeetings = matchupCounts.get(pair) ?? 0;
-      const limit = maxFutureMeetings(primaryTeam, team);
-
-      if (existingMeetings >= limit) {
-        return null;
-      }
-
-      const restScore = Math.min(dateIndex - (lastPlayed.get(team.id) ?? -8), 4);
-      const strengthGap = Math.abs(getTeamRating(primaryTeam.id) - getTeamRating(team.id));
-      const matchupScore =
-        (remainingGames.get(team.id) ?? 0) * 8 +
-        (sameConference(primaryTeam, team) ? 4 : 0) +
-        (sameDivision(primaryTeam, team) ? 5 : 0) +
-        (strengthGap < 90 ? 1.5 : 0) +
-        restScore * 1.75 -
-        existingMeetings * 5 +
-        random();
-
-      return {
-        score: matchupScore,
-        team,
-      };
-    })
-    .filter((candidate): candidate is { score: number; team: NbaTeam } => candidate !== null)
-    .sort((candidateA, candidateB) => candidateB.score - candidateA.score);
-
-  if (candidates.length === 0) {
-    return null;
-  }
-
-  const pool = candidates.slice(0, Math.min(6, candidates.length));
-  return pool[Math.floor(random() * pool.length)]?.team ?? candidates[0].team;
-}
-
-function chooseHomeTeam(
-  teamA: NbaTeam,
-  teamB: NbaTeam,
-  homeGames: Map<number, number>,
-  awayGames: Map<number, number>,
-  random: () => number,
-): NbaTeam {
-  const balanceA = (homeGames.get(teamA.id) ?? 0) - (awayGames.get(teamA.id) ?? 0);
-  const balanceB = (homeGames.get(teamB.id) ?? 0) - (awayGames.get(teamB.id) ?? 0);
-
-  if (balanceA < balanceB) {
-    return teamA;
-  }
-
-  if (balanceB < balanceA) {
-    return teamB;
-  }
-
-  return random() < 0.5 ? teamA : teamB;
-}
-
-function buildScheduleAttempt(seedOffset: number): NbaGame[] | null {
-  const random = mulberry32(SCHEDULE_SEED + seedOffset);
-  const dateStrings = buildDateRange(START_DATE, END_DATE);
-  const remainingGames = new Map<number, number>(
-    NBA_TEAMS.map((team) => [team.id, 82 - team.wins - team.losses]),
-  );
-  const homeGames = new Map<number, number>(NBA_TEAMS.map((team) => [team.id, 0]));
-  const awayGames = new Map<number, number>(NBA_TEAMS.map((team) => [team.id, 0]));
-  const lastPlayed = new Map<number, number>(NBA_TEAMS.map((team) => [team.id, -6]));
-  const matchupCounts = new Map<string, number>();
-  const games: NbaGame[] = [];
-  let nextGameId = 1;
-
-  for (let dateIndex = 0; dateIndex < dateStrings.length; dateIndex += 1) {
-    const targetGames = DAILY_GAME_TARGETS[dateIndex] ?? 5;
-    const usedToday = new Set<number>();
-    let createdToday = 0;
-    let attempts = 0;
-
-    while (createdToday < targetGames && attempts < 3000) {
-      attempts += 1;
-      const primaryTeam = choosePrimaryTeam(
-        NBA_TEAMS,
-        remainingGames,
-        usedToday,
-        lastPlayed,
-        dateIndex,
-        random,
-      );
-
-      if (!primaryTeam) {
-        break;
-      }
-
-      const opponent = chooseOpponent(
-        primaryTeam,
-        NBA_TEAMS,
-        remainingGames,
-        usedToday,
-        lastPlayed,
-        matchupCounts,
-        dateIndex,
-        random,
-      );
-
-      if (!opponent) {
-        continue;
-      }
-
-      const homeTeam = chooseHomeTeam(primaryTeam, opponent, homeGames, awayGames, random);
-      const awayTeam = homeTeam.id === primaryTeam.id ? opponent : primaryTeam;
-      const pair = pairKey(homeTeam.id, awayTeam.id);
-
-      games.push({
-        gameId: nextGameId,
-        gameDate: dateStrings[dateIndex],
-        daynum: dayNumber(dateStrings[dateIndex]),
-        homeTeamId: homeTeam.id,
-        awayTeamId: awayTeam.id,
-        pHomeWins: Number(getHomeWinProbability(homeTeam.id, awayTeam.id).toFixed(4)),
-        isCompleted: false,
-      });
-
-      nextGameId += 1;
-      createdToday += 1;
-      usedToday.add(homeTeam.id);
-      usedToday.add(awayTeam.id);
-      remainingGames.set(homeTeam.id, (remainingGames.get(homeTeam.id) ?? 1) - 1);
-      remainingGames.set(awayTeam.id, (remainingGames.get(awayTeam.id) ?? 1) - 1);
-      homeGames.set(homeTeam.id, (homeGames.get(homeTeam.id) ?? 0) + 1);
-      awayGames.set(awayTeam.id, (awayGames.get(awayTeam.id) ?? 0) + 1);
-      matchupCounts.set(pair, (matchupCounts.get(pair) ?? 0) + 1);
-      lastPlayed.set(homeTeam.id, dateIndex);
-      lastPlayed.set(awayTeam.id, dateIndex);
-    }
-
-    if (createdToday !== targetGames) {
-      return null;
-    }
-  }
-
-  if (Array.from(remainingGames.values()).some((value) => value !== 0)) {
-    return null;
-  }
-
-  const completedRandom = mulberry32(fnv1a('nba-placeholder-completed-v1'));
-
-  return games.map((game) => {
-    if (game.gameDate !== COMPLETED_DATE) {
-      return game;
-    }
-
-    const actualWinnerId =
-      completedRandom() < game.pHomeWins ? game.homeTeamId : game.awayTeamId;
-
-    return {
-      ...game,
-      isCompleted: true,
-      actualWinnerId,
-    };
-  });
-}
-
-function buildSchedule(): NbaGame[] {
-  for (let attempt = 0; attempt < 48; attempt += 1) {
-    const schedule = buildScheduleAttempt(attempt * 101);
-
-    if (schedule) {
-      return schedule;
-    }
-  }
-
-  throw new Error('Unable to generate placeholder NBA schedule.');
-}
-
-export const NBA_SCHEDULE: NbaGame[] = buildSchedule();
+export const NBA_SCHEDULE: NbaGame[] = [
+  { gameId: 1, gameDate: "2026-03-25", daynum: 155, homeTeamId: 7, awayTeamId: 1, pHomeWins: 0.6021, isCompleted: false },
+  { gameId: 2, gameDate: "2026-03-25", daynum: 155, homeTeamId: 8, awayTeamId: 21, pHomeWins: 0.2186, isCompleted: false },
+  { gameId: 3, gameDate: "2026-03-25", daynum: 155, homeTeamId: 13, awayTeamId: 5, pHomeWins: 0.572, isCompleted: false },
+  { gameId: 4, gameDate: "2026-03-25", daynum: 155, homeTeamId: 2, awayTeamId: 25, pHomeWins: 0.4763, isCompleted: false },
+  { gameId: 5, gameDate: "2026-03-25", daynum: 155, homeTeamId: 6, awayTeamId: 9, pHomeWins: 0.7083, isCompleted: false },
+  { gameId: 6, gameDate: "2026-03-25", daynum: 155, homeTeamId: 22, awayTeamId: 29, pHomeWins: 0.2067, isCompleted: false },
+  { gameId: 7, gameDate: "2026-03-25", daynum: 155, homeTeamId: 30, awayTeamId: 15, pHomeWins: 0.6633, isCompleted: false },
+  { gameId: 8, gameDate: "2026-03-25", daynum: 155, homeTeamId: 23, awayTeamId: 19, pHomeWins: 0.5998, isCompleted: false },
+  { gameId: 9, gameDate: "2026-03-25", daynum: 155, homeTeamId: 17, awayTeamId: 16, pHomeWins: 0.8357, isCompleted: false },
+  { gameId: 10, gameDate: "2026-03-25", daynum: 155, homeTeamId: 18, awayTeamId: 3, pHomeWins: 0.809, isCompleted: false },
+  { gameId: 11, gameDate: "2026-03-25", daynum: 155, homeTeamId: 27, awayTeamId: 10, pHomeWins: 0.71, isCompleted: false },
+  { gameId: 12, gameDate: "2026-03-25", daynum: 155, homeTeamId: 20, awayTeamId: 14, pHomeWins: 0.6332, isCompleted: false },
+  { gameId: 13, gameDate: "2026-03-26", daynum: 156, homeTeamId: 4, awayTeamId: 11, pHomeWins: 0.5157, isCompleted: false },
+  { gameId: 14, gameDate: "2026-03-26", daynum: 156, homeTeamId: 7, awayTeamId: 24, pHomeWins: 0.7344, isCompleted: false },
+  { gameId: 15, gameDate: "2026-03-26", daynum: 156, homeTeamId: 12, awayTeamId: 28, pHomeWins: 0.7715, isCompleted: false },
+  { gameId: 16, gameDate: "2026-03-27", daynum: 157, homeTeamId: 8, awayTeamId: 20, pHomeWins: 0.2256, isCompleted: false },
+  { gameId: 17, gameDate: "2026-03-27", daynum: 157, homeTeamId: 2, awayTeamId: 1, pHomeWins: 0.6737, isCompleted: false },
+  { gameId: 18, gameDate: "2026-03-27", daynum: 157, homeTeamId: 6, awayTeamId: 9, pHomeWins: 0.7083, isCompleted: false },
+  { gameId: 19, gameDate: "2026-03-27", daynum: 157, homeTeamId: 22, awayTeamId: 19, pHomeWins: 0.3213, isCompleted: false },
+  { gameId: 20, gameDate: "2026-03-27", daynum: 157, homeTeamId: 25, awayTeamId: 5, pHomeWins: 0.8225, isCompleted: false },
+  { gameId: 21, gameDate: "2026-03-27", daynum: 157, homeTeamId: 14, awayTeamId: 24, pHomeWins: 0.7091, isCompleted: false },
+  { gameId: 22, gameDate: "2026-03-27", daynum: 157, homeTeamId: 17, awayTeamId: 30, pHomeWins: 0.8533, isCompleted: false },
+  { gameId: 23, gameDate: "2026-03-27", daynum: 157, homeTeamId: 18, awayTeamId: 15, pHomeWins: 0.8133, isCompleted: false },
+  { gameId: 24, gameDate: "2026-03-27", daynum: 157, homeTeamId: 27, awayTeamId: 16, pHomeWins: 0.7229, isCompleted: false },
+  { gameId: 25, gameDate: "2026-03-27", daynum: 157, homeTeamId: 21, awayTeamId: 3, pHomeWins: 0.8458, isCompleted: false },
+  { gameId: 26, gameDate: "2026-03-28", daynum: 158, homeTeamId: 10, awayTeamId: 29, pHomeWins: 0.2326, isCompleted: false },
+  { gameId: 27, gameDate: "2026-03-28", daynum: 158, homeTeamId: 4, awayTeamId: 13, pHomeWins: 0.7515, isCompleted: false },
+  { gameId: 28, gameDate: "2026-03-28", daynum: 158, homeTeamId: 1, awayTeamId: 28, pHomeWins: 0.8265, isCompleted: false },
+  { gameId: 29, gameDate: "2026-03-28", daynum: 158, homeTeamId: 22, awayTeamId: 5, pHomeWins: 0.4814, isCompleted: false },
+  { gameId: 30, gameDate: "2026-03-28", daynum: 158, homeTeamId: 23, awayTeamId: 7, pHomeWins: 0.5184, isCompleted: false },
+  { gameId: 31, gameDate: "2026-03-28", daynum: 158, homeTeamId: 26, awayTeamId: 30, pHomeWins: 0.7908, isCompleted: false },
+  { gameId: 32, gameDate: "2026-03-29", daynum: 159, homeTeamId: 10, awayTeamId: 20, pHomeWins: 0.2812, isCompleted: false },
+  { gameId: 33, gameDate: "2026-03-29", daynum: 159, homeTeamId: 8, awayTeamId: 9, pHomeWins: 0.2641, isCompleted: false },
+  { gameId: 34, gameDate: "2026-03-29", daynum: 159, homeTeamId: 3, awayTeamId: 28, pHomeWins: 0.5016, isCompleted: false },
+  { gameId: 35, gameDate: "2026-03-29", daynum: 159, homeTeamId: 4, awayTeamId: 2, pHomeWins: 0.4882, isCompleted: false },
+  { gameId: 36, gameDate: "2026-03-29", daynum: 159, homeTeamId: 14, awayTeamId: 12, pHomeWins: 0.6412, isCompleted: false },
+  { gameId: 37, gameDate: "2026-03-29", daynum: 159, homeTeamId: 27, awayTeamId: 15, pHomeWins: 0.8154, isCompleted: false },
+  { gameId: 38, gameDate: "2026-03-29", daynum: 159, homeTeamId: 24, awayTeamId: 19, pHomeWins: 0.4414, isCompleted: false },
+  { gameId: 39, gameDate: "2026-03-29", daynum: 159, homeTeamId: 25, awayTeamId: 11, pHomeWins: 0.6899, isCompleted: false },
+  { gameId: 40, gameDate: "2026-03-29", daynum: 159, homeTeamId: 17, awayTeamId: 18, pHomeWins: 0.7571, isCompleted: false },
+  { gameId: 41, gameDate: "2026-03-30", daynum: 160, homeTeamId: 9, awayTeamId: 13, pHomeWins: 0.6987, isCompleted: false },
+  { gameId: 42, gameDate: "2026-03-30", daynum: 160, homeTeamId: 1, awayTeamId: 2, pHomeWins: 0.4825, isCompleted: false },
+  { gameId: 43, gameDate: "2026-03-30", daynum: 160, homeTeamId: 22, awayTeamId: 26, pHomeWins: 0.3609, isCompleted: false },
+  { gameId: 44, gameDate: "2026-03-30", daynum: 160, homeTeamId: 29, awayTeamId: 5, pHomeWins: 0.792, isCompleted: false },
+  { gameId: 45, gameDate: "2026-03-30", daynum: 160, homeTeamId: 16, awayTeamId: 23, pHomeWins: 0.289, isCompleted: false },
+  { gameId: 46, gameDate: "2026-03-30", daynum: 160, homeTeamId: 30, awayTeamId: 6, pHomeWins: 0.2085, isCompleted: false },
+  { gameId: 47, gameDate: "2026-03-30", daynum: 160, homeTeamId: 25, awayTeamId: 7, pHomeWins: 0.7413, isCompleted: false },
+  { gameId: 48, gameDate: "2026-03-30", daynum: 160, homeTeamId: 21, awayTeamId: 15, pHomeWins: 0.8673, isCompleted: false },
+  { gameId: 49, gameDate: "2026-03-31", daynum: 161, homeTeamId: 10, awayTeamId: 16, pHomeWins: 0.5857, isCompleted: false },
+  { gameId: 50, gameDate: "2026-03-31", daynum: 161, homeTeamId: 12, awayTeamId: 26, pHomeWins: 0.5645, isCompleted: false },
+  { gameId: 51, gameDate: "2026-03-31", daynum: 161, homeTeamId: 3, awayTeamId: 4, pHomeWins: 0.1918, isCompleted: false },
+  { gameId: 52, gameDate: "2026-03-31", daynum: 161, homeTeamId: 7, awayTeamId: 14, pHomeWins: 0.6647, isCompleted: false },
+  { gameId: 53, gameDate: "2026-03-31", daynum: 161, homeTeamId: 19, awayTeamId: 11, pHomeWins: 0.4339, isCompleted: false },
+  { gameId: 54, gameDate: "2026-03-31", daynum: 161, homeTeamId: 21, awayTeamId: 6, pHomeWins: 0.5663, isCompleted: false },
+  { gameId: 55, gameDate: "2026-03-31", daynum: 161, homeTeamId: 20, awayTeamId: 27, pHomeWins: 0.689, isCompleted: false },
+  { gameId: 56, gameDate: "2026-04-01", daynum: 162, homeTeamId: 22, awayTeamId: 11, pHomeWins: 0.2153, isCompleted: false },
+  { gameId: 57, gameDate: "2026-04-01", daynum: 162, homeTeamId: 15, awayTeamId: 13, pHomeWins: 0.3192, isCompleted: false },
+  { gameId: 58, gameDate: "2026-04-01", daynum: 162, homeTeamId: 9, awayTeamId: 2, pHomeWins: 0.4168, isCompleted: false },
+  { gameId: 59, gameDate: "2026-04-01", daynum: 162, homeTeamId: 12, awayTeamId: 1, pHomeWins: 0.4253, isCompleted: false },
+  { gameId: 60, gameDate: "2026-04-01", daynum: 162, homeTeamId: 14, awayTeamId: 28, pHomeWins: 0.8072, isCompleted: false },
+  { gameId: 61, gameDate: "2026-04-01", daynum: 162, homeTeamId: 5, awayTeamId: 8, pHomeWins: 0.714, isCompleted: false },
+  { gameId: 62, gameDate: "2026-04-01", daynum: 162, homeTeamId: 19, awayTeamId: 10, pHomeWins: 0.784, isCompleted: false },
+  { gameId: 63, gameDate: "2026-04-01", daynum: 162, homeTeamId: 30, awayTeamId: 17, pHomeWins: 0.2114, isCompleted: false },
+  { gameId: 64, gameDate: "2026-04-01", daynum: 162, homeTeamId: 18, awayTeamId: 29, pHomeWins: 0.3248, isCompleted: false },
+  { gameId: 65, gameDate: "2026-04-02", daynum: 163, homeTeamId: 4, awayTeamId: 26, pHomeWins: 0.6651, isCompleted: false },
+  { gameId: 66, gameDate: "2026-04-02", daynum: 163, homeTeamId: 7, awayTeamId: 23, pHomeWins: 0.6335, isCompleted: false },
+  { gameId: 67, gameDate: "2026-04-02", daynum: 163, homeTeamId: 25, awayTeamId: 21, pHomeWins: 0.6932, isCompleted: false },
+  { gameId: 68, gameDate: "2026-04-02", daynum: 163, homeTeamId: 18, awayTeamId: 6, pHomeWins: 0.325, isCompleted: false },
+  { gameId: 69, gameDate: "2026-04-02", daynum: 163, homeTeamId: 27, awayTeamId: 24, pHomeWins: 0.6392, isCompleted: false },
+  { gameId: 70, gameDate: "2026-04-02", daynum: 163, homeTeamId: 20, awayTeamId: 29, pHomeWins: 0.4916, isCompleted: false },
+  { gameId: 71, gameDate: "2026-04-03", daynum: 164, homeTeamId: 4, awayTeamId: 8, pHomeWins: 0.828, isCompleted: false },
+  { gameId: 72, gameDate: "2026-04-03", daynum: 164, homeTeamId: 13, awayTeamId: 23, pHomeWins: 0.4033, isCompleted: false },
+  { gameId: 73, gameDate: "2026-04-03", daynum: 164, homeTeamId: 3, awayTeamId: 1, pHomeWins: 0.2062, isCompleted: false },
+  { gameId: 74, gameDate: "2026-04-03", daynum: 164, homeTeamId: 11, awayTeamId: 5, pHomeWins: 0.8032, isCompleted: false },
+  { gameId: 75, gameDate: "2026-04-03", daynum: 164, homeTeamId: 19, awayTeamId: 30, pHomeWins: 0.8073, isCompleted: false },
+  { gameId: 76, gameDate: "2026-04-03", daynum: 164, homeTeamId: 22, awayTeamId: 14, pHomeWins: 0.3163, isCompleted: false },
+  { gameId: 77, gameDate: "2026-04-03", daynum: 164, homeTeamId: 10, awayTeamId: 2, pHomeWins: 0.2328, isCompleted: false },
+  { gameId: 78, gameDate: "2026-04-03", daynum: 164, homeTeamId: 16, awayTeamId: 12, pHomeWins: 0.4164, isCompleted: false },
+  { gameId: 79, gameDate: "2026-04-03", daynum: 164, homeTeamId: 28, awayTeamId: 24, pHomeWins: 0.4144, isCompleted: false },
+  { gameId: 80, gameDate: "2026-04-04", daynum: 165, homeTeamId: 9, awayTeamId: 15, pHomeWins: 0.8396, isCompleted: false },
+  { gameId: 81, gameDate: "2026-04-04", daynum: 165, homeTeamId: 17, awayTeamId: 29, pHomeWins: 0.5324, isCompleted: false },
+  { gameId: 82, gameDate: "2026-04-04", daynum: 165, homeTeamId: 13, awayTeamId: 7, pHomeWins: 0.3783, isCompleted: false },
+  { gameId: 83, gameDate: "2026-04-05", daynum: 166, homeTeamId: 2, awayTeamId: 14, pHomeWins: 0.7265, isCompleted: false },
+  { gameId: 84, gameDate: "2026-04-05", daynum: 166, homeTeamId: 3, awayTeamId: 15, pHomeWins: 0.6002, isCompleted: false },
+  { gameId: 85, gameDate: "2026-04-05", daynum: 166, homeTeamId: 5, awayTeamId: 26, pHomeWins: 0.5007, isCompleted: false },
+  { gameId: 86, gameDate: "2026-04-05", daynum: 166, homeTeamId: 10, awayTeamId: 22, pHomeWins: 0.602, isCompleted: false },
+  { gameId: 87, gameDate: "2026-04-05", daynum: 166, homeTeamId: 6, awayTeamId: 8, pHomeWins: 0.852, isCompleted: false },
+  { gameId: 88, gameDate: "2026-04-05", daynum: 166, homeTeamId: 23, awayTeamId: 4, pHomeWins: 0.5408, isCompleted: false },
+  { gameId: 89, gameDate: "2026-04-05", daynum: 166, homeTeamId: 24, awayTeamId: 12, pHomeWins: 0.5413, isCompleted: false },
+  { gameId: 90, gameDate: "2026-04-05", daynum: 166, homeTeamId: 25, awayTeamId: 30, pHomeWins: 0.8532, isCompleted: false },
+  { gameId: 91, gameDate: "2026-04-05", daynum: 166, homeTeamId: 16, awayTeamId: 21, pHomeWins: 0.2321, isCompleted: false },
+  { gameId: 92, gameDate: "2026-04-05", daynum: 166, homeTeamId: 28, awayTeamId: 20, pHomeWins: 0.2386, isCompleted: false },
+  { gameId: 93, gameDate: "2026-04-05", daynum: 166, homeTeamId: 18, awayTeamId: 19, pHomeWins: 0.479, isCompleted: false },
+  { gameId: 94, gameDate: "2026-04-06", daynum: 167, homeTeamId: 1, awayTeamId: 11, pHomeWins: 0.4881, isCompleted: false },
+  { gameId: 95, gameDate: "2026-04-06", daynum: 167, homeTeamId: 12, awayTeamId: 7, pHomeWins: 0.4502, isCompleted: false },
+  { gameId: 96, gameDate: "2026-04-06", daynum: 167, homeTeamId: 22, awayTeamId: 6, pHomeWins: 0.215, isCompleted: false },
+  { gameId: 97, gameDate: "2026-04-06", daynum: 167, homeTeamId: 29, awayTeamId: 13, pHomeWins: 0.8092, isCompleted: false },
+  { gameId: 98, gameDate: "2026-04-06", daynum: 167, homeTeamId: 17, awayTeamId: 27, pHomeWins: 0.7622, isCompleted: false },
+  { gameId: 99, gameDate: "2026-04-07", daynum: 168, homeTeamId: 15, awayTeamId: 5, pHomeWins: 0.3021, isCompleted: false },
+  { gameId: 100, gameDate: "2026-04-07", daynum: 168, homeTeamId: 2, awayTeamId: 4, pHomeWins: 0.6444, isCompleted: false },
+  { gameId: 101, gameDate: "2026-04-07", daynum: 168, homeTeamId: 3, awayTeamId: 10, pHomeWins: 0.4097, isCompleted: false },
+  { gameId: 102, gameDate: "2026-04-07", daynum: 168, homeTeamId: 14, awayTeamId: 9, pHomeWins: 0.5715, isCompleted: false },
+  { gameId: 103, gameDate: "2026-04-07", daynum: 168, homeTeamId: 8, awayTeamId: 23, pHomeWins: 0.2598, isCompleted: false },
+  { gameId: 104, gameDate: "2026-04-07", daynum: 168, homeTeamId: 24, awayTeamId: 30, pHomeWins: 0.7218, isCompleted: false },
+  { gameId: 105, gameDate: "2026-04-07", daynum: 168, homeTeamId: 18, awayTeamId: 28, pHomeWins: 0.7557, isCompleted: false },
+  { gameId: 106, gameDate: "2026-04-07", daynum: 168, homeTeamId: 21, awayTeamId: 25, pHomeWins: 0.455, isCompleted: false },
+  { gameId: 107, gameDate: "2026-04-07", daynum: 168, homeTeamId: 20, awayTeamId: 16, pHomeWins: 0.8149, isCompleted: false },
+  { gameId: 108, gameDate: "2026-04-07", daynum: 168, homeTeamId: 26, awayTeamId: 19, pHomeWins: 0.5354, isCompleted: false },
+  { gameId: 109, gameDate: "2026-04-08", daynum: 169, homeTeamId: 6, awayTeamId: 1, pHomeWins: 0.663, isCompleted: false },
+  { gameId: 110, gameDate: "2026-04-08", daynum: 169, homeTeamId: 12, awayTeamId: 23, pHomeWins: 0.4737, isCompleted: false },
+  { gameId: 111, gameDate: "2026-04-08", daynum: 169, homeTeamId: 7, awayTeamId: 10, pHomeWins: 0.7886, isCompleted: false },
+  { gameId: 112, gameDate: "2026-04-08", daynum: 169, homeTeamId: 29, awayTeamId: 27, pHomeWins: 0.7692, isCompleted: false },
+  { gameId: 113, gameDate: "2026-04-08", daynum: 169, homeTeamId: 17, awayTeamId: 22, pHomeWins: 0.8431, isCompleted: false },
+  { gameId: 114, gameDate: "2026-04-08", daynum: 169, homeTeamId: 20, awayTeamId: 25, pHomeWins: 0.4175, isCompleted: false },
+  { gameId: 115, gameDate: "2026-04-08", daynum: 169, homeTeamId: 26, awayTeamId: 16, pHomeWins: 0.7741, isCompleted: false },
+  { gameId: 116, gameDate: "2026-04-09", daynum: 170, homeTeamId: 14, awayTeamId: 9, pHomeWins: 0.5715, isCompleted: false },
+  { gameId: 117, gameDate: "2026-04-09", daynum: 170, homeTeamId: 15, awayTeamId: 5, pHomeWins: 0.3021, isCompleted: false },
+  { gameId: 118, gameDate: "2026-04-09", daynum: 170, homeTeamId: 3, awayTeamId: 8, pHomeWins: 0.5186, isCompleted: false },
+  { gameId: 119, gameDate: "2026-04-09", daynum: 170, homeTeamId: 11, awayTeamId: 2, pHomeWins: 0.5709, isCompleted: false },
+  { gameId: 120, gameDate: "2026-04-09", daynum: 170, homeTeamId: 19, awayTeamId: 13, pHomeWins: 0.7034, isCompleted: false },
+  { gameId: 121, gameDate: "2026-04-09", daynum: 170, homeTeamId: 18, awayTeamId: 21, pHomeWins: 0.3244, isCompleted: false },
+  { gameId: 122, gameDate: "2026-04-10", daynum: 171, homeTeamId: 4, awayTeamId: 7, pHomeWins: 0.5524, isCompleted: false },
+  { gameId: 123, gameDate: "2026-04-10", daynum: 171, homeTeamId: 15, awayTeamId: 9, pHomeWins: 0.224, isCompleted: false },
+  { gameId: 124, gameDate: "2026-04-10", daynum: 171, homeTeamId: 1, awayTeamId: 6, pHomeWins: 0.5008, isCompleted: false },
+  { gameId: 125, gameDate: "2026-04-10", daynum: 171, homeTeamId: 2, awayTeamId: 24, pHomeWins: 0.7933, isCompleted: false },
+  { gameId: 126, gameDate: "2026-04-10", daynum: 171, homeTeamId: 8, awayTeamId: 13, pHomeWins: 0.436, isCompleted: false },
+  { gameId: 127, gameDate: "2026-04-10", daynum: 171, homeTeamId: 11, awayTeamId: 14, pHomeWins: 0.726, isCompleted: false },
+  { gameId: 128, gameDate: "2026-04-10", daynum: 171, homeTeamId: 5, awayTeamId: 12, pHomeWins: 0.5371, isCompleted: false },
+  { gameId: 129, gameDate: "2026-04-10", daynum: 171, homeTeamId: 19, awayTeamId: 23, pHomeWins: 0.5534, isCompleted: false },
+  { gameId: 130, gameDate: "2026-04-10", daynum: 171, homeTeamId: 10, awayTeamId: 3, pHomeWins: 0.706, isCompleted: false },
+  { gameId: 131, gameDate: "2026-04-10", daynum: 171, homeTeamId: 29, awayTeamId: 16, pHomeWins: 0.8314, isCompleted: false },
+  { gameId: 132, gameDate: "2026-04-10", daynum: 171, homeTeamId: 30, awayTeamId: 22, pHomeWins: 0.528, isCompleted: false },
+  { gameId: 133, gameDate: "2026-04-10", daynum: 171, homeTeamId: 17, awayTeamId: 25, pHomeWins: 0.491, isCompleted: false },
+  { gameId: 134, gameDate: "2026-04-10", daynum: 171, homeTeamId: 27, awayTeamId: 20, pHomeWins: 0.4378, isCompleted: false },
+  { gameId: 135, gameDate: "2026-04-10", daynum: 171, homeTeamId: 28, awayTeamId: 18, pHomeWins: 0.3619, isCompleted: false },
+  { gameId: 136, gameDate: "2026-04-10", daynum: 171, homeTeamId: 21, awayTeamId: 26, pHomeWins: 0.6807, isCompleted: false },
+  { gameId: 137, gameDate: "2026-04-12", daynum: 173, homeTeamId: 2, awayTeamId: 12, pHomeWins: 0.7857, isCompleted: false },
+  { gameId: 138, gameDate: "2026-04-12", daynum: 173, homeTeamId: 6, awayTeamId: 15, pHomeWins: 0.8592, isCompleted: false },
+  { gameId: 139, gameDate: "2026-04-12", daynum: 173, homeTeamId: 8, awayTeamId: 7, pHomeWins: 0.263, isCompleted: false },
+  { gameId: 140, gameDate: "2026-04-12", daynum: 173, homeTeamId: 9, awayTeamId: 1, pHomeWins: 0.515, isCompleted: false },
+  { gameId: 141, gameDate: "2026-04-12", daynum: 173, homeTeamId: 11, awayTeamId: 4, pHomeWins: 0.6504, isCompleted: false },
+  { gameId: 142, gameDate: "2026-04-12", daynum: 173, homeTeamId: 13, awayTeamId: 10, pHomeWins: 0.6636, isCompleted: false },
+  { gameId: 143, gameDate: "2026-04-12", daynum: 173, homeTeamId: 14, awayTeamId: 3, pHomeWins: 0.8305, isCompleted: false },
+  { gameId: 144, gameDate: "2026-04-12", daynum: 173, homeTeamId: 16, awayTeamId: 5, pHomeWins: 0.4654, isCompleted: false },
+  { gameId: 145, gameDate: "2026-04-12", daynum: 173, homeTeamId: 19, awayTeamId: 22, pHomeWins: 0.7944, isCompleted: false },
+  { gameId: 146, gameDate: "2026-04-12", daynum: 173, homeTeamId: 23, awayTeamId: 24, pHomeWins: 0.7374, isCompleted: false },
+  { gameId: 147, gameDate: "2026-04-12", daynum: 173, homeTeamId: 25, awayTeamId: 26, pHomeWins: 0.8009, isCompleted: false },
+  { gameId: 148, gameDate: "2026-04-12", daynum: 173, homeTeamId: 29, awayTeamId: 17, pHomeWins: 0.6142, isCompleted: false },
+  { gameId: 149, gameDate: "2026-04-12", daynum: 173, homeTeamId: 21, awayTeamId: 30, pHomeWins: 0.8488, isCompleted: false },
+  { gameId: 150, gameDate: "2026-04-12", daynum: 173, homeTeamId: 20, awayTeamId: 18, pHomeWins: 0.6931, isCompleted: false },
+  { gameId: 151, gameDate: "2026-04-12", daynum: 173, homeTeamId: 27, awayTeamId: 28, pHomeWins: 0.777, isCompleted: false },
+];
