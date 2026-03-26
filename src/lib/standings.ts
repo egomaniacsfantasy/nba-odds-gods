@@ -181,6 +181,9 @@ function _seedConference(
       gamesBack: gb,
       projectedSeed: seed <= 10 ? seed : null,
       seedLabel: seedLbl,
+      isPlayIn: seed >= 7 && seed <= 10,
+      isEliminated: seed > 10,
+      streak: '',
     };
   });
 }

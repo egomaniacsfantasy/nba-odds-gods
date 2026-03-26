@@ -6,7 +6,6 @@
 //   East R1: 9201=1v8, 9202=4v5, 9203=2v7, 9204=3v6
 //   West R1: 9211=1v8, 9212=4v5, 9213=2v7, 9214=3v6
 // Updated: 2026-03-26
-import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { getSeriesGameProb, RoundKey } from '../data/nbaSeriesGameProbs';
 import { getPlayinProb } from '../data/nbaPlayinProbs';
 import type {
