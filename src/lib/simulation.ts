@@ -1,10 +1,10 @@
 // Auto-generated simulation.ts — do not edit manually
 // Fixed RNG seed (nba-season-2026) prevents pick-volatility.
-// Playoff picks in lockedPicks use game IDs 9001-9214.
+// Playoff picks in lockedPicks use game IDs 9001-9501.
 //   East play-in: 9001=7v8, 9002=9v10, 9003=final
 //   West play-in: 9011=7v8, 9012=9v10, 9013=final
-//   East R1: 9201=1v8, 9202=4v5, 9203=2v7, 9204=3v6
-//   West R1: 9211=1v8, 9212=4v5, 9213=2v7, 9214=3v6
+//   East R1 per-game: 9101-9107=1v8 G1-7, 9111-9117=4v5, 9121-9127=2v7, 9131-9137=3v6
+//   West R1 per-game: 9141-9147=1v8 G1-7, 9151-9157=4v5, 9161-9167=2v7, 9171-9177=3v6
 // Updated: 2026-03-26
 import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { getPlayinProb } from '../data/nbaPlayinProbs';
@@ -26,8 +26,18 @@ export const PLAYIN_GAME_IDS = {
   west: { sevenVEight: 9011, nineVTen: 9012, final: 9013 },
 } as const;
 export const R1_GAME_IDS = {
-  east: [9201, 9202, 9203, 9204] as const,  // [1v8, 4v5, 2v7, 3v6]
-  west: [9211, 9212, 9213, 9214] as const,
+  east: {
+    s1v8: [9101,9102,9103,9104,9105,9106,9107] as const,  // G1-G7
+    s4v5: [9111,9112,9113,9114,9115,9116,9117] as const,
+    s2v7: [9121,9122,9123,9124,9125,9126,9127] as const,
+    s3v6: [9131,9132,9133,9134,9135,9136,9137] as const,
+  },
+  west: {
+    s1v8: [9141,9142,9143,9144,9145,9146,9147] as const,
+    s4v5: [9151,9152,9153,9154,9155,9156,9157] as const,
+    s2v7: [9161,9162,9163,9164,9165,9166,9167] as const,
+    s3v6: [9171,9172,9173,9174,9175,9176,9177] as const,
+  },
 } as const;
 export const R2_GAME_IDS = {
   east: [9301, 9302] as const,  // [winner(1v8) v winner(4v5), winner(2v7) v winner(3v6)]
@@ -90,18 +100,25 @@ function simulateSeries(
   teamB: SeededTeam,
   regularSeasonWins: Map<number, number>,
   random: () => number,
+  lockedPicks?: LockedPicks,
+  gameIds?: readonly number[],
 ): number {
   const homeCourtTeamId = decideHomeCourt(teamA, teamB, regularSeasonWins, random);
   const challengerId = homeCourtTeamId === teamA.teamId ? teamB.teamId : teamA.teamId;
   // Use matchup win probabilities — home/away location follows standard NBA 2-2-1-1-1 pattern.
+  // Always run all 7 games to keep RNG stream length constant.
+  // Per-game picks (gameIds) override random draws for individual games.
   let hsW = 0;
   let lsW = 0;
-  // Always run all 7 games to keep RNG stream length constant (locked path also consumes 7).
   for (let g = 1; g <= 7; g++) {
     const seriesOver = hsW === 4 || lsW === 4;
     const p = seriesOver ? 0.5 : getMatchupProb(homeCourtTeamId, challengerId, _HS_HOME_G.has(g) ? 'home' : 'away');
-    if (random() < p) { if (!seriesOver) hsW += 1; }
-    else { if (!seriesOver) lsW += 1; }
+    const r = random();
+    if (!seriesOver) {
+      const pick = gameIds && lockedPicks ? lockedPicks.get(gameIds[g - 1]) : undefined;
+      const hsWins = pick !== undefined ? pick === homeCourtTeamId : r < p;
+      if (hsWins) hsW += 1; else lsW += 1;
+    }
   }
   return hsW === 4 ? homeCourtTeamId : challengerId;
 }
@@ -176,28 +193,19 @@ function simulateConferenceBracket(
   isEast: boolean,
   random: () => number,
 ): number {
-  const r1Ids = isEast ? R1_GAME_IDS.east : R1_GAME_IDS.west;
+  const r1Keys = isEast ? R1_GAME_IDS.east : R1_GAME_IDS.west;
   const r2Ids = isEast ? R2_GAME_IDS.east : R2_GAME_IDS.west;
   const cfId = isEast ? CF_GAME_IDS.east : CF_GAME_IDS.west;
-  // Quarterfinals order matches R1_GAME_IDS: [1v8, 4v5, 2v7, 3v6]
-  const quarterfinals = [
-    [seededTeams[0], seededTeams[7]],
-    [seededTeams[3], seededTeams[4]],
-    [seededTeams[1], seededTeams[6]],
-    [seededTeams[2], seededTeams[5]],
-  ] as const;
+  // Quarterfinals order: [1v8, 4v5, 2v7, 3v6] — use per-game picks via simulateSeries
+  const quarterfinals: Array<[SeededTeam, SeededTeam, readonly number[]]> = [
+    [seededTeams[0], seededTeams[7], r1Keys.s1v8],
+    [seededTeams[3], seededTeams[4], r1Keys.s4v5],
+    [seededTeams[1], seededTeams[6], r1Keys.s2v7],
+    [seededTeams[2], seededTeams[5], r1Keys.s3v6],
+  ];
 
-  const roundOneWinners = quarterfinals.map(([teamA, teamB], i) => {
-    const lockedWinner = lockedPicks.get(r1Ids[i]);
-    let winnerId: number;
-    if (lockedWinner !== undefined &&
-        (lockedWinner === teamA.teamId || lockedWinner === teamB.teamId)) {
-      // Consume 7 draws to keep RNG stream aligned with unlocked iterations (best-of-7 max)
-      for (let _i = 0; _i < 7; _i += 1) random();
-      winnerId = lockedWinner;
-    } else {
-      winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random);
-    }
+  const roundOneWinners = quarterfinals.map(([teamA, teamB, gameIds]) => {
+    const winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random, lockedPicks, gameIds);
     const counter = counters.get(winnerId);
     if (counter) counter.r1Count += 1;
     return {

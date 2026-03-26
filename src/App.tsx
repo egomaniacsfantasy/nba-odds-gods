@@ -431,6 +431,8 @@ export default function App(_props: AppProps) {
                   teamsById={NBA_TEAM_LOOKUP}
                   advancements={currentAdvancements}
                   allGamesPicked={allGamesPicked}
+                  oddsFormat={oddsFormat}
+                  justPickedKey={justPickedKey}
                   onPick={handlePick}
                 />
               </section>
@@ -478,6 +480,8 @@ export default function App(_props: AppProps) {
                     teamsById={NBA_TEAM_LOOKUP}
                     advancements={currentAdvancements}
                     allGamesPicked={allGamesPicked}
+                    oddsFormat={oddsFormat}
+                    justPickedKey={justPickedKey}
                     onPick={handlePick}
                   />
                 </section>
