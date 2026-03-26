@@ -39,10 +39,6 @@ const DELTA_FIELDS = [
   'pChampion',
 ] as const;
 
-function pathToTab(pathname: string): 'schedule' | 'playoffs' {
-  return pathname.startsWith('/playoffs') ? 'playoffs' : 'schedule';
-}
-
 function hashPicks(lockedPicks: LockedPicks): string {
   return JSON.stringify(Array.from(lockedPicks.entries()).sort((entryA, entryB) => entryA[0] - entryB[0]));
 }
