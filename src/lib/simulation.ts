@@ -6,7 +6,8 @@
 //   East R1: 9201=1v8, 9202=4v5, 9203=2v7, 9204=3v6
 //   West R1: 9211=1v8, 9212=4v5, 9213=2v7, 9214=3v6
 // Updated: 2026-03-26
-import { getHomeWinProbability, getTeamRating } from '../data/nbaTeams';
+import { getMatchupProb } from '../data/nbaMatchupProbs';
+import { getTeamRating } from '../data/nbaTeams';
 import type {
   LockedPicks,
   NbaGame,
@@ -59,7 +60,8 @@ function simulateSingleGame(
   random: () => number,
 ): number {
   const awayTeamId = homeTeamId === teamAId ? teamBId : teamAId;
-  const homeWins = random() < getHomeWinProbability(homeTeamId, awayTeamId);
+  // Use LightGBM matchup probs (same model as regular season pHomeWins)
+  const homeWins = random() < getMatchupProb(homeTeamId, awayTeamId, 'home');
   return homeWins ? homeTeamId : awayTeamId;
 }
 

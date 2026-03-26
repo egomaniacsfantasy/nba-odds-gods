@@ -390,6 +390,7 @@ export function buildResolvedGames(
     let wasLocked = false;
 
     if (!winnerId && lockedPicks.has(game.gameId)) {
+      if (random) random(); // keep RNG stream aligned across iterations
       winnerId = lockedPicks.get(game.gameId);
       wasLocked = true;
     }
