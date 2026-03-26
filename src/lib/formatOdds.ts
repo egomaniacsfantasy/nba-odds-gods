@@ -1,3 +1,5 @@
+// Auto-generated lib/formatOdds.ts — do not edit manually
+// Updated: 2026-03-26
 import type { OddsFormat } from '../types';
 
 export function formatOdds(probability: number, format: OddsFormat): string {
@@ -43,8 +45,12 @@ export function formatDelta(probabilityDelta: number, format: OddsFormat): strin
 }
 
 export function formatProbabilityCell(probability: number, format: OddsFormat): string {
-  if (probability < 0.01) {
+  if (probability < 0.001) {
     return '—';
+  }
+
+  if (probability < 0.01) {
+    return format === 'implied' ? '<1%' : '<1%';
   }
 
   return formatOdds(probability, format);

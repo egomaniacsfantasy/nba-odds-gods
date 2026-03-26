@@ -1,3 +1,5 @@
+// Auto-generated AdvancementPanel.tsx — do not edit manually
+// Updated: 2026-03-26
 import { formatDelta, formatProbabilityCell } from '../lib/formatOdds';
 import type {
   AdvancementSortKey,
@@ -23,6 +25,7 @@ const PROBABILITY_COLUMNS: Array<{
   label: string;
 }> = [
   { key: 'pMakesPlayoffs', label: 'Playoffs' },
+  { key: 'pWinsR1', label: 'R2' },
   { key: 'pConfFinals', label: 'Conf' },
   { key: 'pFinals', label: 'Finals' },
   { key: 'pChampion', label: 'Champ' },

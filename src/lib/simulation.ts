@@ -176,7 +176,6 @@ function simulateConferenceBracket(
     [seededTeams[2], seededTeams[5]],
   ] as const;
 
-  const conf = isEast ? 'east' : 'west';
   const roundOneWinners = quarterfinals.map(([teamA, teamB], i) => {
     const lockedWinner = lockedPicks.get(r1Ids[i]);
     let winnerId: number;
