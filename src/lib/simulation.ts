@@ -7,6 +7,8 @@
 //   West R1: 9211=1v8, 9212=4v5, 9213=2v7, 9214=3v6
 // Updated: 2026-03-26
 import { getMatchupProb } from '../data/nbaMatchupProbs';
+import { getSeriesGameProb, RoundKey } from '../data/nbaSeriesGameProbs';
+import { getPlayinProb } from '../data/nbaPlayinProbs';
 import { getTeamRating } from '../data/nbaTeams';
 import type {
   LockedPicks,
@@ -70,13 +72,15 @@ function decideHomeCourt(
   teamB: SeededTeam,
   regularSeasonWins: Map<number, number>,
 ): number {
-  if (teamA.seed !== teamB.seed) {
-    return teamA.seed < teamB.seed ? teamA.teamId : teamB.teamId;
-  }
+  // NBA rule: home court = better regular-season record (matches Python CELL 15/13).
+  // Seed used only as tiebreaker when simulated wins are equal.
   const teamAWins = regularSeasonWins.get(teamA.teamId) ?? 0;
   const teamBWins = regularSeasonWins.get(teamB.teamId) ?? 0;
   if (teamAWins !== teamBWins) {
     return teamAWins > teamBWins ? teamA.teamId : teamB.teamId;
+  }
+  if (teamA.seed !== teamB.seed) {
+    return teamA.seed < teamB.seed ? teamA.teamId : teamB.teamId;
   }
   return getTeamRating(teamA.teamId) >= getTeamRating(teamB.teamId) ? teamA.teamId : teamB.teamId;
 }
@@ -85,23 +89,22 @@ function simulateSeries(
   teamA: SeededTeam,
   teamB: SeededTeam,
   regularSeasonWins: Map<number, number>,
+  roundKey: RoundKey,
   random: () => number,
 ): number {
   const homeCourtTeamId = decideHomeCourt(teamA, teamB, regularSeasonWins);
-  const otherTeamId = homeCourtTeamId === teamA.teamId ? teamB.teamId : teamA.teamId;
-  const homePattern = [
-    homeCourtTeamId, homeCourtTeamId, otherTeamId, otherTeamId,
-    homeCourtTeamId, otherTeamId, homeCourtTeamId,
-  ];
-  let homeCourtWins = 0;
-  let challengerWins = 0;
-  for (const homeTeamId of homePattern) {
-    const winnerId = simulateSingleGame(homeCourtTeamId, otherTeamId, homeTeamId, random);
-    if (winnerId === homeCourtTeamId) homeCourtWins += 1;
-    else challengerWins += 1;
-    if (homeCourtWins === 4 || challengerWins === 4) break;
+  const challengerId = homeCourtTeamId === teamA.teamId ? teamB.teamId : teamA.teamId;
+  // Game-by-game using SERIES_GAME_PROB lookup — identical to Python MC CELL 15.
+  // getSeriesGameProb encodes home/away (games 1,2,5,7 = hs home) + series state.
+  let hsW = 0;
+  let lsW = 0;
+  for (let g = 1; g <= 7; g++) {
+    if (hsW === 4 || lsW === 4) break;
+    const p = getSeriesGameProb(roundKey, homeCourtTeamId, challengerId, g, hsW, lsW);
+    if (random() < p) hsW += 1;
+    else lsW += 1;
   }
-  return homeCourtWins === 4 ? homeCourtTeamId : otherTeamId;
+  return hsW === 4 ? homeCourtTeamId : challengerId;
 }
 
 function finalizeConferencePlayoffs(
@@ -129,24 +132,30 @@ function finalizeConferencePlayoffs(
 
   const piIds = isEast ? PLAYIN_GAME_IDS.east : PLAYIN_GAME_IDS.west;
 
-  // 7v8: winner → seed 7; loser → plays final for seed 8
+  // Play-in: always consume one RNG draw per game to keep stream aligned,
+  // even when the game has been locked by the user.
+  // Uses getPlayinProb which encodes actual April 14-17 DayNums (not today's DayNum).
+  const r7v8 = random();
   const locked7v8 = lockedPicks.get(piIds.sevenVEight);
   const firstPlayInWinner = locked7v8 !== undefined
     ? locked7v8
-    : simulateSingleGame(playIn[0].teamId, playIn[1].teamId, playIn[0].teamId, random);
+    : (r7v8 < getPlayinProb('7v8', playIn[0].teamId, playIn[1].teamId)
+        ? playIn[0].teamId : playIn[1].teamId);
   const firstPlayInLoser = firstPlayInWinner === playIn[0].teamId ? playIn[1].teamId : playIn[0].teamId;
 
-  // 9v10: loser eliminated; winner → plays final for seed 8
+  const r9v10 = random();
   const locked9v10 = lockedPicks.get(piIds.nineVTen);
   const secondPlayInWinner = locked9v10 !== undefined
     ? locked9v10
-    : simulateSingleGame(playIn[2].teamId, playIn[3].teamId, playIn[2].teamId, random);
+    : (r9v10 < getPlayinProb('9v10', playIn[2].teamId, playIn[3].teamId)
+        ? playIn[2].teamId : playIn[3].teamId);
 
-  // Final: loser of 7v8 (hosts) vs winner of 9v10 → winner is seed 8
+  const rFinal = random();
   const lockedFinal = lockedPicks.get(piIds.final);
   const eighthSeedWinner = lockedFinal !== undefined
     ? lockedFinal
-    : simulateSingleGame(firstPlayInLoser, secondPlayInWinner, firstPlayInLoser, random);
+    : (rFinal < getPlayinProb('final', firstPlayInLoser, secondPlayInWinner)
+        ? firstPlayInLoser : secondPlayInWinner);
 
   const firstWinnerCounter = counters.get(firstPlayInWinner);
   const eighthWinnerCounter = counters.get(eighthSeedWinner);
@@ -177,6 +186,7 @@ function simulateConferenceBracket(
     [seededTeams[2], seededTeams[5]],
   ] as const;
 
+  const conf = isEast ? 'east' : 'west';
   const roundOneWinners = quarterfinals.map(([teamA, teamB], i) => {
     const lockedWinner = lockedPicks.get(r1Ids[i]);
     let winnerId: number;
@@ -184,7 +194,7 @@ function simulateConferenceBracket(
         (lockedWinner === teamA.teamId || lockedWinner === teamB.teamId)) {
       winnerId = lockedWinner;
     } else {
-      winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random);
+      winnerId = simulateSeries(teamA, teamB, regularSeasonWins, `${conf}_r1` as RoundKey, random);
     }
     const counter = counters.get(winnerId);
     if (counter) counter.r1Count += 1;
@@ -200,7 +210,7 @@ function simulateConferenceBracket(
   ] as const;
 
   const conferenceFinalists = semifinals.map(([teamA, teamB]) => {
-    const winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random);
+    const winnerId = simulateSeries(teamA, teamB, regularSeasonWins, `${conf}_r2` as RoundKey, random);
     const counter = counters.get(winnerId);
     if (counter) counter.confFinalsCount += 1;
     return {
@@ -213,6 +223,7 @@ function simulateConferenceBracket(
     conferenceFinalists[0],
     conferenceFinalists[1],
     regularSeasonWins,
+    `${conf}_cf` as RoundKey,
     random,
   );
   const championCounter = counters.get(conferenceChampionId);
@@ -304,6 +315,7 @@ export function simulateNbaFullSeason(
       { seed: 1, teamId: eastChampionId },
       { seed: 1, teamId: westChampionId },
       regularSeasonWins,
+      'finals',
       random,
     );
     const championCounter = counters.get(finalsWinnerId);

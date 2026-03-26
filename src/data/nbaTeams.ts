@@ -18,7 +18,7 @@ interface TeamProfile {
   baselineLosses: number;
 }
 
-const TARGET_GAMES_PLAYED = 72;
+const TARGET_GAMES_PLAYED = 73;
 const CONFERENCE_GAMES_PLAYED = Math.round((TARGET_GAMES_PLAYED * 52) / 82);
 const DIVISION_GAMES_PLAYED = Math.round((TARGET_GAMES_PLAYED * 16) / 82);
 
@@ -60,7 +60,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     primaryColor: '#000000',
     elo: 1296.5,
     baselineWins: 17,
-    baselineLosses: 55,
+    baselineLosses: 56,
   },
   {
     id: 4,
@@ -151,7 +151,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     primaryColor: '#00471b',
     elo: 1403.5,
     baselineWins: 29,
-    baselineLosses: 42,
+    baselineLosses: 43,
   },
   {
     id: 11,
@@ -203,7 +203,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     primaryColor: '#ce1141',
     elo: 1507.8,
     baselineWins: 40,
-    baselineLosses: 31,
+    baselineLosses: 32,
   },
   {
     id: 15,
@@ -215,7 +215,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     logoId: 27,
     primaryColor: '#002b5c',
     elo: 1258.0,
-    baselineWins: 16,
+    baselineWins: 17,
     baselineLosses: 55,
   },
   {
@@ -229,7 +229,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     primaryColor: '#00538c',
     elo: 1371.4,
     baselineWins: 23,
-    baselineLosses: 49,
+    baselineLosses: 50,
   },
   {
     id: 17,
@@ -241,7 +241,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     logoId: 7,
     primaryColor: '#0e2240',
     elo: 1590.5,
-    baselineWins: 45,
+    baselineWins: 46,
     baselineLosses: 28,
   },
   {
@@ -254,7 +254,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     logoId: 9,
     primaryColor: '#1d428a',
     elo: 1477.3,
-    baselineWins: 34,
+    baselineWins: 35,
     baselineLosses: 38,
   },
   {
@@ -268,7 +268,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     primaryColor: '#ce1141',
     elo: 1579.2,
     baselineWins: 43,
-    baselineLosses: 28,
+    baselineLosses: 29,
   },
   {
     id: 20,
@@ -280,7 +280,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     logoId: 12,
     primaryColor: '#c8102e',
     elo: 1546.7,
-    baselineWins: 36,
+    baselineWins: 37,
     baselineLosses: 36,
   },
   {
@@ -319,7 +319,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     logoId: 16,
     primaryColor: '#0c2340',
     elo: 1572.5,
-    baselineWins: 44,
+    baselineWins: 45,
     baselineLosses: 28,
   },
   {
@@ -371,7 +371,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     logoId: 22,
     primaryColor: '#e03a3e',
     elo: 1457.9,
-    baselineWins: 36,
+    baselineWins: 37,
     baselineLosses: 37,
   },
   {
@@ -411,7 +411,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     primaryColor: '#002b5c',
     elo: 1316.3,
     baselineWins: 21,
-    baselineLosses: 51,
+    baselineLosses: 52,
   },
 ];
 
