@@ -236,8 +236,8 @@ function _runStandings(
       else          { awayState.divWins++; homeState.divLosses++; }
     }
 
-    // Track H2H for remaining games (used in tiebreaker)
-    if (random) {
+    // Track H2H for ALL games (projected + simulated) — ensures tiebreaker is consistent
+    {
       const lo = Math.min(game.homeTeamId, game.awayTeamId);
       const hi = Math.max(game.homeTeamId, game.awayTeamId);
       const key = _h2hKey(lo, hi);

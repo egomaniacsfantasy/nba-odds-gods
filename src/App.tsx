@@ -10,7 +10,7 @@ import { ScheduleView } from './components/ScheduleView';
 import { SimControls } from './components/SimControls';
 import { StandingsTable } from './components/StandingsTable';
 import { ToolNav } from './components/ToolNav';
-import { NBA_MC_ADVANCEMENT, NBA_MC_EAST_STANDINGS, NBA_MC_WEST_STANDINGS } from './data/nbaMcResults';
+import { NBA_MC_ADVANCEMENT, NBA_MC_EAST_STANDINGS, NBA_MC_EXP_WINS, NBA_MC_WEST_STANDINGS } from './data/nbaMcResults';
 import { NBA_SCHEDULE } from './data/nbaSchedule';
 import { NBA_TEAMS, NBA_TEAM_LOOKUP } from './data/nbaTeams';
 import { getSimIterations, simulateNbaFullSeason } from './lib/simulation';
@@ -117,6 +117,7 @@ export default function App(_props: AppProps) {
   // After picks: use live simulation results
   const noPicks = lockedPicks.size === 0;
   const currentAdvancements = noPicks ? NBA_MC_ADVANCEMENT : (simResult?.advancements ?? NBA_MC_ADVANCEMENT);
+  const currentExpWins = noPicks ? NBA_MC_EXP_WINS : (simResult?.expWins ?? NBA_MC_EXP_WINS);
   const displayEast = noPicks ? NBA_MC_EAST_STANDINGS : projectedStandings.east;
   const displayWest = noPicks ? NBA_MC_WEST_STANDINGS : projectedStandings.west;
 
@@ -444,6 +445,7 @@ export default function App(_props: AppProps) {
                   activeConference={activeConference}
                   changedTeamIds={changedTeamIds}
                   lockedRecord={lockedRecord}
+                  expWins={currentExpWins}
                   onConferenceChange={setActiveConference}
                 />
                 <AdvancementPanel

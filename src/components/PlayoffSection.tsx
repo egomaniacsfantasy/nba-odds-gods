@@ -1,12 +1,11 @@
 // Auto-generated PlayoffSection.tsx — do not edit manually
 // Updated: 2026-03-26
-import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { DateGroup } from './DateGroup';
 import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { getPlayinProb } from '../data/nbaPlayinProbs';
 import {
-  CF_GAME_IDS, FINALS_GAME_ID, PLAYIN_GAME_IDS, R1_GAME_IDS, R2_GAME_IDS,
+  CF_GAME_IDS, FINALS_GAME_IDS, PLAYIN_GAME_IDS, R1_GAME_IDS, R2_GAME_IDS,
 } from '../lib/simulation';
 import type { LockedPicks, NbaGame, NbaTeam, OddsFormat, StandingsRow, TeamAdvancement } from '../types';
 
@@ -15,7 +14,7 @@ interface PlayoffSectionProps {
   east: StandingsRow[];
   west: StandingsRow[];
   teamsById: Map<number, NbaTeam>;
-  advancements: Map<number, TeamAdvancement>;
+  advancements?: Map<number, TeamAdvancement>;
   allGamesPicked: boolean;
   oddsFormat: OddsFormat;
   justPickedKey: string | null;
@@ -70,90 +69,26 @@ const _W_R1_DATES: readonly string[] = ['2026-04-20','2026-04-22','2026-04-24','
 const _E_R1_DAYS:  readonly number[] = [180,182,184,186,188,190,192];
 const _W_R1_DAYS:  readonly number[] = [181,183,185,187,189,191,193];
 
-// ── PlayoffCard for R2/CF/Finals (series-winner picks, old card style) ────────
-function fmt(v: number): string {
-  if (v >= 0.995) return '>99%';
-  if (v < 0.005) return '<1%';
-  return `${Math.round(v * 100)}%`;
-}
+// Approximate game dates/daynums for R2, CF, Finals
+const _R2_DATES:  readonly string[] = ['2026-05-05','2026-05-07','2026-05-09','2026-05-11','2026-05-14','2026-05-17','2026-05-19'];
+const _R2_DAYS:   readonly number[] = [196,198,200,202,205,208,210];
+const _CF_DATES:  readonly string[] = ['2026-05-21','2026-05-23','2026-05-25','2026-05-27','2026-05-30','2026-06-02','2026-06-04'];
+const _CF_DAYS:   readonly number[] = [212,214,216,218,221,224,226];
+const _FIN_DATES: readonly string[] = ['2026-06-07','2026-06-09','2026-06-11','2026-06-14','2026-06-17','2026-06-20','2026-06-22'];
+const _FIN_DAYS:  readonly number[] = [229,231,233,236,239,242,244];
 
-function seriesWinPctNeutral(aId: number, bId: number): number {
-  const pN = getMatchupProb(aId, bId, 'neutral');
-  const memo = new Map<string, number>();
-  function dp(aw: number, bw: number): number {
-    if (aw === 4) return 1.0;
-    if (bw === 4) return 0.0;
-    const k = `${aw}_${bw}`;
-    if (memo.has(k)) return memo.get(k)!;
-    const v = pN * dp(aw + 1, bw) + (1 - pN) * dp(aw, bw + 1);
-    memo.set(k, v);
-    return v;
-  }
-  return dp(0, 0);
+// Determine home-court team (lower seed index = home court)
+function _hsOf(aId: number | null, aIdx: number, bId: number | null, bIdx: number): number | null {
+  if (!aId || !bId) return aId ?? bId ?? null;
+  return aIdx <= bIdx ? aId : bId;
 }
-
-function PlayoffCard({
-  gameId, teamAId, teamBId, label, probA,
-  lockedPicks, teamsById, advancements, onPick,
-}: {
-  gameId: number;
-  teamAId: number | null;
-  teamBId: number | null;
-  label: string;
-  probA: number;
-  lockedPicks: LockedPicks;
-  teamsById: Map<number, NbaTeam>;
-  advancements: Map<number, TeamAdvancement>;
-  onPick: (gameId: number, teamId: number) => void;
-}) {
-  const teamA = teamAId != null ? teamsById.get(teamAId) ?? null : null;
-  const teamB = teamBId != null ? teamsById.get(teamBId) ?? null : null;
-  const picked = lockedPicks.get(gameId);
-  const canPick = teamAId != null && teamBId != null;
-  const advA = teamAId != null ? advancements.get(teamAId) : null;
-  const advB = teamBId != null ? advancements.get(teamBId) : null;
-  return (
-    <div className={`po-card${picked !== undefined ? ' po-card--picked' : ''}`}>
-      <span className="po-card__label">{label}</span>
-      <div className="po-card__row">
-        <button type="button"
-          className={`po-card__team${picked === teamAId ? ' po-card__team--win' : ''}${picked !== undefined && picked !== teamAId ? ' po-card__team--loss' : ''}`}
-          onClick={() => canPick && teamAId != null && onPick(gameId, teamAId)} disabled={!canPick}>
-          {teamA ? <img className="po-card__logo" src={teamA.logoUrl} alt={teamA.abbr} loading="lazy"
-            onError={(e: { currentTarget: HTMLImageElement }) => { e.currentTarget.style.display = 'none'; }} /> : null}
-          <span className="po-card__abbr">{teamA?.abbr ?? 'TBD'}</span>
-          <span className="po-card__prob">{fmt(probA)}</span>
-          {advA ? <span className="po-card__champ">{fmt(advA.pChampion)} champ</span> : null}
-        </button>
-        <span className="po-card__vs">vs</span>
-        <button type="button"
-          className={`po-card__team${picked === teamBId ? ' po-card__team--win' : ''}${picked !== undefined && picked !== teamBId ? ' po-card__team--loss' : ''}`}
-          onClick={() => canPick && teamBId != null && onPick(gameId, teamBId)} disabled={!canPick}>
-          {teamB ? <img className="po-card__logo" src={teamB.logoUrl} alt={teamB.abbr} loading="lazy"
-            onError={(e: { currentTarget: HTMLImageElement }) => { e.currentTarget.style.display = 'none'; }} /> : null}
-          <span className="po-card__abbr">{teamB?.abbr ?? 'TBD'}</span>
-          <span className="po-card__prob">{fmt(1 - probA)}</span>
-          {advB ? <span className="po-card__champ">{fmt(advB.pChampion)} champ</span> : null}
-        </button>
-      </div>
-      {picked !== undefined ? (
-        <div className="po-card__result">{teamsById.get(picked)?.abbr ?? '?'} advances</div>
-      ) : null}
-    </div>
-  );
-}
-
-function PlayoffRound({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="po-round">
-      <h3 className="po-round__title">{title}</h3>
-      <div className="po-round__games">{children}</div>
-    </div>
-  );
+function _lsOf(aId: number | null, aIdx: number, bId: number | null, bIdx: number): number | null {
+  if (!aId || !bId) return aId ?? bId ?? null;
+  return aIdx <= bIdx ? bId : aId;
 }
 
 export function PlayoffSection({
-  lockedPicks, east, west, teamsById, advancements,
+  lockedPicks, east, west, teamsById,
   allGamesPicked, oddsFormat, justPickedKey, onPick,
 }: PlayoffSectionProps) {
   const groups = useMemo(() => {
@@ -166,7 +101,6 @@ export function PlayoffSection({
     const ws7 = west[6]?.teamId ?? null, ws8 = west[7]?.teamId ?? null;
     const ws9 = west[8]?.teamId ?? null, ws10 = west[9]?.teamId ?? null;
 
-    // Play-in final teams: loser of 7v8 hosts vs winner of 9v10
     const e7p = pk(PLAYIN_GAME_IDS.east.sevenVEight);
     const e9p = pk(PLAYIN_GAME_IDS.east.nineVTen);
     const eFinHome = e7p != null ? (e7p === es7 ? es8 : es7) : null;
@@ -177,7 +111,6 @@ export function PlayoffSection({
     const wFinHome = w7p != null ? (w7p === ws7 ? ws8 : ws7) : null;
     const wFinAway = w9p;
 
-    // Resolved seeds after play-in
     const eSeed7 = e7p, eSeed8 = pk(PLAYIN_GAME_IDS.east.final);
     const wSeed7 = w7p, wSeed8 = pk(PLAYIN_GAME_IDS.west.final);
 
@@ -191,36 +124,31 @@ export function PlayoffSection({
     const playinDone = ePlayinDone && wPlayinDone;
 
     const result: Array<{ date: string; games: NbaGame[] }> = [];
-    function addGroup(date: string, games: NbaGame[]) { if (games.length > 0) result.push({ date, games }); }
+    const byDate = new Map<string, NbaGame[]>();
+    function addToDate(g: NbaGame) { const a = byDate.get(g.gameDate) ?? []; a.push(g); byDate.set(g.gameDate, a); }
+    function flushDates(dates: readonly string[]) {
+      const seen = new Set(dates);
+      for (const d of [...seen].sort()) { const gs = byDate.get(d); if (gs?.length) result.push({ date: d, games: gs }); byDate.delete(d); }
+    }
 
     // ── April 14: Play-In 7v8 ─────────────────────────────────────
-    const apr14: NbaGame[] = [];
-    if (es7 && es8) apr14.push(_mkGame(PLAYIN_GAME_IDS.east.sevenVEight, '2026-04-14', 175, es7, es8, getPlayinProb('7v8', es7, es8)));
-    if (ws7 && ws8) apr14.push(_mkGame(PLAYIN_GAME_IDS.west.sevenVEight, '2026-04-14', 175, ws7, ws8, getPlayinProb('7v8', ws7, ws8)));
-    addGroup('2026-04-14', apr14);
-
+    if (es7 && es8) addToDate(_mkGame(PLAYIN_GAME_IDS.east.sevenVEight, '2026-04-14', 175, es7, es8, getPlayinProb('7v8', es7, es8)));
+    if (ws7 && ws8) addToDate(_mkGame(PLAYIN_GAME_IDS.west.sevenVEight, '2026-04-14', 175, ws7, ws8, getPlayinProb('7v8', ws7, ws8)));
     // ── April 15: Play-In 9v10 ────────────────────────────────────
-    const apr15: NbaGame[] = [];
-    if (es9 && es10) apr15.push(_mkGame(PLAYIN_GAME_IDS.east.nineVTen, '2026-04-15', 176, es9, es10, getPlayinProb('9v10', es9, es10)));
-    if (ws9 && ws10) apr15.push(_mkGame(PLAYIN_GAME_IDS.west.nineVTen, '2026-04-15', 176, ws9, ws10, getPlayinProb('9v10', ws9, ws10)));
-    addGroup('2026-04-15', apr15);
-
-    // ── April 17: Play-In finals (loser of 7v8 vs winner of 9v10) ─
-    const apr17: NbaGame[] = [];
+    if (es9 && es10) addToDate(_mkGame(PLAYIN_GAME_IDS.east.nineVTen, '2026-04-15', 176, es9, es10, getPlayinProb('9v10', es9, es10)));
+    if (ws9 && ws10) addToDate(_mkGame(PLAYIN_GAME_IDS.west.nineVTen, '2026-04-15', 176, ws9, ws10, getPlayinProb('9v10', ws9, ws10)));
+    // ── April 17: Play-In finals ──────────────────────────────────
     if (eFinHome != null && eFinAway != null)
-      apr17.push(_mkGame(PLAYIN_GAME_IDS.east.final, '2026-04-17', 178, eFinHome, eFinAway, getPlayinProb('final', eFinHome, eFinAway)));
+      addToDate(_mkGame(PLAYIN_GAME_IDS.east.final, '2026-04-17', 178, eFinHome, eFinAway, getPlayinProb('final', eFinHome, eFinAway)));
     if (wFinHome != null && wFinAway != null)
-      apr17.push(_mkGame(PLAYIN_GAME_IDS.west.final, '2026-04-17', 178, wFinHome, wFinAway, getPlayinProb('final', wFinHome, wFinAway)));
-    addGroup('2026-04-17', apr17);
+      addToDate(_mkGame(PLAYIN_GAME_IDS.west.final, '2026-04-17', 178, wFinHome, wFinAway, getPlayinProb('final', wFinHome, wFinAway)));
+    flushDates(['2026-04-14','2026-04-15','2026-04-17']);
 
     if (!playinDone) return result;
 
-    // ── R1: group all series games by date ────────────────────────
-    const byDate = new Map<string, NbaGame[]>();
+    // ── R1: group by date ─────────────────────────────────────────
     function addSeries(ids: readonly number[], hs: number | null, ls: number | null, dates: readonly string[], days: readonly number[]) {
-      for (const g of _buildSeries(ids, hs, ls, dates, days, lockedPicks)) {
-        const arr = byDate.get(g.gameDate) ?? []; arr.push(g); byDate.set(g.gameDate, arr);
-      }
+      for (const g of _buildSeries(ids, hs, ls, dates, days, lockedPicks)) addToDate(g);
     }
     addSeries(R1_GAME_IDS.east.s1v8, eS[0], eS[7], _E_R1_DATES, _E_R1_DAYS);
     addSeries(R1_GAME_IDS.east.s4v5, eS[3], eS[4], _E_R1_DATES, _E_R1_DAYS);
@@ -230,58 +158,70 @@ export function PlayoffSection({
     addSeries(R1_GAME_IDS.west.s4v5, wS[3], wS[4], _W_R1_DATES, _W_R1_DAYS);
     addSeries(R1_GAME_IDS.west.s2v7, wS[1], wS[6], _W_R1_DATES, _W_R1_DAYS);
     addSeries(R1_GAME_IDS.west.s3v6, wS[2], wS[5], _W_R1_DATES, _W_R1_DAYS);
+    flushDates([..._E_R1_DATES, ..._W_R1_DATES]);
 
-    const r1Dates = [...new Set([..._E_R1_DATES, ..._W_R1_DATES])].sort();
-    for (const d of r1Dates) addGroup(d, byDate.get(d) ?? []);
+    // ── R1 completion check ───────────────────────────────────────
+    const r1Done = _seriesDone(R1_GAME_IDS.east.s1v8, eS[0], eS[7], lockedPicks) &&
+      _seriesDone(R1_GAME_IDS.east.s4v5, eS[3], eS[4], lockedPicks) &&
+      _seriesDone(R1_GAME_IDS.east.s2v7, eS[1], eS[6], lockedPicks) &&
+      _seriesDone(R1_GAME_IDS.east.s3v6, eS[2], eS[5], lockedPicks) &&
+      _seriesDone(R1_GAME_IDS.west.s1v8, wS[0], wS[7], lockedPicks) &&
+      _seriesDone(R1_GAME_IDS.west.s4v5, wS[3], wS[4], lockedPicks) &&
+      _seriesDone(R1_GAME_IDS.west.s2v7, wS[1], wS[6], lockedPicks) &&
+      _seriesDone(R1_GAME_IDS.west.s3v6, wS[2], wS[5], lockedPicks);
+    if (!r1Done) return result;
+
+    // ── R2: determine matchups + home court ───────────────────────
+    const eR1w = {
+      s1v8: _seriesWinner(R1_GAME_IDS.east.s1v8, eS[0], eS[7], lockedPicks),
+      s4v5: _seriesWinner(R1_GAME_IDS.east.s4v5, eS[3], eS[4], lockedPicks),
+      s2v7: _seriesWinner(R1_GAME_IDS.east.s2v7, eS[1], eS[6], lockedPicks),
+      s3v6: _seriesWinner(R1_GAME_IDS.east.s3v6, eS[2], eS[5], lockedPicks),
+    };
+    const wR1w = {
+      s1v8: _seriesWinner(R1_GAME_IDS.west.s1v8, wS[0], wS[7], lockedPicks),
+      s4v5: _seriesWinner(R1_GAME_IDS.west.s4v5, wS[3], wS[4], lockedPicks),
+      s2v7: _seriesWinner(R1_GAME_IDS.west.s2v7, wS[1], wS[6], lockedPicks),
+      s3v6: _seriesWinner(R1_GAME_IDS.west.s3v6, wS[2], wS[5], lockedPicks),
+    };
+    // index in eS/wS gives original seed (0=seed1,...,7=seed8)
+    const eSI = (id: number | null) => id ? eS.indexOf(id) : 99;
+    const wSI = (id: number | null) => id ? wS.indexOf(id) : 99;
+    // R2 East sAB: 1/8w vs 4/5w
+    addSeries(R2_GAME_IDS.east.sAB, _hsOf(eR1w.s1v8, eSI(eR1w.s1v8), eR1w.s4v5, eSI(eR1w.s4v5)), _lsOf(eR1w.s1v8, eSI(eR1w.s1v8), eR1w.s4v5, eSI(eR1w.s4v5)), _R2_DATES, _R2_DAYS);
+    addSeries(R2_GAME_IDS.east.sCD, _hsOf(eR1w.s2v7, eSI(eR1w.s2v7), eR1w.s3v6, eSI(eR1w.s3v6)), _lsOf(eR1w.s2v7, eSI(eR1w.s2v7), eR1w.s3v6, eSI(eR1w.s3v6)), _R2_DATES, _R2_DAYS);
+    addSeries(R2_GAME_IDS.west.sAB, _hsOf(wR1w.s1v8, wSI(wR1w.s1v8), wR1w.s4v5, wSI(wR1w.s4v5)), _lsOf(wR1w.s1v8, wSI(wR1w.s1v8), wR1w.s4v5, wSI(wR1w.s4v5)), _R2_DATES, _R2_DAYS);
+    addSeries(R2_GAME_IDS.west.sCD, _hsOf(wR1w.s2v7, wSI(wR1w.s2v7), wR1w.s3v6, wSI(wR1w.s3v6)), _lsOf(wR1w.s2v7, wSI(wR1w.s2v7), wR1w.s3v6, wSI(wR1w.s3v6)), _R2_DATES, _R2_DAYS);
+    flushDates(_R2_DATES);
+
+    const r2Done = _seriesDone(R2_GAME_IDS.east.sAB, eR1w.s1v8, eR1w.s4v5, lockedPicks) &&
+      _seriesDone(R2_GAME_IDS.east.sCD, eR1w.s2v7, eR1w.s3v6, lockedPicks) &&
+      _seriesDone(R2_GAME_IDS.west.sAB, wR1w.s1v8, wR1w.s4v5, lockedPicks) &&
+      _seriesDone(R2_GAME_IDS.west.sCD, wR1w.s2v7, wR1w.s3v6, lockedPicks);
+    if (!r2Done) return result;
+
+    // ── CF ────────────────────────────────────────────────────────
+    const eR2wAB = _seriesWinner(R2_GAME_IDS.east.sAB, eR1w.s1v8, eR1w.s4v5, lockedPicks);
+    const eR2wCD = _seriesWinner(R2_GAME_IDS.east.sCD, eR1w.s2v7, eR1w.s3v6, lockedPicks);
+    const wR2wAB = _seriesWinner(R2_GAME_IDS.west.sAB, wR1w.s1v8, wR1w.s4v5, lockedPicks);
+    const wR2wCD = _seriesWinner(R2_GAME_IDS.west.sCD, wR1w.s2v7, wR1w.s3v6, lockedPicks);
+    addSeries(CF_GAME_IDS.east, _hsOf(eR2wAB, eSI(eR2wAB), eR2wCD, eSI(eR2wCD)), _lsOf(eR2wAB, eSI(eR2wAB), eR2wCD, eSI(eR2wCD)), _CF_DATES, _CF_DAYS);
+    addSeries(CF_GAME_IDS.west, _hsOf(wR2wAB, wSI(wR2wAB), wR2wCD, wSI(wR2wCD)), _lsOf(wR2wAB, wSI(wR2wAB), wR2wCD, wSI(wR2wCD)), _CF_DATES, _CF_DAYS);
+    flushDates(_CF_DATES);
+
+    const cfDone = _seriesDone(CF_GAME_IDS.east, eR2wAB, eR2wCD, lockedPicks) &&
+      _seriesDone(CF_GAME_IDS.west, wR2wAB, wR2wCD, lockedPicks);
+    if (!cfDone) return result;
+
+    // ── Finals ────────────────────────────────────────────────────
+    const eastChamp = _seriesWinner(CF_GAME_IDS.east, eR2wAB, eR2wCD, lockedPicks);
+    const westChamp = _seriesWinner(CF_GAME_IDS.west, wR2wAB, wR2wCD, lockedPicks);
+    // Finals: home court to team with better record — use index 0 for east, 0 for west as proxy
+    addSeries(FINALS_GAME_IDS, _hsOf(eastChamp, 0, westChamp, 1), _lsOf(eastChamp, 0, westChamp, 1), _FIN_DATES, _FIN_DAYS);
+    flushDates(_FIN_DATES);
 
     return result;
   }, [east, west, lockedPicks]);
-
-  // R1 done = all 8 series have a winner (for R2/CF/Finals display)
-  const hp = (id: number) => lockedPicks.has(id);
-  const pk = (id: number) => lockedPicks.get(id) ?? null;
-
-  const eSeed7 = pk(PLAYIN_GAME_IDS.east.sevenVEight);
-  const eSeed8 = pk(PLAYIN_GAME_IDS.east.final);
-  const wSeed7 = pk(PLAYIN_GAME_IDS.west.sevenVEight);
-  const wSeed8 = pk(PLAYIN_GAME_IDS.west.final);
-
-  const eS = [east[0]?.teamId??null, east[1]?.teamId??null, east[2]?.teamId??null,
-              east[3]?.teamId??null, east[4]?.teamId??null, east[5]?.teamId??null, eSeed7, eSeed8];
-  const wS = [west[0]?.teamId??null, west[1]?.teamId??null, west[2]?.teamId??null,
-              west[3]?.teamId??null, west[4]?.teamId??null, west[5]?.teamId??null, wSeed7, wSeed8];
-
-  const playinDone = hp(PLAYIN_GAME_IDS.east.sevenVEight) && hp(PLAYIN_GAME_IDS.east.nineVTen) && hp(PLAYIN_GAME_IDS.east.final) &&
-                     hp(PLAYIN_GAME_IDS.west.sevenVEight) && hp(PLAYIN_GAME_IDS.west.nineVTen) && hp(PLAYIN_GAME_IDS.west.final);
-
-  const eR1w = {
-    s1v8: _seriesWinner(R1_GAME_IDS.east.s1v8, eS[0], eS[7], lockedPicks),
-    s4v5: _seriesWinner(R1_GAME_IDS.east.s4v5, eS[3], eS[4], lockedPicks),
-    s2v7: _seriesWinner(R1_GAME_IDS.east.s2v7, eS[1], eS[6], lockedPicks),
-    s3v6: _seriesWinner(R1_GAME_IDS.east.s3v6, eS[2], eS[5], lockedPicks),
-  };
-  const wR1w = {
-    s1v8: _seriesWinner(R1_GAME_IDS.west.s1v8, wS[0], wS[7], lockedPicks),
-    s4v5: _seriesWinner(R1_GAME_IDS.west.s4v5, wS[3], wS[4], lockedPicks),
-    s2v7: _seriesWinner(R1_GAME_IDS.west.s2v7, wS[1], wS[6], lockedPicks),
-    s3v6: _seriesWinner(R1_GAME_IDS.west.s3v6, wS[2], wS[5], lockedPicks),
-  };
-
-  const r1Done = playinDone &&
-    _seriesDone(R1_GAME_IDS.east.s1v8, eS[0], eS[7], lockedPicks) &&
-    _seriesDone(R1_GAME_IDS.east.s4v5, eS[3], eS[4], lockedPicks) &&
-    _seriesDone(R1_GAME_IDS.east.s2v7, eS[1], eS[6], lockedPicks) &&
-    _seriesDone(R1_GAME_IDS.east.s3v6, eS[2], eS[5], lockedPicks) &&
-    _seriesDone(R1_GAME_IDS.west.s1v8, wS[0], wS[7], lockedPicks) &&
-    _seriesDone(R1_GAME_IDS.west.s4v5, wS[3], wS[4], lockedPicks) &&
-    _seriesDone(R1_GAME_IDS.west.s2v7, wS[1], wS[6], lockedPicks) &&
-    _seriesDone(R1_GAME_IDS.west.s3v6, wS[2], wS[5], lockedPicks);
-
-  const r2Done = r1Done && [...R2_GAME_IDS.east, ...R2_GAME_IDS.west].every((id) => hp(id));
-  const cfDone = r2Done && hp(CF_GAME_IDS.east) && hp(CF_GAME_IDS.west);
-  const r2w = (id: number) => pk(id);
-  const eastChamp = pk(CF_GAME_IDS.east);
-  const westChamp = pk(CF_GAME_IDS.west);
 
   if (!allGamesPicked) return null;
 
@@ -292,7 +232,6 @@ export function PlayoffSection({
         <p className="playoff-section__sub">Pick each game — odds update live after each pick</p>
       </div>
 
-      {/* Play-In and R1: date-grouped GameCard style (same as schedule) */}
       {groups.map((group) => (
         <DateGroup
           key={group.date}
@@ -309,60 +248,6 @@ export function PlayoffSection({
           onPick={onPick}
         />
       ))}
-
-      {/* R2/CF/Finals: series-winner picks (appear after R1 complete) */}
-      {r1Done ? (
-        <div className="po-conf-row">
-          <PlayoffRound title="Eastern Semifinals">
-            <PlayoffCard gameId={R2_GAME_IDS.east[0]} label="1/8 winner vs 4/5 winner"
-              teamAId={eR1w.s1v8} teamBId={eR1w.s4v5}
-              probA={eR1w.s1v8 != null && eR1w.s4v5 != null ? seriesWinPctNeutral(eR1w.s1v8, eR1w.s4v5) : 0.5}
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick} />
-            <PlayoffCard gameId={R2_GAME_IDS.east[1]} label="2/7 winner vs 3/6 winner"
-              teamAId={eR1w.s2v7} teamBId={eR1w.s3v6}
-              probA={eR1w.s2v7 != null && eR1w.s3v6 != null ? seriesWinPctNeutral(eR1w.s2v7, eR1w.s3v6) : 0.5}
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick} />
-          </PlayoffRound>
-          <PlayoffRound title="Western Semifinals">
-            <PlayoffCard gameId={R2_GAME_IDS.west[0]} label="1/8 winner vs 4/5 winner"
-              teamAId={wR1w.s1v8} teamBId={wR1w.s4v5}
-              probA={wR1w.s1v8 != null && wR1w.s4v5 != null ? seriesWinPctNeutral(wR1w.s1v8, wR1w.s4v5) : 0.5}
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick} />
-            <PlayoffCard gameId={R2_GAME_IDS.west[1]} label="2/7 winner vs 3/6 winner"
-              teamAId={wR1w.s2v7} teamBId={wR1w.s3v6}
-              probA={wR1w.s2v7 != null && wR1w.s3v6 != null ? seriesWinPctNeutral(wR1w.s2v7, wR1w.s3v6) : 0.5}
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick} />
-          </PlayoffRound>
-        </div>
-      ) : null}
-
-      {r2Done ? (
-        <div className="po-conf-row">
-          <PlayoffRound title="Eastern Conference Finals">
-            <PlayoffCard gameId={CF_GAME_IDS.east} label="East Conference Finals"
-              teamAId={r2w(R2_GAME_IDS.east[0])} teamBId={r2w(R2_GAME_IDS.east[1])}
-              probA={r2w(R2_GAME_IDS.east[0]) != null && r2w(R2_GAME_IDS.east[1]) != null ? seriesWinPctNeutral(r2w(R2_GAME_IDS.east[0])!, r2w(R2_GAME_IDS.east[1])!) : 0.5}
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick} />
-          </PlayoffRound>
-          <PlayoffRound title="Western Conference Finals">
-            <PlayoffCard gameId={CF_GAME_IDS.west} label="West Conference Finals"
-              teamAId={r2w(R2_GAME_IDS.west[0])} teamBId={r2w(R2_GAME_IDS.west[1])}
-              probA={r2w(R2_GAME_IDS.west[0]) != null && r2w(R2_GAME_IDS.west[1]) != null ? seriesWinPctNeutral(r2w(R2_GAME_IDS.west[0])!, r2w(R2_GAME_IDS.west[1])!) : 0.5}
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick} />
-          </PlayoffRound>
-        </div>
-      ) : null}
-
-      {cfDone ? (
-        <div className="po-finals-row">
-          <PlayoffRound title="NBA Finals">
-            <PlayoffCard gameId={FINALS_GAME_ID} label="NBA Finals"
-              teamAId={eastChamp} teamBId={westChamp}
-              probA={eastChamp != null && westChamp != null ? seriesWinPctNeutral(eastChamp, westChamp) : 0.5}
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick} />
-          </PlayoffRound>
-        </div>
-      ) : null}
     </section>
   );
 }

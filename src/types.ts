@@ -78,6 +78,7 @@ export interface TeamAdvancement {
 
 export interface SimulationResult {
   advancements: Map<number, TeamAdvancement>;
+  expWins: Map<number, number>;
   standings: {
     east: StandingsRow[];
     west: StandingsRow[];

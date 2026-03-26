@@ -1,10 +1,12 @@
 // Auto-generated simulation.ts — do not edit manually
 // Fixed RNG seed (nba-season-2026) prevents pick-volatility.
-// Playoff picks in lockedPicks use game IDs 9001-9501.
+// Playoff game IDs (all rounds use per-game picks):
 //   East play-in: 9001=7v8, 9002=9v10, 9003=final
 //   West play-in: 9011=7v8, 9012=9v10, 9013=final
-//   East R1 per-game: 9101-9107=1v8 G1-7, 9111-9117=4v5, 9121-9127=2v7, 9131-9137=3v6
-//   West R1 per-game: 9141-9147=1v8 G1-7, 9151-9157=4v5, 9161-9167=2v7, 9171-9177=3v6
+//   East R1: 9101-9107=1v8, 9111-9117=4v5, 9121-9127=2v7, 9131-9137=3v6
+//   West R1: 9141-9147, 9151-9157, 9161-9167, 9171-9177
+//   East R2: 9301-9307=sAB, 9321-9327=sCD; West R2: 9341-9347=sAB, 9361-9367=sCD
+//   East CF: 9401-9407; West CF: 9411-9417; Finals: 9501-9507
 // Updated: 2026-03-26
 import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { getPlayinProb } from '../data/nbaPlayinProbs';
@@ -40,14 +42,20 @@ export const R1_GAME_IDS = {
   },
 } as const;
 export const R2_GAME_IDS = {
-  east: [9301, 9302] as const,  // [winner(1v8) v winner(4v5), winner(2v7) v winner(3v6)]
-  west: [9311, 9312] as const,
+  east: {
+    sAB: [9301,9302,9303,9304,9305,9306,9307] as const,  // 1/8w vs 4/5w, G1-G7
+    sCD: [9321,9322,9323,9324,9325,9326,9327] as const,  // 2/7w vs 3/6w, G1-G7
+  },
+  west: {
+    sAB: [9341,9342,9343,9344,9345,9346,9347] as const,
+    sCD: [9361,9362,9363,9364,9365,9366,9367] as const,
+  },
 } as const;
 export const CF_GAME_IDS = {
-  east: 9401,
-  west: 9411,
+  east: [9401,9402,9403,9404,9405,9406,9407] as const,
+  west: [9411,9412,9413,9414,9415,9416,9417] as const,
 } as const;
-export const FINALS_GAME_ID = 9501;
+export const FINALS_GAME_IDS = [9501,9502,9503,9504,9505,9506,9507] as const;
 
 interface SeededTeam {
   seed: number;
@@ -194,8 +202,8 @@ function simulateConferenceBracket(
   random: () => number,
 ): number {
   const r1Keys = isEast ? R1_GAME_IDS.east : R1_GAME_IDS.west;
-  const r2Ids = isEast ? R2_GAME_IDS.east : R2_GAME_IDS.west;
-  const cfId = isEast ? CF_GAME_IDS.east : CF_GAME_IDS.west;
+  const r2Keys = isEast ? R2_GAME_IDS.east : R2_GAME_IDS.west;
+  const cfIds = isEast ? CF_GAME_IDS.east : CF_GAME_IDS.west;
   // Quarterfinals order: [1v8, 4v5, 2v7, 3v6] — use per-game picks via simulateSeries
   const quarterfinals: Array<[SeededTeam, SeededTeam, readonly number[]]> = [
     [seededTeams[0], seededTeams[7], r1Keys.s1v8],
@@ -214,22 +222,14 @@ function simulateConferenceBracket(
     };
   });
 
-  // R2: [winner(1v8) vs winner(4v5), winner(2v7) vs winner(3v6)]
-  const semifinals = [
-    [roundOneWinners[0], roundOneWinners[1]],
-    [roundOneWinners[2], roundOneWinners[3]],
-  ] as const;
+  // R2: per-game picks via simulateSeries (same as R1)
+  const semifinals: Array<[SeededTeam, SeededTeam, readonly number[]]> = [
+    [roundOneWinners[0], roundOneWinners[1], r2Keys.sAB],
+    [roundOneWinners[2], roundOneWinners[3], r2Keys.sCD],
+  ];
 
-  const conferenceFinalists = semifinals.map(([teamA, teamB], i) => {
-    const lockedWinner = lockedPicks.get(r2Ids[i]);
-    let winnerId: number;
-    if (lockedWinner !== undefined &&
-        (lockedWinner === teamA.teamId || lockedWinner === teamB.teamId)) {
-      for (let _i = 0; _i < 7; _i += 1) random();
-      winnerId = lockedWinner;
-    } else {
-      winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random);
-    }
+  const conferenceFinalists = semifinals.map(([teamA, teamB, gameIds]) => {
+    const winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random, lockedPicks, gameIds);
     const counter = counters.get(winnerId);
     if (counter) counter.confFinalsCount += 1;
     return {
@@ -238,21 +238,15 @@ function simulateConferenceBracket(
     };
   });
 
-  // Conference Finals
-  const lockedCF = lockedPicks.get(cfId);
-  let conferenceChampionId: number;
-  if (lockedCF !== undefined &&
-      (lockedCF === conferenceFinalists[0].teamId || lockedCF === conferenceFinalists[1].teamId)) {
-    for (let _i = 0; _i < 7; _i += 1) random();
-    conferenceChampionId = lockedCF;
-  } else {
-    conferenceChampionId = simulateSeries(
-      conferenceFinalists[0],
-      conferenceFinalists[1],
-      regularSeasonWins,
-      random,
-    );
-  }
+  // Conference Finals — per-game picks
+  const conferenceChampionId = simulateSeries(
+    conferenceFinalists[0],
+    conferenceFinalists[1],
+    regularSeasonWins,
+    random,
+    lockedPicks,
+    cfIds,
+  );
   const championCounter = counters.get(conferenceChampionId);
   if (championCounter) championCounter.finalsCount += 1;
 
@@ -299,6 +293,7 @@ export function simulateNbaFullSeason(
   const counters = new Map<number, SimulationTeamCounter>(
     teams.map((team) => [team.id, createCounter(team.id)]),
   );
+  const totalWins = new Map<number, number>(teams.map((team) => [team.id, 0]));
   // Fixed seed — changing a single pick no longer re-randomizes all draws
   const seed = fnv1a(`nba-season-2026:${numIterations}`);
   const random = mulberry32(seed);
@@ -314,6 +309,7 @@ export function simulateNbaFullSeason(
       incrementSeedCount(counter, seedValue);
       if (seedValue <= 6) counter.top6Count += 1;
       else if (seedValue <= 10) counter.playInCount += 1;
+      totalWins.set(row.teamId, (totalWins.get(row.teamId) ?? 0) + row.wins);
     });
 
     iterationStandings.west.forEach((row, index) => {
@@ -321,6 +317,7 @@ export function simulateNbaFullSeason(
       if (!counter) return;
       const seedValue = index + 1;
       incrementSeedCount(counter, seedValue);
+      totalWins.set(row.teamId, (totalWins.get(row.teamId) ?? 0) + row.wins);
       if (seedValue <= 6) counter.top6Count += 1;
       else if (seedValue <= 10) counter.playInCount += 1;
     });
@@ -338,20 +335,14 @@ export function simulateNbaFullSeason(
       westBracket, regularSeasonWins, counters, lockedPicks, false, random,
     );
 
-    const lockedFinals = lockedPicks.get(FINALS_GAME_ID);
-    let finalsWinnerId: number;
-    if (lockedFinals !== undefined &&
-        (lockedFinals === eastChampionId || lockedFinals === westChampionId)) {
-      for (let _i = 0; _i < 7; _i += 1) random();
-      finalsWinnerId = lockedFinals;
-    } else {
-      finalsWinnerId = simulateSeries(
-        { seed: 1, teamId: eastChampionId },
-        { seed: 1, teamId: westChampionId },
-        regularSeasonWins,
-        random,
-      );
-    }
+    const finalsWinnerId = simulateSeries(
+      { seed: 1, teamId: eastChampionId },
+      { seed: 1, teamId: westChampionId },
+      regularSeasonWins,
+      random,
+      lockedPicks,
+      FINALS_GAME_IDS,
+    );
     const championCounter = counters.get(finalsWinnerId);
     if (championCounter) championCounter.championCount += 1;
   }
@@ -377,8 +368,11 @@ export function simulateNbaFullSeason(
     });
   }
 
+  const expWins = new Map(Array.from(totalWins.entries()).map(([id, tot]) => [id, tot / numIterations]));
+
   return {
     advancements,
+    expWins,
     standings: { east: projection.east, west: projection.west },
   };
 }

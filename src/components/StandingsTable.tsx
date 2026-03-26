@@ -8,6 +8,7 @@ interface StandingsTableProps {
   activeConference: ConferenceKey;
   changedTeamIds: number[];
   lockedRecord: { w: Map<number, number>; l: Map<number, number> };
+  expWins: Map<number, number>;
   onConferenceChange: (conference: ConferenceKey) => void;
 }
 
@@ -18,6 +19,7 @@ export function StandingsTable({
   activeConference,
   changedTeamIds,
   lockedRecord,
+  expWins,
   onConferenceChange,
 }: StandingsTableProps) {
   const rows = activeConference === 'East' ? east : west;
@@ -102,7 +104,7 @@ export function StandingsTable({
                 </span>
                 <span className="num-col">{currentW}</span>
                 <span className="num-col">{currentL}</span>
-                <span className="num-col">{row.wins}</span>
+                <span className="num-col">{(expWins.get(row.teamId) ?? row.wins).toFixed(1)}</span>
                 <span className={seedClassName(index + 1)}>{row.isPlayIn ? `${index + 1} PI` : `${index + 1}`}</span>
               </div>
 
