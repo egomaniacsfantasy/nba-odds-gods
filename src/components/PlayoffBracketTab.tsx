@@ -160,7 +160,7 @@ export function PlayoffBracketTab({
   const { eb, wb } = useMemo(() => {
     function resolveBracket(
       rows: StandingsRow[],
-      piIds: typeof PLAYIN_GAME_IDS.east,
+      piIds: { sevenVEight: number; nineVTen: number; final: number },
     ) {
       const s7 = rows[6]?.teamId ?? null;
       const s8 = rows[7]?.teamId ?? null;
