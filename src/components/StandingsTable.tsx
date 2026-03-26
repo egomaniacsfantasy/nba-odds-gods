@@ -1,5 +1,4 @@
 import { Fragment } from 'react';
-import { formatGamesBack, formatWinPct } from '../lib/formatOdds';
 import type { ConferenceKey, NbaTeam, StandingsRow } from '../types';
 
 interface StandingsTableProps {
@@ -8,6 +7,7 @@ interface StandingsTableProps {
   teamsById: Map<number, NbaTeam>;
   activeConference: ConferenceKey;
   changedTeamIds: number[];
+  lockedRecord: { w: Map<number, number>; l: Map<number, number> };
   onConferenceChange: (conference: ConferenceKey) => void;
 }
 
@@ -17,6 +17,7 @@ export function StandingsTable({
   teamsById,
   activeConference,
   changedTeamIds,
+  lockedRecord,
   onConferenceChange,
 }: StandingsTableProps) {
   const rows = activeConference === 'East' ? east : west;
@@ -53,8 +54,7 @@ export function StandingsTable({
           <span className="team-col">Team</span>
           <span className="num-col">W</span>
           <span className="num-col">L</span>
-          <span className="pct-col">PCT</span>
-          <span className="gb-col">GB</span>
+          <span className="num-col">xW</span>
           <span className="seed-col">Seed</span>
         </div>
 
@@ -68,6 +68,9 @@ export function StandingsTable({
           const classes = ['standings-row', changedTeamIds.includes(row.teamId) ? 'standings-row--changed' : '']
             .filter(Boolean)
             .join(' ');
+
+          const currentW = team.wins + (lockedRecord.w.get(row.teamId) ?? 0);
+          const currentL = team.losses + (lockedRecord.l.get(row.teamId) ?? 0);
 
           return (
             <Fragment key={row.teamId}>
@@ -97,10 +100,9 @@ export function StandingsTable({
                   <span className="standings-team__abbr">{team.abbr}</span>
                   <span className="standings-team__division">{team.division.slice(0, 1)}</span>
                 </span>
+                <span className="num-col">{currentW}</span>
+                <span className="num-col">{currentL}</span>
                 <span className="num-col">{row.wins}</span>
-                <span className="num-col">{row.losses}</span>
-                <span className="pct-col">{formatWinPct(row.winPct)}</span>
-                <span className="gb-col">{formatGamesBack(row.gamesBack)}</span>
                 <span className={seedClassName(index + 1)}>{row.isPlayIn ? `${index + 1} PI` : `${index + 1}`}</span>
               </div>
 

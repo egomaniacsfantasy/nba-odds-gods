@@ -135,7 +135,23 @@ export default function App({ initialPath }: AppProps) {
     return rows.sort((rowA, rowB) => compareAdvancementRows(advancementSort, advancementSortDirection, rowA, rowB));
   }, [advancementSort, advancementSortDirection, currentAdvancements]);
 
-  const pickedCount = lockedPicks.size;
+  const lockedRecord = useMemo(() => {
+    const w = new Map<number, number>();
+    const l = new Map<number, number>();
+    for (const game of NBA_SCHEDULE) {
+      if (game.isCompleted || !lockedPicks.has(game.gameId)) continue;
+      const winnerId = lockedPicks.get(game.gameId)!;
+      const loserId = winnerId === game.homeTeamId ? game.awayTeamId : game.homeTeamId;
+      w.set(winnerId, (w.get(winnerId) ?? 0) + 1);
+      l.set(loserId, (l.get(loserId) ?? 0) + 1);
+    }
+    return { w, l };
+  }, [lockedPicks]);
+
+  const pickedCount = useMemo(
+    () => NBA_SCHEDULE.filter((game) => !game.isCompleted && lockedPicks.has(game.gameId)).length,
+    [lockedPicks],
+  );
   const totalPickableGames = useMemo(() => NBA_SCHEDULE.filter((game) => !game.isCompleted).length, []);
   const allGamesPicked = pickedCount === totalPickableGames;
   const picksHash = useMemo(() => hashPicks(lockedPicks), [lockedPicks]);
@@ -425,6 +441,7 @@ export default function App({ initialPath }: AppProps) {
                   teamsById={NBA_TEAM_LOOKUP}
                   activeConference={activeConference}
                   changedTeamIds={changedTeamIds}
+                  lockedRecord={lockedRecord}
                   onConferenceChange={setActiveConference}
                 />
                 <AdvancementPanel
@@ -463,6 +480,7 @@ export default function App({ initialPath }: AppProps) {
                     teamsById={NBA_TEAM_LOOKUP}
                     activeConference={activeConference}
                     changedTeamIds={changedTeamIds}
+                    lockedRecord={lockedRecord}
                     onConferenceChange={setActiveConference}
                   />
                   <AdvancementPanel
