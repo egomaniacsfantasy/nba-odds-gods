@@ -6,7 +6,7 @@
 //   East R1: 9201=1v8, 9202=4v5, 9203=2v7, 9204=3v6
 //   West R1: 9211=1v8, 9212=4v5, 9213=2v7, 9214=3v6
 // Updated: 2026-03-26
-import { getSeriesGameProb, RoundKey } from '../data/nbaSeriesGameProbs';
+import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { getPlayinProb } from '../data/nbaPlayinProbs';
 import type {
   LockedPicks,
@@ -73,24 +73,24 @@ function decideHomeCourt(
   return random() < 0.5 ? teamA.teamId : teamB.teamId;
 }
 
+// Games 1,2,5,7 are at home-court team's arena; games 3,4,6 at challenger's arena.
+const _HS_HOME_G = new Set([1, 2, 5, 7]);
+
 function simulateSeries(
   teamA: SeededTeam,
   teamB: SeededTeam,
   regularSeasonWins: Map<number, number>,
-  roundKey: RoundKey,
   random: () => number,
 ): number {
   const homeCourtTeamId = decideHomeCourt(teamA, teamB, regularSeasonWins, random);
   const challengerId = homeCourtTeamId === teamA.teamId ? teamB.teamId : teamA.teamId;
-  // Game-by-game using SERIES_GAME_PROB lookup — identical to Python MC CELL 15.
-  // getSeriesGameProb encodes home/away (games 1,2,5,7 = hs home) + series state.
+  // Use matchup win probabilities — home/away location follows standard NBA 2-2-1-1-1 pattern.
   let hsW = 0;
   let lsW = 0;
   // Always run all 7 games to keep RNG stream length constant (locked path also consumes 7).
-  // Games after the series is clinched still consume one draw each but don't affect the winner.
   for (let g = 1; g <= 7; g++) {
     const seriesOver = hsW === 4 || lsW === 4;
-    const p = seriesOver ? 0.5 : getSeriesGameProb(roundKey, homeCourtTeamId, challengerId, g, hsW, lsW);
+    const p = seriesOver ? 0.5 : getMatchupProb(homeCourtTeamId, challengerId, _HS_HOME_G.has(g) ? 'home' : 'away');
     if (random() < p) { if (!seriesOver) hsW += 1; }
     else { if (!seriesOver) lsW += 1; }
   }
@@ -186,7 +186,7 @@ function simulateConferenceBracket(
       for (let _i = 0; _i < 7; _i += 1) random();
       winnerId = lockedWinner;
     } else {
-      winnerId = simulateSeries(teamA, teamB, regularSeasonWins, `${conf}_r1` as RoundKey, random);
+      winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random);
     }
     const counter = counters.get(winnerId);
     if (counter) counter.r1Count += 1;
@@ -202,7 +202,7 @@ function simulateConferenceBracket(
   ] as const;
 
   const conferenceFinalists = semifinals.map(([teamA, teamB]) => {
-    const winnerId = simulateSeries(teamA, teamB, regularSeasonWins, `${conf}_r2` as RoundKey, random);
+    const winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random);
     const counter = counters.get(winnerId);
     if (counter) counter.confFinalsCount += 1;
     return {
@@ -215,7 +215,6 @@ function simulateConferenceBracket(
     conferenceFinalists[0],
     conferenceFinalists[1],
     regularSeasonWins,
-    `${conf}_cf` as RoundKey,
     random,
   );
   const championCounter = counters.get(conferenceChampionId);
@@ -307,7 +306,6 @@ export function simulateNbaFullSeason(
       { seed: 1, teamId: eastChampionId },
       { seed: 1, teamId: westChampionId },
       regularSeasonWins,
-      'finals',
       random,
     );
     const championCounter = counters.get(finalsWinnerId);

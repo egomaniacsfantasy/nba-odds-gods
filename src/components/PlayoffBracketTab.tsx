@@ -1,7 +1,7 @@
 // Auto-generated PlayoffBracketTab.tsx — do not edit manually
 // Updated: 2026-03-26
 import { useMemo } from 'react';
-import { getSeriesWinProb, RoundKey } from '../data/nbaSeriesGameProbs';
+import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { getPlayinProb, PlayinSlot } from '../data/nbaPlayinProbs';
 import { PLAYIN_GAME_IDS, R1_GAME_IDS } from '../lib/simulation';
 import type { LockedPicks, NbaTeam, StandingsRow, TeamAdvancement } from '../types';
@@ -23,6 +23,27 @@ function fmt(v: number): string {
   if (v >= 0.995) return '>99%';
   if (v < 0.005) return '<1%';
   return `${Math.round(v * 100)}%`;
+}
+
+// Games 1,2,5,7 at home-court team's arena; 3,4,6 at challenger's.
+const _HS_HOME_B = new Set([1, 2, 5, 7]);
+
+/** P(hsId wins best-of-7 series with home court) via DP over matchup probs. */
+function _seriesWinPct(hsId: number, lsId: number): number {
+  const pH = getMatchupProb(hsId, lsId, 'home');
+  const pA = getMatchupProb(hsId, lsId, 'away');
+  const memo = new Map<string, number>();
+  function dp(hw: number, lw: number): number {
+    if (hw === 4) return 1.0;
+    if (lw === 4) return 0.0;
+    const k = `${hw}_${lw}`;
+    if (memo.has(k)) return memo.get(k)!;
+    const p = _HS_HOME_B.has(hw + lw + 1) ? pH : pA;
+    const v = p * dp(hw + 1, lw) + (1 - p) * dp(hw, lw + 1);
+    memo.set(k, v);
+    return v;
+  }
+  return dp(0, 0);
 }
 
 function PlayInGame({
@@ -79,14 +100,13 @@ function PlayInGame({
 }
 
 function R1Series({
-  seedA, teamAId, seedB, teamBId, gameId, roundKey, lockedPicks, teamsById, advancements, onPick,
+  seedA, teamAId, seedB, teamBId, gameId, lockedPicks, teamsById, advancements, onPick,
 }: {
   seedA: number;
   teamAId: number | null;
   seedB: number;
   teamBId: number | null;
   gameId: number;
-  roundKey: RoundKey;
   lockedPicks: LockedPicks;
   teamsById: Map<number, NbaTeam>;
   advancements: Map<number, TeamAdvancement>;
@@ -96,8 +116,8 @@ function R1Series({
   const teamB = teamBId != null ? teamsById.get(teamBId) : null;
   const picked = lockedPicks.get(gameId);
   const canPick = teamAId != null && teamBId != null;
-  // teamA is higher seed (has home court) — use SERIES_GAME_PROB-based DP
-  const pA = teamAId != null && teamBId != null ? getSeriesWinProb(roundKey, teamAId, teamBId) : 0.5;
+  // teamA is higher seed (has home court) — DP over matchup probs
+  const pA = teamAId != null && teamBId != null ? _seriesWinPct(teamAId, teamBId) : 0.5;
   const advA = teamAId != null ? advancements.get(teamAId) : null;
   const advB = teamBId != null ? advancements.get(teamBId) : null;
 
@@ -248,26 +268,22 @@ export function PlayoffBracketTab({
             <R1Series
               seedA={1} teamAId={east[0]?.teamId ?? null}
               seedB={8} teamBId={eb.seed8Winner}
-              gameId={R1_GAME_IDS.east[0]} roundKey="east_r1"
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
+              gameId={R1_GAME_IDS.east[0]}              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
             />
             <R1Series
               seedA={4} teamAId={east[3]?.teamId ?? null}
               seedB={5} teamBId={east[4]?.teamId ?? null}
-              gameId={R1_GAME_IDS.east[1]} roundKey="east_r1"
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
+              gameId={R1_GAME_IDS.east[1]}              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
             />
             <R1Series
               seedA={2} teamAId={east[1]?.teamId ?? null}
               seedB={7} teamBId={eb.seed7Winner}
-              gameId={R1_GAME_IDS.east[2]} roundKey="east_r1"
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
+              gameId={R1_GAME_IDS.east[2]}              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
             />
             <R1Series
               seedA={3} teamAId={east[2]?.teamId ?? null}
               seedB={6} teamBId={east[5]?.teamId ?? null}
-              gameId={R1_GAME_IDS.east[3]} roundKey="east_r1"
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
+              gameId={R1_GAME_IDS.east[3]}              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
             />
           </div>
         </div>
@@ -313,26 +329,22 @@ export function PlayoffBracketTab({
             <R1Series
               seedA={1} teamAId={west[0]?.teamId ?? null}
               seedB={8} teamBId={wb.seed8Winner}
-              gameId={R1_GAME_IDS.west[0]} roundKey="west_r1"
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
+              gameId={R1_GAME_IDS.west[0]}              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
             />
             <R1Series
               seedA={4} teamAId={west[3]?.teamId ?? null}
               seedB={5} teamBId={west[4]?.teamId ?? null}
-              gameId={R1_GAME_IDS.west[1]} roundKey="west_r1"
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
+              gameId={R1_GAME_IDS.west[1]}              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
             />
             <R1Series
               seedA={2} teamAId={west[1]?.teamId ?? null}
               seedB={7} teamBId={wb.seed7Winner}
-              gameId={R1_GAME_IDS.west[2]} roundKey="west_r1"
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
+              gameId={R1_GAME_IDS.west[2]}              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
             />
             <R1Series
               seedA={3} teamAId={west[2]?.teamId ?? null}
               seedB={6} teamBId={west[5]?.teamId ?? null}
-              gameId={R1_GAME_IDS.west[3]} roundKey="west_r1"
-              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
+              gameId={R1_GAME_IDS.west[3]}              lockedPicks={lockedPicks} teamsById={teamsById} advancements={advancements} onPick={onPick}
             />
           </div>
         </div>
