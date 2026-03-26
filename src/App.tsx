@@ -724,13 +724,11 @@ export default function App({ initialPath }: AppProps) {
       <OddsTicker items={tickerItems} />
       <main className="app-shell">
         <section className="oracle-hero">
-          <div className="hero-ambient" aria-hidden="true" />
-          <div className="hero-halo" aria-hidden="true" />
+          <div className="hero-glow" aria-hidden="true" />
           <p className="hero-eyebrow">ODDS GODS</p>
           <h1 className="oracle-title">
-            <span className="oracle-title-the">The</span>
-            <span className="oracle-title-nba">NBA</span>
-            <span className="oracle-title-oracle">Oracle</span>
+            <span className="oracle-title-prefix">The NBA</span>
+            <span className="oracle-title-name">Oracle</span>
           </h1>
           <p className="hero-subtitle">Pick every game. Watch the playoff picture shift. The Oracle sees all.</p>
         </section>

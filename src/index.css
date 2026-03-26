@@ -275,6 +275,7 @@ img[alt*='logo'],
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
 }
 
 .hero-eyebrow,
@@ -285,54 +286,35 @@ img[alt*='logo'],
   text-align: center;
 }
 
-.hero-ambient {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -55%);
-  width: 800px;
-  height: 500px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(184, 125, 24, 0.18) 0%,
-    rgba(184, 125, 24, 0.08) 35%,
-    rgba(184, 125, 24, 0.03) 55%,
-    transparent 75%
-  );
-  pointer-events: none;
-  z-index: 0;
-  animation: heroGlowPulse 6s ease-in-out infinite alternate;
-}
-
-.hero-halo {
+.hero-glow {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 500px;
-  height: 500px;
-  border-radius: 50%;
-  border: 1px solid rgba(184, 125, 24, 0.07);
-  box-shadow:
-    0 0 0 60px rgba(184, 125, 24, 0.025),
-    0 0 0 130px rgba(184, 125, 24, 0.012),
-    0 0 0 210px rgba(184, 125, 24, 0.005);
+  width: 700px;
+  height: 450px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(184, 125, 24, 0.16) 0%,
+    rgba(184, 125, 24, 0.06) 40%,
+    transparent 70%
+  );
   pointer-events: none;
   z-index: 0;
-  animation: haloRotate 60s linear infinite;
+  animation: glowPulse 6s ease-in-out infinite alternate;
 }
 
 .hero-eyebrow {
   position: relative;
   z-index: 1;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--amber);
-  margin: 0 0 14px;
-  opacity: 0.85;
+  margin: 0 0 20px;
+  text-align: center;
 }
 
 .oracle-title {
@@ -341,63 +323,38 @@ img[alt*='logo'],
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0;
   margin: 0;
-  line-height: 0.9;
+  text-align: center;
+  line-height: 1;
 }
 
-.oracle-title::before,
-.oracle-title::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: clamp(30px, 8vw, 120px);
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(184, 125, 24, 0.35), transparent);
-}
-
-.oracle-title::before {
-  right: calc(100% + 20px);
-}
-
-.oracle-title::after {
-  left: calc(100% + 20px);
-}
-
-.oracle-title-the {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: clamp(1.3rem, 3vw, 1.8rem);
-  color: rgba(231, 191, 114, 0.55);
-  font-weight: 400;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  margin-bottom: 2px;
-}
-
-.oracle-title-nba {
+.oracle-title-prefix {
   font-family: var(--font-sans);
-  font-size: clamp(3.5rem, 11vw, 7.5rem);
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  font-size: clamp(0.9rem, 2vw, 1.15rem);
+  font-weight: 500;
+  letter-spacing: 0.35em;
   text-transform: uppercase;
-  background: linear-gradient(180deg, #f0e6d0 0%, #e7bf72 40%, #b87d18 100%);
+  color: rgba(231, 191, 114, 0.5);
+  margin-bottom: 8px;
+}
+
+.oracle-title-name {
+  font-family: var(--font-serif);
+  font-size: clamp(4rem, 12vw, 8rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  background: linear-gradient(
+    180deg,
+    #f5edd8 0%,
+    #e7bf72 45%,
+    #b87d18 100%
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 0 40px rgba(184, 125, 24, 0.25));
-}
-
-.oracle-title-oracle {
-  font-family: var(--font-serif);
-  font-size: clamp(2rem, 6vw, 4rem);
-  font-weight: 400;
-  color: var(--text-amber);
-  letter-spacing: 0.06em;
-  text-shadow:
-    0 0 60px rgba(184, 125, 24, 0.2),
-    0 0 25px rgba(184, 125, 24, 0.08);
-  margin-top: -2px;
+  filter:
+    drop-shadow(0 0 50px rgba(184, 125, 24, 0.3))
+    drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
 }
 
 .hero-subtitle {
@@ -407,9 +364,21 @@ img[alt*='logo'],
   font-size: clamp(13px, 2vw, 15px);
   color: var(--text-secondary);
   max-width: 480px;
-  margin: 18px auto 0;
-  letter-spacing: 0.01em;
+  margin: 20px auto 0;
   line-height: 1.6;
+  text-align: center;
+}
+
+@keyframes glowPulse {
+  0% {
+    opacity: 0.75;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.04);
+  }
 }
 
 .og-nav {
@@ -1694,26 +1663,6 @@ img[alt*='logo'],
   }
 }
 
-@keyframes heroGlowPulse {
-  0% {
-    opacity: 0.7;
-    transform: translate(-50%, -55%) scale(1);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -55%) scale(1.05);
-  }
-}
-
-@keyframes haloRotate {
-  from {
-    transform: translate(-50%, -50%) rotate(0deg);
-  }
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
-
 @keyframes pickFlash {
   0% {
     box-shadow: inset 0 0 0 0 rgba(184, 125, 24, 0);
@@ -1840,44 +1789,31 @@ img[alt*='logo'],
   }
 
   .oracle-hero {
-    padding: 24px 16px 14px;
+    padding: 28px 16px 16px;
   }
 
   .hero-eyebrow {
     font-size: 10px;
-    margin-bottom: 8px;
+    margin-bottom: 14px;
   }
 
-  .hero-ambient {
-    width: 400px;
-    height: 300px;
-  }
-
-  .hero-halo {
-    width: 280px;
+  .hero-glow {
+    width: 350px;
     height: 280px;
   }
 
-  .oracle-title-the {
-    font-size: 1rem;
+  .oracle-title-prefix {
+    font-size: 0.8rem;
+    margin-bottom: 6px;
   }
 
-  .oracle-title-nba {
-    font-size: clamp(2.8rem, 14vw, 4.5rem);
-  }
-
-  .oracle-title-oracle {
-    font-size: clamp(1.6rem, 8vw, 2.8rem);
-  }
-
-  .oracle-title::before,
-  .oracle-title::after {
-    display: none;
+  .oracle-title-name {
+    font-size: clamp(3.2rem, 16vw, 5.5rem);
   }
 
   .hero-subtitle {
     font-size: 12px;
-    margin-top: 10px;
+    margin-top: 14px;
   }
 
   .sim-controls {
@@ -1957,16 +1893,12 @@ img[alt*='logo'],
     animation: none;
   }
 
-  .hero-ambient {
+  .hero-glow {
     animation: none;
-    opacity: 0.85;
+    opacity: 0.9;
   }
 
-  .hero-halo,
-  .odds-ticker-track {
-    animation: none;
-  }
-
+  .odds-ticker-track,
   .team-row--just-picked,
   .standings-row--changed,
   .prob-delta,
