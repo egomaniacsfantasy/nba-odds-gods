@@ -8,7 +8,9 @@ interface DateGroupProps {
   lockedPicks: LockedPicks;
   teamsById: Map<number, NbaTeam>;
   oddsFormat: OddsFormat;
-  justPickedGameId: number | null;
+  justPickedKey: string | null;
+  firstHintGameId: number | null;
+  showPickHint: boolean;
   onPick: (gameId: number, teamId: number) => void;
 }
 
@@ -30,7 +32,9 @@ export function DateGroup({
   lockedPicks,
   teamsById,
   oddsFormat,
-  justPickedGameId,
+  justPickedKey,
+  firstHintGameId,
+  showPickHint,
   onPick,
 }: DateGroupProps) {
   const resolvedCount = games.filter((game) => game.isCompleted || lockedPicks.has(game.gameId)).length;
@@ -96,7 +100,8 @@ export function DateGroup({
                 awayTeam={awayTeam}
                 selectedWinnerId={lockedPicks.get(game.gameId)}
                 oddsFormat={oddsFormat}
-                justPicked={justPickedGameId === game.gameId}
+                justPickedKey={justPickedKey}
+                showHint={showPickHint && firstHintGameId === game.gameId}
                 onPick={onPick}
               />
             );

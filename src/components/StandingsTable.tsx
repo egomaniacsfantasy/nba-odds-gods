@@ -76,7 +76,25 @@ export function StandingsTable({
           return (
             <div key={row.teamId} className={classes}>
               <span className="logo-col">
-                <img className="standings-logo" src={team.logoUrl} alt={team.name} loading="lazy" />
+                <span className="team-logo-wrap">
+                  <img
+                    className="standings-logo"
+                    src={team.logoUrl}
+                    alt={team.name}
+                    loading="lazy"
+                    onError={(event: { currentTarget: HTMLImageElement }) => {
+                      event.currentTarget.style.display = 'none';
+                      const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+                      if (fallback) {
+                        fallback.style.display = 'flex';
+                      }
+                    }}
+                  />
+                  <span className="logo-fallback standings-logo-fallback" style={{ display: 'none' }}>
+                    {team.abbr}
+                  </span>
+                </span>
               </span>
               <span className="team-col">
                 <span className="standings-team__abbr">{team.abbr}</span>

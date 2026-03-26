@@ -7,7 +7,8 @@ interface GameCardProps {
   awayTeam: NbaTeam;
   selectedWinnerId: number | undefined;
   oddsFormat: OddsFormat;
-  justPicked: boolean;
+  justPickedKey: string | null;
+  showHint: boolean;
   onPick: (gameId: number, teamId: number) => void;
 }
 
@@ -17,30 +18,61 @@ export function GameCard({
   awayTeam,
   selectedWinnerId,
   oddsFormat,
-  justPicked,
+  justPickedKey,
+  showHint,
   onPick,
 }: GameCardProps) {
   const winnerId = game.isCompleted ? game.actualWinnerId : selectedWinnerId;
   const awayProbability = 1 - game.pHomeWins;
   const homeProbability = game.pHomeWins;
+  const cardClassName = ['game-card'];
+
+  if (winnerId) {
+    cardClassName.push('game-card--picked');
+  }
+
+  if (game.isCompleted) {
+    cardClassName.push('game-card--completed');
+  }
 
   return (
-    <article
-      className={
-        justPicked ? 'game-card game-card--just-picked' : game.isCompleted ? 'game-card game-card--completed' : 'game-card'
-      }
-    >
+    <article className={cardClassName.join(' ')}>
       {game.isCompleted ? <span className="game-card__final">Final</span> : null}
+      {showHint && !winnerId && !game.isCompleted ? (
+        <div className="pick-hint">
+          <span className="pick-hint-arrow">→</span>
+          <span className="pick-hint-text">Click a team to pick the winner</span>
+        </div>
+      ) : null}
 
       <button
         type="button"
-        className={rowClassName(awayTeam.id, winnerId)}
+        className={rowClassName(awayTeam.id, winnerId, justPickedKey === `${game.gameId}-${awayTeam.id}`)}
         onClick={() => onPick(game.gameId, awayTeam.id)}
         disabled={game.isCompleted}
+        style={{ '--prob-width': `${(awayProbability * 100).toFixed(1)}%` } as { [key: string]: string }}
       >
-        <img className="team-logo" src={awayTeam.logoUrl} alt={awayTeam.name} loading="lazy" />
+        <div className="team-logo-wrap">
+          <img
+            className="team-logo"
+            src={awayTeam.logoUrl}
+            alt={awayTeam.name}
+            loading="lazy"
+            onError={(event: { currentTarget: HTMLImageElement }) => {
+              event.currentTarget.style.display = 'none';
+              const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+              if (fallback) {
+                fallback.style.display = 'flex';
+              }
+            }}
+          />
+          <div className="logo-fallback" style={{ display: 'none' }}>
+            {awayTeam.abbr}
+          </div>
+        </div>
         <div className="team-row__identity">
-          <span className="team-row__abbr">{awayTeam.abbr}</span>
+          <span className="team-row__abbr team-abbr">{awayTeam.abbr}</span>
           <span className="team-row__name">{awayTeam.name}</span>
         </div>
         <span className="team-row__odds">{formatOdds(awayProbability, oddsFormat)}</span>
@@ -48,13 +80,32 @@ export function GameCard({
 
       <button
         type="button"
-        className={rowClassName(homeTeam.id, winnerId)}
+        className={rowClassName(homeTeam.id, winnerId, justPickedKey === `${game.gameId}-${homeTeam.id}`)}
         onClick={() => onPick(game.gameId, homeTeam.id)}
         disabled={game.isCompleted}
+        style={{ '--prob-width': `${(homeProbability * 100).toFixed(1)}%` } as { [key: string]: string }}
       >
-        <img className="team-logo" src={homeTeam.logoUrl} alt={homeTeam.name} loading="lazy" />
+        <div className="team-logo-wrap">
+          <img
+            className="team-logo"
+            src={homeTeam.logoUrl}
+            alt={homeTeam.name}
+            loading="lazy"
+            onError={(event: { currentTarget: HTMLImageElement }) => {
+              event.currentTarget.style.display = 'none';
+              const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+              if (fallback) {
+                fallback.style.display = 'flex';
+              }
+            }}
+          />
+          <div className="logo-fallback" style={{ display: 'none' }}>
+            {homeTeam.abbr}
+          </div>
+        </div>
         <div className="team-row__identity">
-          <span className="team-row__abbr">{homeTeam.abbr}</span>
+          <span className="team-row__abbr team-abbr">{homeTeam.abbr}</span>
           <span className="team-row__name">{homeTeam.name}</span>
           <span className="team-row__home">Home</span>
         </div>
@@ -64,14 +115,22 @@ export function GameCard({
   );
 }
 
-function rowClassName(teamId: number, winnerId: number | undefined): string {
+function rowClassName(teamId: number, winnerId: number | undefined, isJustPicked: boolean): string {
+  const classNames = ['team-row'];
+
+  if (isJustPicked) {
+    classNames.push('team-row--just-picked');
+  }
+
   if (!winnerId) {
-    return 'team-row';
+    return classNames.join(' ');
   }
 
   if (winnerId === teamId) {
-    return 'team-row team-row--winner';
+    classNames.push('team-row--winner');
+    return classNames.join(' ');
   }
 
-  return 'team-row team-row--loser';
+  classNames.push('team-row--loser');
+  return classNames.join(' ');
 }

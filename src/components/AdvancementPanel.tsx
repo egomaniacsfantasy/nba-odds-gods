@@ -44,7 +44,7 @@ export function AdvancementPanel({
   const confidenceBand = rows.slice(0, 8);
 
   return (
-    <section className="side-panel-section">
+    <section className={isSimulating ? 'side-panel-section advancement-panel--simulating' : 'side-panel-section'}>
       <div className="panel-header">
         <div>
           <p className="panel-kicker">Monte Carlo</p>
@@ -87,7 +87,25 @@ export function AdvancementPanel({
             return (
               <div key={row.teamId} className="advancement-row">
                 <div className="advancement-team">
-                  <img className="advancement-logo" src={team.logoUrl} alt={team.name} loading="lazy" />
+                  <span className="team-logo-wrap">
+                    <img
+                      className="advancement-logo"
+                      src={team.logoUrl}
+                      alt={team.name}
+                      loading="lazy"
+                      onError={(event: { currentTarget: HTMLImageElement }) => {
+                        event.currentTarget.style.display = 'none';
+                        const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+                        if (fallback) {
+                          fallback.style.display = 'flex';
+                        }
+                      }}
+                    />
+                    <span className="logo-fallback advancement-logo-fallback" style={{ display: 'none' }}>
+                      {team.abbr}
+                    </span>
+                  </span>
                   <span>{team.abbr}</span>
                 </div>
                 <div className="advancement-seed">{row.seedLabel}</div>
@@ -163,12 +181,12 @@ function probabilityClassName(value: number): string {
 }
 
 function renderDelta(delta: number | undefined, oddsFormat: OddsFormat) {
-  if (!delta || Math.abs(delta) < 0.001) {
+  if (!delta || Math.abs(delta) < 0.005) {
     return null;
   }
 
   return (
-    <span className={delta >= 0 ? 'delta-indicator delta-indicator--positive' : 'delta-indicator delta-indicator--negative'}>
+    <span className={delta >= 0 ? 'delta-badge delta-badge--up' : 'delta-badge delta-badge--down'}>
       {formatDelta(delta, oddsFormat)}
     </span>
   );

@@ -6,7 +6,10 @@ interface ScheduleViewProps {
   lockedPicks: LockedPicks;
   teamsById: Map<number, NbaTeam>;
   oddsFormat: OddsFormat;
-  justPickedGameId: number | null;
+  justPickedKey: string | null;
+  firstHintGameId: number | null;
+  showPickHint: boolean;
+  isMobile: boolean;
   onPick: (gameId: number, teamId: number) => void;
 }
 
@@ -15,11 +18,18 @@ export function ScheduleView({
   lockedPicks,
   teamsById,
   oddsFormat,
-  justPickedGameId,
+  justPickedKey,
+  firstHintGameId,
+  showPickHint,
+  isMobile,
   onPick,
 }: ScheduleViewProps) {
   return (
     <div className="schedule-view">
+      {showPickHint && isMobile ? (
+        <div className="mobile-hint-toast">Tap a team to pick the winner of each game</div>
+      ) : null}
+
       {groupedGames.map((group) => (
         <DateGroup
           key={group.date}
@@ -28,7 +38,9 @@ export function ScheduleView({
           lockedPicks={lockedPicks}
           teamsById={teamsById}
           oddsFormat={oddsFormat}
-          justPickedGameId={justPickedGameId}
+          justPickedKey={justPickedKey}
+          firstHintGameId={firstHintGameId}
+          showPickHint={showPickHint && !isMobile}
           onPick={onPick}
         />
       ))}

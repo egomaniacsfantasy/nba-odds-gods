@@ -113,14 +113,17 @@ export default function App({ initialPath }: AppProps) {
   const [advancementSortDirection, setAdvancementSortDirection] = useState<SortDirection>('desc');
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [showPickHint, setShowPickHint] = useState(() => localStorage.getItem('nba-oracle-hint-seen') !== '1');
   const [resetOpen, setResetOpen] = useState(false);
-  const [justPickedGameId, setJustPickedGameId] = useState<number | null>(null);
+  const [justPickedKey, setJustPickedKey] = useState<string | null>(null);
   const [changedTeamIds, setChangedTeamIds] = useState<number[]>([]);
   const [deltaMap, setDeltaMap] = useState<Map<string, number>>(new Map());
   const [standingsDirty, setStandingsDirty] = useState(false);
   const simCacheRef = useRef(new Map<string, SimulationResult>());
   const previousAdvancementsRef = useRef<Map<number, TeamAdvancement> | null>(null);
   const previousSeedsRef = useRef<Map<number, string> | null>(null);
+  const simTimeoutRef = useRef<number | null>(null);
+  const pendingPicksRef = useRef<LockedPicks>(new Map());
   const idleHandleRef = useRef<number | null>(null);
   const idleHandleKindRef = useRef<'idle' | 'timeout' | null>(null);
   const deltaTimeoutRef = useRef<number | null>(null);
@@ -169,6 +172,13 @@ export default function App({ initialPath }: AppProps) {
   );
   const allGamesPicked = pickedCount === totalPickableGames;
   const picksHash = useMemo(() => hashPicks(lockedPicks), [lockedPicks]);
+  const firstHintGameId = useMemo(() => {
+    if (!showPickHint) {
+      return null;
+    }
+
+    return NBA_SCHEDULE.find((game) => !game.isCompleted && !lockedPicks.has(game.gameId))?.gameId ?? null;
+  }, [lockedPicks, showPickHint]);
 
   const updateAdvancementDeltas = useCallback((advancements: Map<number, TeamAdvancement>) => {
     const previous = previousAdvancementsRef.current;
@@ -190,7 +200,7 @@ export default function App({ initialPath }: AppProps) {
       for (const field of DELTA_FIELDS) {
         const delta = nextRow[field] - previousRow[field];
 
-        if (Math.abs(delta) >= 0.001) {
+        if (Math.abs(delta) >= 0.005) {
           nextDeltas.set(`${teamId}:${field}`, delta);
         }
       }
@@ -208,6 +218,21 @@ export default function App({ initialPath }: AppProps) {
         setDeltaMap(new Map());
       }, 2800);
     }
+  }, []);
+
+  const cancelScheduledSimulation = useCallback(() => {
+    if (idleHandleRef.current === null) {
+      return;
+    }
+
+    if (idleHandleKindRef.current === 'idle' && window.cancelIdleCallback) {
+      window.cancelIdleCallback(idleHandleRef.current);
+    } else {
+      window.clearTimeout(idleHandleRef.current);
+    }
+
+    idleHandleRef.current = null;
+    idleHandleKindRef.current = null;
   }, []);
 
   const rememberSimulationResult = useCallback((key: string, result: SimulationResult) => {
@@ -234,6 +259,35 @@ export default function App({ initialPath }: AppProps) {
       });
     },
     [rememberSimulationResult, updateAdvancementDeltas],
+  );
+
+  const scheduleSimulation = useCallback(
+    (picks: LockedPicks) => {
+      const key = hashPicks(picks);
+      const cached = simCacheRef.current.get(key);
+
+      if (cached) {
+        applySimulationResult(key, cached);
+        return;
+      }
+
+      const runSimulation = () => {
+        idleHandleRef.current = null;
+        idleHandleKindRef.current = null;
+
+        const result = simulateNbaFullSeason(picks, NBA_SCHEDULE, NBA_TEAMS, getSimIterations());
+        applySimulationResult(key, result);
+      };
+
+      if (window.requestIdleCallback) {
+        idleHandleKindRef.current = 'idle';
+        idleHandleRef.current = window.requestIdleCallback(runSimulation, { timeout: 350 });
+      } else {
+        idleHandleKindRef.current = 'timeout';
+        idleHandleRef.current = window.setTimeout(runSimulation, 0);
+      }
+    },
+    [applySimulationResult],
   );
 
   useEffect(() => {
@@ -289,7 +343,7 @@ export default function App({ initialPath }: AppProps) {
     if (changed.length > 0) {
       standingsTimeoutRef.current = window.setTimeout(() => {
         setChangedTeamIds([]);
-      }, 650);
+      }, 800);
     }
   }, [projectedStandings]);
 
@@ -304,23 +358,23 @@ export default function App({ initialPath }: AppProps) {
       window.clearTimeout(pickFlashTimeoutRef.current);
     }
 
-    if (justPickedGameId === null) {
+    if (justPickedKey === null) {
       return;
     }
 
     pickFlashTimeoutRef.current = window.setTimeout(() => {
-      setJustPickedGameId(null);
-    }, 700);
-  }, [justPickedGameId]);
+      setJustPickedKey(null);
+    }, 500);
+  }, [justPickedKey]);
 
   useEffect(() => {
-    if (idleHandleRef.current !== null) {
-      if (idleHandleKindRef.current === 'idle' && window.cancelIdleCallback) {
-        window.cancelIdleCallback(idleHandleRef.current);
-      } else {
-        window.clearTimeout(idleHandleRef.current);
-      }
+    if (simTimeoutRef.current) {
+      window.clearTimeout(simTimeoutRef.current);
+      simTimeoutRef.current = null;
     }
+
+    cancelScheduledSimulation();
+    pendingPicksRef.current = cloneLockedPicks(lockedPicks);
 
     const cachedResult = simCacheRef.current.get(picksHash);
 
@@ -330,40 +384,43 @@ export default function App({ initialPath }: AppProps) {
     }
 
     setIsSimulating(true);
-    let cancelled = false;
-
-    const runSimulation = () => {
-      const result = simulateNbaFullSeason(lockedPicks, NBA_SCHEDULE, NBA_TEAMS, getSimIterations());
-
-      if (cancelled) {
-        return;
-      }
-
-      applySimulationResult(picksHash, result);
-    };
-
-    if (window.requestIdleCallback) {
-      idleHandleKindRef.current = 'idle';
-      idleHandleRef.current = window.requestIdleCallback(() => {
-        runSimulation();
-      }, { timeout: 350 });
-    } else {
-      idleHandleKindRef.current = 'timeout';
-      idleHandleRef.current = window.setTimeout(runSimulation, 0);
-    }
+    simTimeoutRef.current = window.setTimeout(() => {
+      simTimeoutRef.current = null;
+      scheduleSimulation(pendingPicksRef.current);
+    }, 200);
 
     return () => {
-      cancelled = true;
-
-      if (idleHandleRef.current !== null) {
-        if (idleHandleKindRef.current === 'idle' && window.cancelIdleCallback) {
-          window.cancelIdleCallback(idleHandleRef.current);
-        } else {
-          window.clearTimeout(idleHandleRef.current);
-        }
+      if (simTimeoutRef.current) {
+        window.clearTimeout(simTimeoutRef.current);
+        simTimeoutRef.current = null;
       }
+
+      cancelScheduledSimulation();
     };
-  }, [applySimulationResult, lockedPicks, picksHash]);
+  }, [applySimulationResult, cancelScheduledSimulation, lockedPicks, picksHash, scheduleSimulation]);
+
+  useEffect(
+    () => () => {
+      if (simTimeoutRef.current) {
+        window.clearTimeout(simTimeoutRef.current);
+      }
+
+      if (deltaTimeoutRef.current) {
+        window.clearTimeout(deltaTimeoutRef.current);
+      }
+
+      if (pickFlashTimeoutRef.current) {
+        window.clearTimeout(pickFlashTimeoutRef.current);
+      }
+
+      if (standingsTimeoutRef.current) {
+        window.clearTimeout(standingsTimeoutRef.current);
+      }
+
+      cancelScheduledSimulation();
+    },
+    [cancelScheduledSimulation],
+  );
 
   const handleNavigate = useCallback((tab: 'schedule' | 'playoffs') => {
     const nextPath = tab === 'playoffs' ? '/playoffs' : '/';
@@ -383,25 +440,29 @@ export default function App({ initialPath }: AppProps) {
         return;
       }
 
+      const nextPicks = cloneLockedPicks(lockedPicks);
+      const shouldUnpick = nextPicks.get(gameId) === teamId;
+
+      if (shouldUnpick) {
+        nextPicks.delete(gameId);
+      } else {
+        nextPicks.set(gameId, teamId);
+      }
+
       setUndoStack((current) => [...current, cloneLockedPicks(lockedPicks)]);
-      setLockedPicks((current) => {
-        const next = cloneLockedPicks(current);
+      setLockedPicks(nextPicks);
+      setJustPickedKey(shouldUnpick ? null : `${gameId}-${teamId}`);
 
-        if (next.get(gameId) === teamId) {
-          next.delete(gameId);
-        } else {
-          next.set(gameId, teamId);
-        }
-
-        return next;
-      });
-      setJustPickedGameId(gameId);
+      if (showPickHint) {
+        localStorage.setItem('nba-oracle-hint-seen', '1');
+        setShowPickHint(false);
+      }
 
       if (isMobile && mobileTab !== 'standings') {
         setStandingsDirty(true);
       }
     },
-    [isMobile, lockedPicks, mobileTab],
+    [isMobile, lockedPicks, mobileTab, showPickHint],
   );
 
   const handleSimulateRest = useCallback(() => {
@@ -425,11 +486,17 @@ export default function App({ initialPath }: AppProps) {
 
       return next;
     });
+    setJustPickedKey(null);
+
+    if (showPickHint) {
+      localStorage.setItem('nba-oracle-hint-seen', '1');
+      setShowPickHint(false);
+    }
 
     if (isMobile && mobileTab !== 'standings') {
       setStandingsDirty(true);
     }
-  }, [allGamesPicked, isMobile, lockedPicks, mobileTab]);
+  }, [allGamesPicked, isMobile, lockedPicks, mobileTab, showPickHint]);
 
   const handleUndo = useCallback(() => {
     setUndoStack((current) => {
@@ -480,10 +547,9 @@ export default function App({ initialPath }: AppProps) {
 
       <main className="app-shell">
         <section className="hero-header">
-          <h1>NBA Season Predictor</h1>
-          <p className="subtitle">
-            Pick every game. Watch the playoff picture shift. Every result changes everything.
-          </p>
+          <p className="hero-eyebrow">Odds Gods</p>
+          <h1>The NBA Oracle</h1>
+          <p className="subtitle">Pick every game. Watch the playoff picture shift. The Oracle sees all.</p>
         </section>
 
         {activeTab === 'schedule' ? (
@@ -513,7 +579,10 @@ export default function App({ initialPath }: AppProps) {
                   lockedPicks={lockedPicks}
                   teamsById={NBA_TEAM_LOOKUP}
                   oddsFormat={oddsFormat}
-                  justPickedGameId={justPickedGameId}
+                  justPickedKey={justPickedKey}
+                  firstHintGameId={firstHintGameId}
+                  showPickHint={showPickHint}
+                  isMobile={false}
                   onPick={handlePick}
                 />
               </section>
@@ -548,7 +617,10 @@ export default function App({ initialPath }: AppProps) {
                     lockedPicks={lockedPicks}
                     teamsById={NBA_TEAM_LOOKUP}
                     oddsFormat={oddsFormat}
-                    justPickedGameId={justPickedGameId}
+                    justPickedKey={justPickedKey}
+                    firstHintGameId={firstHintGameId}
+                    showPickHint={showPickHint}
+                    isMobile={true}
                     onPick={handlePick}
                   />
                 </section>

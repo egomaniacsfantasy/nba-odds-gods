@@ -36,7 +36,7 @@ export function ToolNav({
             className={activeTab === 'schedule' ? 'og-nav-tab is-active' : 'og-nav-tab'}
             onClick={() => onNavigate('schedule')}
           >
-            Season Picker
+            The Oracle
           </button>
           <button
             type="button"
@@ -71,7 +71,7 @@ export function ToolNav({
           className={activeTab === 'schedule' ? 'og-nav-tab is-active' : 'og-nav-tab'}
           onClick={() => onNavigate('schedule')}
         >
-          Season Picker
+          The Oracle
         </button>
         <button
           type="button"
