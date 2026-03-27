@@ -38,6 +38,7 @@ function _buildSeries(
   gameIds: readonly number[], hsId: number | null, lsId: number | null,
   dates: readonly string[], days: readonly number[], picks: LockedPicks,
   teamsById: Map<number, NbaTeam>,
+  seedMap: Map<number, number>,
 ): NbaGame[] {
   if (!hsId || !lsId) return [];
   const hsAbbr = teamsById.get(hsId)?.abbr ?? '???';
@@ -51,6 +52,8 @@ function _buildSeries(
     const hId = _HS_HOME_R.has(g) ? hsId : lsId;
     const aId = _HS_HOME_R.has(g) ? lsId : hsId;
     const game = _mkGame(gameIds[i], dates[i], days[i], hId, aId, getMatchupProb(hId, aId, 'home'));
+    game.homeSeed = seedMap.get(hId);
+    game.awaySeed = seedMap.get(aId);
     if (aw > 0 || bw > 0) {
       if (aw === bw) game.seriesScore = `Tied ${aw}-${bw}`;
       else if (aw > bw) game.seriesScore = `${hsAbbr} leads ${aw}-${bw}`;
@@ -138,6 +141,11 @@ export function PlayoffSection({
     const wS = [west[0]?.teamId??null, west[1]?.teamId??null, west[2]?.teamId??null,
                 west[3]?.teamId??null, west[4]?.teamId??null, west[5]?.teamId??null, wSeed7, wSeed8];
 
+    // Seed map: teamId → seed (regular-season position 1-10 initially, updated to playoff seed after play-in)
+    const seedMap = new Map<number, number>();
+    east.slice(0, 10).forEach((row, i) => { if (row?.teamId) seedMap.set(row.teamId, i + 1); });
+    west.slice(0, 10).forEach((row, i) => { if (row?.teamId) seedMap.set(row.teamId, i + 1); });
+
     const ePlayinDone = hp(PLAYIN_GAME_IDS.east.sevenVEight) && hp(PLAYIN_GAME_IDS.east.nineVTen) && hp(PLAYIN_GAME_IDS.east.final);
     const wPlayinDone = hp(PLAYIN_GAME_IDS.west.sevenVEight) && hp(PLAYIN_GAME_IDS.west.nineVTen) && hp(PLAYIN_GAME_IDS.west.final);
     const playinDone = ePlayinDone && wPlayinDone;
@@ -149,25 +157,37 @@ export function PlayoffSection({
       const seen = new Set(dates);
       for (const d of [...seen].sort()) { const gs = byDate.get(d); if (gs?.length) result.push({ date: d, games: gs }); byDate.delete(d); }
     }
+    function _mkgS(id: number, date: string, dn: number, hId: number, aId: number, pH: number): NbaGame {
+      const g = _mkGame(id, date, dn, hId, aId, pH);
+      g.homeSeed = seedMap.get(hId);
+      g.awaySeed = seedMap.get(aId);
+      return g;
+    }
 
     // ── April 14: Play-In 7v8 ─────────────────────────────────────
-    if (es7 && es8) addToDate(_mkGame(PLAYIN_GAME_IDS.east.sevenVEight, '2026-04-14', 175, es7, es8, getPlayinProb('7v8', es7, es8)));
-    if (ws7 && ws8) addToDate(_mkGame(PLAYIN_GAME_IDS.west.sevenVEight, '2026-04-14', 175, ws7, ws8, getPlayinProb('7v8', ws7, ws8)));
+    if (es7 && es8) addToDate(_mkgS(PLAYIN_GAME_IDS.east.sevenVEight, '2026-04-14', 175, es7, es8, getPlayinProb('7v8', es7, es8)));
+    if (ws7 && ws8) addToDate(_mkgS(PLAYIN_GAME_IDS.west.sevenVEight, '2026-04-14', 175, ws7, ws8, getPlayinProb('7v8', ws7, ws8)));
     // ── April 15: Play-In 9v10 ────────────────────────────────────
-    if (es9 && es10) addToDate(_mkGame(PLAYIN_GAME_IDS.east.nineVTen, '2026-04-15', 176, es9, es10, getPlayinProb('9v10', es9, es10)));
-    if (ws9 && ws10) addToDate(_mkGame(PLAYIN_GAME_IDS.west.nineVTen, '2026-04-15', 176, ws9, ws10, getPlayinProb('9v10', ws9, ws10)));
+    if (es9 && es10) addToDate(_mkgS(PLAYIN_GAME_IDS.east.nineVTen, '2026-04-15', 176, es9, es10, getPlayinProb('9v10', es9, es10)));
+    if (ws9 && ws10) addToDate(_mkgS(PLAYIN_GAME_IDS.west.nineVTen, '2026-04-15', 176, ws9, ws10, getPlayinProb('9v10', ws9, ws10)));
     // ── April 17: Play-In finals ──────────────────────────────────
     if (eFinHome != null && eFinAway != null)
-      addToDate(_mkGame(PLAYIN_GAME_IDS.east.final, '2026-04-17', 178, eFinHome, eFinAway, getPlayinProb('final', eFinHome, eFinAway)));
+      addToDate(_mkgS(PLAYIN_GAME_IDS.east.final, '2026-04-17', 178, eFinHome, eFinAway, getPlayinProb('final', eFinHome, eFinAway)));
     if (wFinHome != null && wFinAway != null)
-      addToDate(_mkGame(PLAYIN_GAME_IDS.west.final, '2026-04-17', 178, wFinHome, wFinAway, getPlayinProb('final', wFinHome, wFinAway)));
+      addToDate(_mkgS(PLAYIN_GAME_IDS.west.final, '2026-04-17', 178, wFinHome, wFinAway, getPlayinProb('final', wFinHome, wFinAway)));
     flushDates(['2026-04-14','2026-04-15','2026-04-17']);
 
     if (!playinDone) return result;
 
+    // Update seedMap: play-in winners get their official playoff seeds (7 and 8)
+    if (eSeed7) seedMap.set(eSeed7, 7);
+    if (eSeed8) seedMap.set(eSeed8, 8);
+    if (wSeed7) seedMap.set(wSeed7, 7);
+    if (wSeed8) seedMap.set(wSeed8, 8);
+
     // ── R1: group by date ─────────────────────────────────────────
     function addSeries(ids: readonly number[], hs: number | null, ls: number | null, dates: readonly string[], days: readonly number[]) {
-      for (const g of _buildSeries(ids, hs, ls, dates, days, lockedPicks, teamsById)) addToDate(g);
+      for (const g of _buildSeries(ids, hs, ls, dates, days, lockedPicks, teamsById, seedMap)) addToDate(g);
     }
     addSeries(R1_GAME_IDS.east.s1v8, eS[0], eS[7], _E_R1_DATES, _E_R1_DAYS);
     addSeries(R1_GAME_IDS.east.s4v5, eS[3], eS[4], _E_R1_DATES, _E_R1_DAYS);

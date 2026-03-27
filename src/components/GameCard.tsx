@@ -53,7 +53,11 @@ export function GameCard({
   return (
     <article className={cardClassName.join(' ')} style={cardStyle}>
       {game.isCompleted ? <span className="game-card__final">Final</span> : null}
-      {game.seriesScore ? <span className="game-card__series-score">{game.seriesScore}</span> : null}
+      {game.seriesScore ? (
+        <div className="game-card__series-score">
+          {game.seriesScore}
+        </div>
+      ) : null}
       {showHint && !winnerId && !game.isCompleted ? <div className="pick-hint">Click a team to pick the winner</div> : null}
 
       <button
@@ -83,7 +87,7 @@ export function GameCard({
           </div>
         </div>
         <div className="team-row__identity">
-          <span className="team-row__abbr team-abbr">{awayTeam.abbr}</span>
+          <span className="team-row__abbr team-abbr">{awayTeam.abbr}{game.awaySeed != null ? ` (${game.awaySeed})` : ''}</span>
           <span className="team-row__city">{awayTeam.city}</span>
           <span className="team-row__name">{awayDisplayName}</span>
         </div>
@@ -117,7 +121,7 @@ export function GameCard({
           </div>
         </div>
         <div className="team-row__identity">
-          <span className="team-row__abbr team-abbr">{homeTeam.abbr}</span>
+          <span className="team-row__abbr team-abbr">{homeTeam.abbr}{game.homeSeed != null ? ` (${game.homeSeed})` : ''}</span>
           <span className="team-row__city">{homeTeam.city}</span>
           <span className="team-row__name">{homeDisplayName}</span>
           <span className="team-row__home">Home</span>

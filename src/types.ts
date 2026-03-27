@@ -33,6 +33,8 @@ export interface NbaGame {
   isCompleted: boolean;
   actualWinnerId?: number;
   seriesScore?: string;
+  homeSeed?: number;
+  awaySeed?: number;
 }
 
 // ============================================================
