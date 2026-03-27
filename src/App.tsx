@@ -13,7 +13,7 @@ import { ToolNav } from './components/ToolNav';
 import { NBA_MC_ADVANCEMENT, NBA_MC_EAST_STANDINGS, NBA_MC_EXP_WINS, NBA_MC_WEST_STANDINGS } from './data/nbaMcResults';
 import { NBA_SCHEDULE } from './data/nbaSchedule';
 import { NBA_TEAMS, NBA_TEAM_LOOKUP } from './data/nbaTeams';
-import { getSimIterations, simulateNbaFullSeason } from './lib/simulation';
+import { buildPlayoffPicks, getSimIterations, simulateNbaFullSeason } from './lib/simulation';
 import { cloneLockedPicks, computeProjectedStandings, groupGamesByDate } from './lib/standings';
 import type {
   AdvancementSortKey,
@@ -330,16 +330,18 @@ export default function App(_props: AppProps) {
   );
 
   const handleSimulateRest = useCallback(() => {
-    if (allGamesPicked) return;
     const random = Math.random;
     setUndoStack((current) => [...current, cloneLockedPicks(lockedPicks)]);
     setLockedPicks((current) => {
+      // 1. Fill all remaining regular-season games
       const next = cloneLockedPicks(current);
       for (const game of NBA_SCHEDULE) {
         if (game.isCompleted || next.has(game.gameId)) continue;
         next.set(game.gameId, random() < game.pHomeWins ? game.homeTeamId : game.awayTeamId);
       }
-      return next;
+      // 2. Fill all playoff games deterministically (favorite wins each game)
+      const standings = computeProjectedStandings(next, NBA_SCHEDULE, NBA_TEAMS);
+      return buildPlayoffPicks(next, standings);
     });
     setJustPickedKey(null);
     if (showPickHint) { localStorage.setItem('nba-oracle-hint-seen', '1'); setShowPickHint(false); }

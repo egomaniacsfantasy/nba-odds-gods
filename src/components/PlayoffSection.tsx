@@ -37,8 +37,11 @@ function _wins(ids: readonly number[], aId: number, bId: number, picks: LockedPi
 function _buildSeries(
   gameIds: readonly number[], hsId: number | null, lsId: number | null,
   dates: readonly string[], days: readonly number[], picks: LockedPicks,
+  teamsById: Map<number, NbaTeam>,
 ): NbaGame[] {
   if (!hsId || !lsId) return [];
+  const hsAbbr = teamsById.get(hsId)?.abbr ?? '???';
+  const lsAbbr = teamsById.get(lsId)?.abbr ?? '???';
   const out: NbaGame[] = [];
   for (let i = 0; i < 7; i++) {
     const priorIds = gameIds.slice(0, i);
@@ -47,7 +50,13 @@ function _buildSeries(
     const g = i + 1;
     const hId = _HS_HOME_R.has(g) ? hsId : lsId;
     const aId = _HS_HOME_R.has(g) ? lsId : hsId;
-    out.push(_mkGame(gameIds[i], dates[i], days[i], hId, aId, getMatchupProb(hId, aId, 'home')));
+    const game = _mkGame(gameIds[i], dates[i], days[i], hId, aId, getMatchupProb(hId, aId, 'home'));
+    if (aw > 0 || bw > 0) {
+      if (aw === bw) game.seriesScore = `Tied ${aw}-${bw}`;
+      else if (aw > bw) game.seriesScore = `${hsAbbr} leads ${aw}-${bw}`;
+      else game.seriesScore = `${lsAbbr} leads ${bw}-${aw}`;
+    }
+    out.push(game);
   }
   return out;
 }
@@ -148,7 +157,7 @@ export function PlayoffSection({
 
     // ── R1: group by date ─────────────────────────────────────────
     function addSeries(ids: readonly number[], hs: number | null, ls: number | null, dates: readonly string[], days: readonly number[]) {
-      for (const g of _buildSeries(ids, hs, ls, dates, days, lockedPicks)) addToDate(g);
+      for (const g of _buildSeries(ids, hs, ls, dates, days, lockedPicks, teamsById)) addToDate(g);
     }
     addSeries(R1_GAME_IDS.east.s1v8, eS[0], eS[7], _E_R1_DATES, _E_R1_DAYS);
     addSeries(R1_GAME_IDS.east.s4v5, eS[3], eS[4], _E_R1_DATES, _E_R1_DAYS);
@@ -216,12 +225,20 @@ export function PlayoffSection({
     // ── Finals ────────────────────────────────────────────────────
     const eastChamp = _seriesWinner(CF_GAME_IDS.east, eR2wAB, eR2wCD, lockedPicks);
     const westChamp = _seriesWinner(CF_GAME_IDS.west, wR2wAB, wR2wCD, lockedPicks);
-    // Finals HCA tiebreakers: (1) most regular-season wins → (2) most conf wins → (3) east by convention
+    // Finals HCA: wins → div win pct → conf win pct → east by convention
     const ecRow = eastChamp ? east.find(r => r.teamId === eastChamp) : null;
     const wcRow = westChamp ? west.find(r => r.teamId === westChamp) : null;
     const ecW = ecRow?.wins ?? 0, wcW = wcRow?.wins ?? 0;
-    const ecCW = ecRow?.confWins ?? 0, wcCW = wcRow?.confWins ?? 0;
-    const finHs = (ecW > wcW || (ecW === wcW && ecCW >= wcCW)) ? eastChamp : westChamp;
+    const ecDivG = (ecRow?.divWins ?? 0) + (ecRow?.divLosses ?? 0);
+    const wcDivG = (wcRow?.divWins ?? 0) + (wcRow?.divLosses ?? 0);
+    const ecDivPct = ecDivG > 0 ? (ecRow?.divWins ?? 0) / ecDivG : 0;
+    const wcDivPct = wcDivG > 0 ? (wcRow?.divWins ?? 0) / wcDivG : 0;
+    const ecCG = (ecRow?.confWins ?? 0) + (ecRow?.confLosses ?? 0);
+    const wcCG = (wcRow?.confWins ?? 0) + (wcRow?.confLosses ?? 0);
+    const ecCWPct = ecCG > 0 ? (ecRow?.confWins ?? 0) / ecCG : 0;
+    const wcCWPct = wcCG > 0 ? (wcRow?.confWins ?? 0) / wcCG : 0;
+    const finHsEast = ecW > wcW || (ecW === wcW && (ecDivPct > wcDivPct || (ecDivPct === wcDivPct && ecCWPct >= wcCWPct)));
+    const finHs = finHsEast ? eastChamp : westChamp;
     const finLs = finHs === eastChamp ? westChamp : eastChamp;
     addSeries(FINALS_GAME_IDS, finHs, finLs, _FIN_DATES, _FIN_DAYS);
     flushDates(_FIN_DATES);

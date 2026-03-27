@@ -32,6 +32,7 @@ export interface NbaGame {
   pHomeWins: number;
   isCompleted: boolean;
   actualWinnerId?: number;
+  seriesScore?: string;
 }
 
 // ============================================================

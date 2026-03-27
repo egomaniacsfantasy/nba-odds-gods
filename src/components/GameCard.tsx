@@ -1,3 +1,5 @@
+// Auto-generated GameCard.tsx — do not edit manually
+// Updated: 2026-03-27
 import { formatOdds } from '../lib/formatOdds';
 import type { NbaGame, NbaTeam, OddsFormat } from '../types';
 
@@ -51,6 +53,7 @@ export function GameCard({
   return (
     <article className={cardClassName.join(' ')} style={cardStyle}>
       {game.isCompleted ? <span className="game-card__final">Final</span> : null}
+      {game.seriesScore ? <span className="game-card__series-score">{game.seriesScore}</span> : null}
       {showHint && !winnerId && !game.isCompleted ? <div className="pick-hint">Click a team to pick the winner</div> : null}
 
       <button

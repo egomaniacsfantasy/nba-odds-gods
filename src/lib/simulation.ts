@@ -376,3 +376,137 @@ export function simulateNbaFullSeason(
     standings: { east: projection.east, west: projection.west },
   };
 }
+
+// ── Deterministic playoff pick builder (for "Simulate Rest") ────────────────
+// Picks each game by choosing the team with higher win probability.
+// Used when user clicks "Simulate Rest" after all regular-season games are done.
+
+function _pickSeriesDet(
+  gameIds: readonly number[],
+  hsId: number,
+  lsId: number,
+  picks: LockedPicks,
+): number {
+  let hw = 0, lw = 0;
+  for (let g = 1; g <= 7; g++) {
+    if (hw === 4 || lw === 4) break;
+    if (picks.has(gameIds[g - 1])) {
+      const w = picks.get(gameIds[g - 1])!;
+      if (w === hsId) hw++; else lw++;
+      continue;
+    }
+    const hId = _HS_HOME_G.has(g) ? hsId : lsId;
+    const aId = _HS_HOME_G.has(g) ? lsId : hsId;
+    const p = getMatchupProb(hId, aId, 'home');
+    const winner = p >= 0.5 ? hId : aId;
+    picks.set(gameIds[g - 1], winner);
+    if (winner === hsId) hw++; else lw++;
+  }
+  return hw >= 4 ? hsId : lsId;
+}
+
+function _playinWinner(
+  slot: 'final' | '7v8' | '9v10', hId: number, aId: number, picks: LockedPicks, gameId: number,
+): number {
+  if (picks.has(gameId)) return picks.get(gameId)!;
+  const p = getPlayinProb(slot, hId, aId);
+  const w = p >= 0.5 ? hId : aId;
+  picks.set(gameId, w);
+  return w;
+}
+
+function _detHomeCourt(aId: number, aSeed: number, bId: number, bSeed: number, wins: Map<number, number>): [number, number] {
+  const aw = wins.get(aId) ?? 0, bw = wins.get(bId) ?? 0;
+  if (aw !== bw) return aw > bw ? [aId, bId] : [bId, aId];
+  return aSeed <= bSeed ? [aId, bId] : [bId, aId];
+}
+
+/** Fill all remaining playoff game picks deterministically (favorite wins each game). */
+export function buildPlayoffPicks(
+  existing: LockedPicks,
+  standings: { east: StandingsRow[]; west: StandingsRow[] },
+): LockedPicks {
+  const picks = new Map(existing);
+  const wins = new Map([...standings.east, ...standings.west].map((r) => [r.teamId, r.wins]));
+
+  function confPicks(conf: 'east' | 'west') {
+    const isEast = conf === 'east';
+    const rows = isEast ? standings.east : standings.west;
+    const pi = isEast ? PLAYIN_GAME_IDS.east : PLAYIN_GAME_IDS.west;
+    const r1k = isEast ? R1_GAME_IDS.east : R1_GAME_IDS.west;
+    const r2k = isEast ? R2_GAME_IDS.east : R2_GAME_IDS.west;
+    const cfk = isEast ? CF_GAME_IDS.east : CF_GAME_IDS.west;
+
+    const s = rows.map((r, i) => ({ teamId: r.teamId, seed: i + 1 }));
+    if (s.length < 10) return null;
+
+    // Play-in
+    const w7v8 = _playinWinner('7v8', s[6].teamId, s[7].teamId, picks, pi.sevenVEight);
+    _playinWinner('9v10', s[8].teamId, s[9].teamId, picks, pi.nineVTen);
+    const finHome = w7v8 === s[6].teamId ? s[7].teamId : s[6].teamId;
+    const w9v10 = picks.get(pi.nineVTen)!;
+    const w8 = _playinWinner('final', finHome, w9v10, picks, pi.final);
+
+    const bracket = [s[0], s[1], s[2], s[3], s[4], s[5],
+      { teamId: w7v8, seed: 7 }, { teamId: w8, seed: 8 }];
+
+    // R1
+    const r1Match = [
+      { a: bracket[0], b: bracket[7], ids: r1k.s1v8 },
+      { a: bracket[3], b: bracket[4], ids: r1k.s4v5 },
+      { a: bracket[1], b: bracket[6], ids: r1k.s2v7 },
+      { a: bracket[2], b: bracket[5], ids: r1k.s3v6 },
+    ];
+    const r1w = r1Match.map(({ a, b, ids }) => {
+      const [hs, ls] = _detHomeCourt(a.teamId, a.seed, b.teamId, b.seed, wins);
+      const hSeed = hs === a.teamId ? a.seed : b.seed;
+      const lSeed = hs === a.teamId ? b.seed : a.seed;
+      const wId = _pickSeriesDet(ids, hs, ls, picks);
+      return { teamId: wId, seed: wId === hs ? hSeed : lSeed };
+    });
+
+    // R2
+    const r2Match = [
+      { a: r1w[0], b: r1w[1], ids: r2k.sAB },
+      { a: r1w[2], b: r1w[3], ids: r2k.sCD },
+    ];
+    const r2w = r2Match.map(({ a, b, ids }) => {
+      const [hs, ls] = _detHomeCourt(a.teamId, a.seed, b.teamId, b.seed, wins);
+      const hSeed = hs === a.teamId ? a.seed : b.seed;
+      const lSeed = hs === a.teamId ? b.seed : a.seed;
+      const wId = _pickSeriesDet(ids, hs, ls, picks);
+      return { teamId: wId, seed: wId === hs ? hSeed : lSeed };
+    });
+
+    // CF
+    const [cfHs, cfLs] = _detHomeCourt(r2w[0].teamId, r2w[0].seed, r2w[1].teamId, r2w[1].seed, wins);
+    const cfWinnerId = _pickSeriesDet(cfk, cfHs, cfLs, picks);
+    const cfSeed = cfWinnerId === r2w[0].teamId ? r2w[0].seed : r2w[1].seed;
+    return { teamId: cfWinnerId, seed: cfSeed };
+  }
+
+  const eastChamp = confPicks('east');
+  const westChamp = confPicks('west');
+
+  if (eastChamp && westChamp) {
+    // Finals HCA: wins → div win pct → conf win pct → east by convention
+    const ecRow = standings.east.find((r) => r.teamId === eastChamp.teamId);
+    const wcRow = standings.west.find((r) => r.teamId === westChamp.teamId);
+    const ew = ecRow?.wins ?? 0, ww = wcRow?.wins ?? 0;
+    const ecDivG = (ecRow?.divWins ?? 0) + (ecRow?.divLosses ?? 0);
+    const wcDivG = (wcRow?.divWins ?? 0) + (wcRow?.divLosses ?? 0);
+    const ecDivPct = ecDivG > 0 ? (ecRow?.divWins ?? 0) / ecDivG : 0;
+    const wcDivPct = wcDivG > 0 ? (wcRow?.divWins ?? 0) / wcDivG : 0;
+    const ecCG = (ecRow?.confWins ?? 0) + (ecRow?.confLosses ?? 0);
+    const wcCG = (wcRow?.confWins ?? 0) + (wcRow?.confLosses ?? 0);
+    const ecCWPct = ecCG > 0 ? (ecRow?.confWins ?? 0) / ecCG : 0;
+    const wcCWPct = wcCG > 0 ? (wcRow?.confWins ?? 0) / wcCG : 0;
+    const finHsEast = ew > ww || (ew === ww && (ecDivPct > wcDivPct || (ecDivPct === wcDivPct && ecCWPct >= wcCWPct)));
+    const [finHs, finLs] = finHsEast
+      ? [eastChamp.teamId, westChamp.teamId]
+      : [westChamp.teamId, eastChamp.teamId];
+    _pickSeriesDet(FINALS_GAME_IDS, finHs, finLs, picks);
+  }
+
+  return picks;
+}
