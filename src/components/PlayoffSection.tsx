@@ -216,8 +216,14 @@ export function PlayoffSection({
     // ── Finals ────────────────────────────────────────────────────
     const eastChamp = _seriesWinner(CF_GAME_IDS.east, eR2wAB, eR2wCD, lockedPicks);
     const westChamp = _seriesWinner(CF_GAME_IDS.west, wR2wAB, wR2wCD, lockedPicks);
-    // Finals: home court to team with better record — use index 0 for east, 0 for west as proxy
-    addSeries(FINALS_GAME_IDS, _hsOf(eastChamp, 0, westChamp, 1), _lsOf(eastChamp, 0, westChamp, 1), _FIN_DATES, _FIN_DAYS);
+    // Finals HCA tiebreakers: (1) most regular-season wins → (2) most conf wins → (3) east by convention
+    const ecRow = eastChamp ? east.find(r => r.teamId === eastChamp) : null;
+    const wcRow = westChamp ? west.find(r => r.teamId === westChamp) : null;
+    const ecW = ecRow?.wins ?? 0, wcW = wcRow?.wins ?? 0;
+    const ecCW = ecRow?.confWins ?? 0, wcCW = wcRow?.confWins ?? 0;
+    const finHs = (ecW > wcW || (ecW === wcW && ecCW >= wcCW)) ? eastChamp : westChamp;
+    const finLs = finHs === eastChamp ? westChamp : eastChamp;
+    addSeries(FINALS_GAME_IDS, finHs, finLs, _FIN_DATES, _FIN_DAYS);
     flushDates(_FIN_DATES);
 
     return result;
