@@ -108,7 +108,7 @@ export function StandingsTable({
                 <span className={seedClassName(index + 1)}>{row.isPlayIn ? `${index + 1} PI` : `${index + 1}`}</span>
               </div>
 
-              {index === 5 ? <div className="tier-divider tier-divider-row">Play-In</div> : null}
+              {index === 5 ? <div className="tier-divider">Play-In</div> : null}
               {index === 9 ? <div className="tier-divider">Eliminated</div> : null}
             </Fragment>
           );
