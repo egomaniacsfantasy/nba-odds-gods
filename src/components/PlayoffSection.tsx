@@ -61,6 +61,16 @@ function _buildSeries(
   return out;
 }
 
+function _isDivLeader(teamId: number | null, confRows: StandingsRow[], teamsById: Map<number, NbaTeam>): boolean {
+  if (!teamId) return false;
+  const div = teamsById.get(teamId)?.division;
+  if (!div) return false;
+  const divRows = confRows.filter((r) => teamsById.get(r.teamId)?.division === div);
+  if (!divRows.length) return false;
+  const leader = divRows.reduce((a, b) => a.wins > b.wins || (a.wins === b.wins && a.losses < b.losses) ? a : b);
+  return leader.teamId === teamId;
+}
+
 function _seriesDone(gameIds: readonly number[], hsId: number | null, lsId: number | null, picks: LockedPicks): boolean {
   if (!hsId || !lsId) return false;
   const [aw, bw] = _wins(gameIds, hsId, lsId, picks);
@@ -225,20 +235,22 @@ export function PlayoffSection({
     // ── Finals ────────────────────────────────────────────────────
     const eastChamp = _seriesWinner(CF_GAME_IDS.east, eR2wAB, eR2wCD, lockedPicks);
     const westChamp = _seriesWinner(CF_GAME_IDS.west, wR2wAB, wR2wCD, lockedPicks);
-    // Finals HCA: wins → div win pct → conf win pct → east by convention
+    // Finals HCA tiebreakers: wins → division winner → conf win% → east by convention
     const ecRow = eastChamp ? east.find(r => r.teamId === eastChamp) : null;
     const wcRow = westChamp ? west.find(r => r.teamId === westChamp) : null;
     const ecW = ecRow?.wins ?? 0, wcW = wcRow?.wins ?? 0;
-    const ecDivG = (ecRow?.divWins ?? 0) + (ecRow?.divLosses ?? 0);
-    const wcDivG = (wcRow?.divWins ?? 0) + (wcRow?.divLosses ?? 0);
-    const ecDivPct = ecDivG > 0 ? (ecRow?.divWins ?? 0) / ecDivG : 0;
-    const wcDivPct = wcDivG > 0 ? (wcRow?.divWins ?? 0) / wcDivG : 0;
     const ecCG = (ecRow?.confWins ?? 0) + (ecRow?.confLosses ?? 0);
     const wcCG = (wcRow?.confWins ?? 0) + (wcRow?.confLosses ?? 0);
     const ecCWPct = ecCG > 0 ? (ecRow?.confWins ?? 0) / ecCG : 0;
     const wcCWPct = wcCG > 0 ? (wcRow?.confWins ?? 0) / wcCG : 0;
-    const finHsEast = ecW > wcW || (ecW === wcW && (ecDivPct > wcDivPct || (ecDivPct === wcDivPct && ecCWPct >= wcCWPct)));
-    const finHs = finHsEast ? eastChamp : westChamp;
+    const ecIsDiv = eastChamp ? _isDivLeader(eastChamp, east, teamsById) : false;
+    const wcIsDiv = westChamp ? _isDivLeader(westChamp, west, teamsById) : false;
+    let _finHsEast: boolean;
+    if (ecW !== wcW) _finHsEast = ecW > wcW;
+    else if (ecIsDiv !== wcIsDiv) _finHsEast = ecIsDiv;
+    else if (ecCWPct !== wcCWPct) _finHsEast = ecCWPct > wcCWPct;
+    else _finHsEast = true; // east by convention
+    const finHs = _finHsEast ? eastChamp : westChamp;
     const finLs = finHs === eastChamp ? westChamp : eastChamp;
     addSeries(FINALS_GAME_IDS, finHs, finLs, _FIN_DATES, _FIN_DAYS);
     flushDates(_FIN_DATES);

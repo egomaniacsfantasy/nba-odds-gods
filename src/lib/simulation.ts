@@ -398,7 +398,7 @@ function _pickSeriesDet(
     const hId = _HS_HOME_G.has(g) ? hsId : lsId;
     const aId = _HS_HOME_G.has(g) ? lsId : hsId;
     const p = getMatchupProb(hId, aId, 'home');
-    const winner = p >= 0.5 ? hId : aId;
+    const winner = Math.random() < p ? hId : aId;
     picks.set(gameIds[g - 1], winner);
     if (winner === hsId) hw++; else lw++;
   }
@@ -410,7 +410,7 @@ function _playinWinner(
 ): number {
   if (picks.has(gameId)) return picks.get(gameId)!;
   const p = getPlayinProb(slot, hId, aId);
-  const w = p >= 0.5 ? hId : aId;
+  const w = Math.random() < p ? hId : aId;
   picks.set(gameId, w);
   return w;
 }
@@ -421,10 +421,20 @@ function _detHomeCourt(aId: number, aSeed: number, bId: number, bSeed: number, w
   return aSeed <= bSeed ? [aId, bId] : [bId, aId];
 }
 
-/** Fill all remaining playoff game picks deterministically (favorite wins each game). */
+function _isDivLeader(teamId: number, confRows: StandingsRow[], teamsById: Map<number, NbaTeam>): boolean {
+  const div = teamsById.get(teamId)?.division;
+  if (!div) return false;
+  const divRows = confRows.filter((r) => teamsById.get(r.teamId)?.division === div);
+  if (!divRows.length) return false;
+  const leader = divRows.reduce((a, b) => a.wins > b.wins || (a.wins === b.wins && a.losses < b.losses) ? a : b);
+  return leader.teamId === teamId;
+}
+
+/** Fill all remaining playoff game picks probabilistically (each game drawn from matchup win probability). */
 export function buildPlayoffPicks(
   existing: LockedPicks,
   standings: { east: StandingsRow[]; west: StandingsRow[] },
+  teamsById: Map<number, NbaTeam>,
 ): LockedPicks {
   const picks = new Map(existing);
   const wins = new Map([...standings.east, ...standings.west].map((r) => [r.teamId, r.wins]));
@@ -489,19 +499,21 @@ export function buildPlayoffPicks(
   const westChamp = confPicks('west');
 
   if (eastChamp && westChamp) {
-    // Finals HCA: wins → div win pct → conf win pct → east by convention
+    // Finals HCA tiebreakers: wins → division winner → conf win% → east by convention
     const ecRow = standings.east.find((r) => r.teamId === eastChamp.teamId);
     const wcRow = standings.west.find((r) => r.teamId === westChamp.teamId);
     const ew = ecRow?.wins ?? 0, ww = wcRow?.wins ?? 0;
-    const ecDivG = (ecRow?.divWins ?? 0) + (ecRow?.divLosses ?? 0);
-    const wcDivG = (wcRow?.divWins ?? 0) + (wcRow?.divLosses ?? 0);
-    const ecDivPct = ecDivG > 0 ? (ecRow?.divWins ?? 0) / ecDivG : 0;
-    const wcDivPct = wcDivG > 0 ? (wcRow?.divWins ?? 0) / wcDivG : 0;
     const ecCG = (ecRow?.confWins ?? 0) + (ecRow?.confLosses ?? 0);
     const wcCG = (wcRow?.confWins ?? 0) + (wcRow?.confLosses ?? 0);
     const ecCWPct = ecCG > 0 ? (ecRow?.confWins ?? 0) / ecCG : 0;
     const wcCWPct = wcCG > 0 ? (wcRow?.confWins ?? 0) / wcCG : 0;
-    const finHsEast = ew > ww || (ew === ww && (ecDivPct > wcDivPct || (ecDivPct === wcDivPct && ecCWPct >= wcCWPct)));
+    const ecIsDiv = _isDivLeader(eastChamp.teamId, standings.east, teamsById);
+    const wcIsDiv = _isDivLeader(westChamp.teamId, standings.west, teamsById);
+    let finHsEast: boolean;
+    if (ew !== ww) finHsEast = ew > ww;
+    else if (ecIsDiv !== wcIsDiv) finHsEast = ecIsDiv;
+    else if (ecCWPct !== wcCWPct) finHsEast = ecCWPct > wcCWPct;
+    else finHsEast = true; // east by convention
     const [finHs, finLs] = finHsEast
       ? [eastChamp.teamId, westChamp.teamId]
       : [westChamp.teamId, eastChamp.teamId];

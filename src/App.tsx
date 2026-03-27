@@ -341,7 +341,7 @@ export default function App(_props: AppProps) {
       }
       // 2. Fill all playoff games deterministically (favorite wins each game)
       const standings = computeProjectedStandings(next, NBA_SCHEDULE, NBA_TEAMS);
-      return buildPlayoffPicks(next, standings);
+      return buildPlayoffPicks(next, standings, NBA_TEAM_LOOKUP);
     });
     setJustPickedKey(null);
     if (showPickHint) { localStorage.setItem('nba-oracle-hint-seen', '1'); setShowPickHint(false); }
