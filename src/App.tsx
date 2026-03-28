@@ -80,7 +80,6 @@ export default function App(_props: AppProps) {
     return stored === 'american' ? 'american' : 'implied';
   });
   const [isSimulating, setIsSimulating] = useState(false);
-  const [activeTab] = useState<'schedule' | 'playoffs'>('schedule');
   const [mainTab, setMainTab] = useState<'oracle' | 'teamdata'>('oracle');
   const [mobileTab, setMobileTab] = useState<'schedule' | 'standings'>('schedule');
   const [activeConference, setActiveConference] = useState<ConferenceKey>('East');
@@ -308,7 +307,7 @@ export default function App(_props: AppProps) {
     cancelScheduledSimulation();
   }, [cancelScheduledSimulation]);
 
-  const handleNavigate = useCallback((_tab: 'schedule' | 'playoffs') => {}, []);
+  const handleNavigate = useCallback((tab: 'oracle' | 'teamdata') => { setMainTab(tab); }, []);
 
   const handleOddsFormatChange = useCallback((format: OddsFormat) => { setOddsFormat(format); }, []);
 
@@ -377,12 +376,11 @@ export default function App(_props: AppProps) {
   return (
     <>
       <ToolNav
-        activeTab={activeTab}
+        activeTab={mainTab}
         oddsFormat={oddsFormat}
         onOddsFormatChange={handleOddsFormatChange}
         onNavigate={handleNavigate}
         isScrolled={isScrolled}
-        playoffsUnlocked={false}
       />
       <main className="app-shell">
         <section className="hero-header">
@@ -390,11 +388,6 @@ export default function App(_props: AppProps) {
           <h1>The NBA Oracle</h1>
           <p className="subtitle">Pick every game. Watch the playoff picture shift. The Oracle sees all.</p>
         </section>
-
-        <div className="main-tab-bar">
-          <button type="button" className={'main-tab-btn' + (mainTab === 'oracle' ? ' is-active' : '')} onClick={() => setMainTab('oracle')}>Oracle</button>
-          <button type="button" className={'main-tab-btn' + (mainTab === 'teamdata' ? ' is-active' : '')} onClick={() => setMainTab('teamdata')}>Team Stats</button>
-        </div>
 
         {mainTab === 'teamdata' ? <TeamDataTab /> : <>
             <SimControls

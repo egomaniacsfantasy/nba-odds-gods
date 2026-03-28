@@ -8,6 +8,7 @@ import { NBA_TEAM_LOOKUP } from '../data/nbaTeams';
 type SortKey = keyof Omit<NbaTeamData, 'id' | 'abbr'>;
 
 const COL_GROUPS: { label: string; cols: SortKey[] }[] = [
+  { label: 'Rankings',     cols: ['markovRank'] },
   { label: 'Base',         cols: ['gp', 'elo', 'eloTrend', 'eloSos'] },
   { label: 'Season Rtg',   cols: ['offRtg', 'defRtg', 'netRtg'] },
   { label: 'Last 10',      cols: ['l10Off', 'l10Def', 'l10Net', 'l10Pts', 'l10Margin'] },
@@ -19,6 +20,7 @@ const COL_GROUPS: { label: string; cols: SortKey[] }[] = [
 ];
 
 const COL_LABELS: Record<SortKey, string> = {
+  markovRank: 'Markov',
   gp: 'GP', elo: 'Elo', eloTrend: 'Trend', eloSos: 'SOS',
   offRtg: 'Off', defRtg: 'Def', netRtg: 'Net',
   l10Off: 'Off', l10Def: 'Def', l10Net: 'Net', l10Pts: 'PPG', l10Margin: 'Diff',
@@ -31,7 +33,7 @@ const COL_LABELS: Record<SortKey, string> = {
 
 const PCT_COLS = new Set<SortKey>(['efgPct', 'tovPct', 'orebPct', 'tsPct']);
 const RATE_COLS = new Set<SortKey>(['ftRate', 'threePaRate']);
-const INT_COLS = new Set<SortKey>(['elo', 'eloSos', 'gp', 'restDays', 'gamesLast7']);
+const INT_COLS = new Set<SortKey>(['elo', 'eloSos', 'gp', 'restDays', 'gamesLast7', 'markovRank']);
 const SIGNED_COLS = new Set<SortKey>(['eloTrend', 'netRtg', 'l10Net', 'l10Margin', 'margin', 'psNet', 'bpm']);
 
 function fmt(key: SortKey, val: number): string {
