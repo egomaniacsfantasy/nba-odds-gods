@@ -92,11 +92,11 @@ export function PredictorTab({ oddsFormat }: PredictorTabProps) {
 
         {/* Team selectors */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-          <select value={teamAId} onChange={(e) => handleTeamAChange(Number(e.target.value))} style={SEL_STYLE}>
+          <select value={teamAId} onChange={(e: { target: { value: string } }) => handleTeamAChange(Number(e.target.value))} style={SEL_STYLE}>
             {SORTED_TEAMS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
           <span style={{ color: 'var(--text-tertiary)', fontWeight: 700, fontSize: 12 }}>vs</span>
-          <select value={teamBId} onChange={(e) => handleTeamBChange(Number(e.target.value))} style={SEL_STYLE}>
+          <select value={teamBId} onChange={(e: { target: { value: string } }) => handleTeamBChange(Number(e.target.value))} style={SEL_STYLE}>
             {SORTED_TEAMS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </div>
