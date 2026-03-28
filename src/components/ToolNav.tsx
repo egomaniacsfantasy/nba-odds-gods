@@ -4,10 +4,10 @@ import { OddsFormatToggle } from './OddsFormatToggle';
 import type { OddsFormat } from '../types';
 
 interface ToolNavProps {
-  activeTab: 'oracle' | 'teamdata';
+  activeTab: 'oracle' | 'teamdata' | 'predictor';
   oddsFormat: OddsFormat;
   onOddsFormatChange: (format: OddsFormat) => void;
-  onNavigate: (tab: 'oracle' | 'teamdata') => void;
+  onNavigate: (tab: 'oracle' | 'teamdata' | 'predictor') => void;
   isScrolled: boolean;
 }
 
@@ -45,6 +45,13 @@ export function ToolNav({
           >
             Team Stats
           </button>
+          <button
+            type="button"
+            className={activeTab === 'predictor' ? 'og-nav-tab is-active' : 'og-nav-tab'}
+            onClick={() => onNavigate('predictor')}
+          >
+            Predictor
+          </button>
         </nav>
 
         <div className="og-nav-right">
@@ -77,6 +84,13 @@ export function ToolNav({
           onClick={() => onNavigate('teamdata')}
         >
           Team Stats
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'predictor' ? 'og-nav-tab is-active' : 'og-nav-tab'}
+          onClick={() => onNavigate('predictor')}
+        >
+          Predictor
         </button>
       </nav>
     </header>
