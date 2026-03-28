@@ -12,6 +12,7 @@ import { StandingsTable } from './components/StandingsTable';
 import { TeamDataTab } from './components/TeamDataTab';
 import { PredictorTab } from './components/PredictorTab';
 import { ToolNav } from './components/ToolNav';
+import ManagerModePage from './components/ManagerModePage';
 import { NBA_MC_ADVANCEMENT, NBA_MC_EAST_STANDINGS, NBA_MC_EXP_WINS, NBA_MC_WEST_STANDINGS } from './data/nbaMcResults';
 import { NBA_SCHEDULE } from './data/nbaSchedule';
 import { NBA_TEAMS, NBA_TEAM_LOOKUP } from './data/nbaTeams';
@@ -81,7 +82,7 @@ export default function App(_props: AppProps) {
     return stored === 'american' ? 'american' : 'implied';
   });
   const [isSimulating, setIsSimulating] = useState(false);
-  const [mainTab, setMainTab] = useState<'oracle' | 'teamdata' | 'predictor'>('oracle');
+  const [mainTab, setMainTab] = useState<'oracle' | 'teamdata' | 'predictor' | 'manager'>('oracle');
   const [mobileTab, setMobileTab] = useState<'schedule' | 'standings'>('schedule');
   const [activeConference, setActiveConference] = useState<ConferenceKey>('East');
   const [advancementSort, setAdvancementSort] = useState<AdvancementSortKey>('pChampion');
@@ -308,7 +309,7 @@ export default function App(_props: AppProps) {
     cancelScheduledSimulation();
   }, [cancelScheduledSimulation]);
 
-  const handleNavigate = useCallback((tab: 'oracle' | 'teamdata' | 'predictor') => { setMainTab(tab); }, []);
+  const handleNavigate = useCallback((tab: 'oracle' | 'teamdata' | 'predictor' | 'manager') => { setMainTab(tab); }, []);
 
   const handleOddsFormatChange = useCallback((format: OddsFormat) => { setOddsFormat(format); }, []);
 
@@ -390,7 +391,7 @@ export default function App(_props: AppProps) {
           <p className="subtitle">Pick every game. Watch the playoff picture shift. The Oracle sees all.</p>
         </section>
 
-        {mainTab === 'predictor' ? <PredictorTab oddsFormat={oddsFormat} /> : mainTab === 'teamdata' ? <TeamDataTab /> : <>
+        {mainTab === 'manager' ? <ManagerModePage /> : mainTab === 'predictor' ? <PredictorTab oddsFormat={oddsFormat} /> : mainTab === 'teamdata' ? <TeamDataTab /> : <>
             <SimControls
               canUndo={undoStack.length > 0}
               canReset={lockedPicks.size > 0}
