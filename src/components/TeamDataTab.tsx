@@ -1,6 +1,5 @@
 // Auto-generated TeamDataTab.tsx — do not edit manually
 // Updated: 2026-03-27
-import type React from 'react';
 import { useState } from 'react';
 import type { NbaTeamData } from '../data/nbaTeamData';
 import { NBA_TEAM_DATA } from '../data/nbaTeamData';
@@ -9,54 +8,41 @@ import { NBA_TEAM_LOOKUP } from '../data/nbaTeams';
 type SortKey = keyof Omit<NbaTeamData, 'id' | 'abbr'>;
 
 const COL_GROUPS: { label: string; cols: SortKey[] }[] = [
-  { label: 'Rankings',     cols: ['markovRank'] },
-  { label: 'Base',         cols: ['gp', 'elo', 'eloTrend', 'eloSos'] },
-  { label: 'Season Rtg',   cols: ['offRtg', 'defRtg', 'netRtg'] },
-  { label: 'Last 10',      cols: ['l10Off', 'l10Def', 'l10Net', 'l10Pts', 'l10Margin'] },
-  { label: 'Four Factors', cols: ['efgPct', 'tovPct', 'orebPct', 'ftRate', 'threePaRate', 'tsPct'] },
-  { label: 'Scoring',      cols: ['pts', 'margin', 'pace'] },
-  { label: 'Preseason',    cols: ['psNet', 'psOff', 'psDef'] },
-  { label: 'Schedule',     cols: ['restDays', 'gamesLast7'] },
-  { label: 'BPM',          cols: ['bpm'] },
+  { label: 'Rankings',      cols: ['markovRank'] },
+  { label: 'Efficiency',    cols: ['offRtg', 'defRtg', 'netRtg'] },
+  { label: 'Last 10',       cols: ['l10Off', 'l10Def', 'l10Net', 'l10EfgPct'] },
+  { label: 'Four Factors',  cols: ['efgPct', 'orebPct', 'threePaRate'] },
+  { label: 'Advanced',      cols: ['elo', 'bpm', 'pace'] },
 ];
 
 const COL_LABELS: Record<SortKey, string> = {
   markovRank: 'Markov',
-  gp: 'GP', elo: 'Elo', eloTrend: 'Trend', eloSos: 'SOS',
+  elo: 'Elo',
   offRtg: 'Off', defRtg: 'Def', netRtg: 'Net',
-  l10Off: 'Off', l10Def: 'Def', l10Net: 'Net', l10Pts: 'PPG', l10Margin: 'Diff',
-  efgPct: 'eFG%', tovPct: 'TOV%', orebPct: 'ORB%', ftRate: 'FTr', threePaRate: '3PAr', tsPct: 'TS%',
-  pts: 'PPG', margin: 'Diff', pace: 'Pace',
-  psNet: 'Net', psOff: 'Off', psDef: 'Def',
-  restDays: 'Rest', gamesLast7: 'GL7',
-  bpm: 'BPM',
+  l10Off: 'Off', l10Def: 'Def', l10Net: 'Net', l10EfgPct: 'eFG%',
+  efgPct: 'eFG%', orebPct: 'ORB%', threePaRate: '3PAr',
+  bpm: 'BPM', pace: 'Pace',
 };
 
 const COL_DESCS: Record<SortKey, string> = {
   markovRank: 'Markov ranking (lower = better)',
-  gp: 'Games played', elo: 'Elo rating', eloTrend: 'Elo change last 10 games', eloSos: 'Elo-based strength of schedule',
+  elo: 'Elo rating',
   offRtg: 'Season offensive rating', defRtg: 'Season defensive rating', netRtg: 'Season net rating',
   l10Off: 'Last-10 offensive rating', l10Def: 'Last-10 defensive rating', l10Net: 'Last-10 net rating',
-  l10Pts: 'Last-10 points per game', l10Margin: 'Last-10 point differential',
-  efgPct: 'Effective FG%', tovPct: 'Turnover rate', orebPct: 'Offensive rebound rate',
-  ftRate: 'Free throw rate (FTA/FGA)', threePaRate: '3-point attempt rate', tsPct: 'True shooting %',
-  pts: 'Points per game', margin: 'Average point differential', pace: 'Pace (possessions/48)',
-  psNet: 'Preseason net rating', psOff: 'Preseason offensive rating', psDef: 'Preseason defensive rating',
-  restDays: 'Days since last game', gamesLast7: 'Games played in last 7 days',
-  bpm: 'Team box plus/minus',
+  l10EfgPct: 'Last-10 effective FG%',
+  efgPct: 'Season effective FG%', orebPct: 'Offensive rebound rate', threePaRate: '3-point attempt rate',
+  bpm: 'Team box plus/minus', pace: 'Pace (possessions/48)',
 };
 
 // Columns where lower value = better (sort ascending by default)
-const LOWER_BETTER = new Set<SortKey>(['markovRank', 'defRtg', 'l10Def', 'tovPct', 'psDef', 'gamesLast7']);
+const LOWER_BETTER = new Set<SortKey>(['markovRank', 'defRtg', 'l10Def']);
 
-const PCT_COLS  = new Set<SortKey>(['efgPct', 'tovPct', 'orebPct', 'tsPct']);
-const RATE_COLS = new Set<SortKey>(['ftRate', 'threePaRate']);
-const INT_COLS  = new Set<SortKey>(['elo', 'eloSos', 'gp', 'restDays', 'gamesLast7', 'markovRank']);
-const SIGNED_COLS = new Set<SortKey>(['eloTrend', 'netRtg', 'l10Net', 'l10Margin', 'margin', 'psNet', 'bpm']);
+const PCT_COLS   = new Set<SortKey>(['efgPct', 'orebPct', 'l10EfgPct', 'threePaRate']);
+const INT_COLS   = new Set<SortKey>(['elo', 'markovRank']);
+const SIGNED_COLS = new Set<SortKey>(['netRtg', 'l10Net', 'bpm']);
 
 function fmt(key: SortKey, val: number): string {
   if (PCT_COLS.has(key))    return (val * 100).toFixed(1) + '%';
-  if (RATE_COLS.has(key))   return val.toFixed(3);
   if (INT_COLS.has(key))    return Math.round(val).toString();
   if (SIGNED_COLS.has(key)) return (val >= 0 ? '+' : '') + val.toFixed(1);
   return val.toFixed(1);
@@ -90,10 +76,10 @@ export function TeamDataTab() {
     return sortAsc ? d : -d;
   });
 
-  const hdrBtn: React.CSSProperties = {
+  const hdrBtn = {
     background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%',
     fontFamily: 'var(--font-sans)', fontSize: '10px', fontWeight: 700,
-    letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'center',
+    letterSpacing: '0.08em', textTransform: 'uppercase' as const, textAlign: 'center' as const,
   };
 
   return (
@@ -154,7 +140,6 @@ export function TeamDataTab() {
                   {team && (
                     <img src={team.logoUrl} alt={row.abbr} width="20" height="20" loading="lazy"
                       style={{ display: 'block' }}
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                     />
                   )}
                 </span>
