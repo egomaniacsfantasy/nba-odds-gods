@@ -1,5 +1,5 @@
 // Auto-generated ToolNav.tsx — do not edit manually
-// Updated: 2026-03-27
+// Updated: 2026-03-28
 import { OddsFormatToggle } from './OddsFormatToggle';
 import type { OddsFormat } from '../types';
 

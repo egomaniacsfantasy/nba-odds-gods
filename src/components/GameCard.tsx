@@ -1,5 +1,5 @@
 // Auto-generated GameCard.tsx — do not edit manually
-// Updated: 2026-03-27
+// Updated: 2026-03-28
 import { formatOdds } from '../lib/formatOdds';
 import type { NbaGame, NbaTeam, OddsFormat } from '../types';
 

@@ -1,5 +1,5 @@
 // Auto-generated TeamDataTab.tsx — do not edit manually
-// Updated: 2026-03-27
+// Updated: 2026-03-28
 import { useState } from 'react';
 import type { NbaTeamData } from '../data/nbaTeamData';
 import { NBA_TEAM_DATA } from '../data/nbaTeamData';
