@@ -115,13 +115,15 @@ export default function ManagerModePage() {
   },[phase,pickIdx,pack,userTeam,draftSlots,recordPick]);
 
   if(phase==="loading") return(
-    <div className="mgr-loading">
-      {fetchErr
-        ?<><p className="mgr-error">{fetchErr}</p><p className="mgr-hint">Run manager_mode.py CELL 2 to generate the draft pack.</p></>
-        :<p className="mgr-hint">Loading draft pack...</p>}
+    <div className="mgr-page">
+      <div className="mgr-loading">
+        {fetchErr
+          ?<><p className="mgr-error">{fetchErr}</p><p className="mgr-hint">Run manager_mode.py CELL 2 to generate the draft pack.</p></>
+          :<p className="mgr-hint">Loading draft pack...</p>}
+      </div>
     </div>
   );
-  if(phase==="select") return <SelectView pack={pack!} userTeam={userTeam} setUserTeam={setUserTeam} onStart={startDraft}/>;
+  if(phase==="select") return <div className="mgr-page"><SelectView pack={pack!} userTeam={userTeam} setUserTeam={setUserTeam} onStart={startDraft}/></div>;
   if(phase==="draft"){
     const p=pack!;
     const slot=draftSlots[pickIdx];
@@ -141,6 +143,7 @@ export default function ManagerModePage() {
     const recent=[...log].reverse().slice(0,20);
     const total=p.config.nTeams*p.config.nRounds;
     return(
+      <div className="mgr-page mgr-page--draft">
       <div className="mgr-draft">
         <div className="mgr-draft-hdr">
           <span className="mgr-rnd-badge">Round {slot.round}</span>
@@ -169,14 +172,14 @@ export default function ManagerModePage() {
                 </div>
                 <div className="mgr-player-list">
                   <div className="mgr-pl-hdr"><span>Player</span><span>NBA Team</span><span>Pos</span></div>
-                  {eligible.slice(0,60).map(pl=>(
+                  {eligible.map(pl=>(
                     <button key={pl.playerIdx} className={`mgr-pl-row mgr-pl-${pl.bucket}`} onClick={()=>recordPick(pickIdx,pl.playerIdx,draftSlots)}>
                       <span>{pl.playerName}</span>
                       <span className="mgr-dim">{pl.teamAbbr}</span>
                       <span className={`mgr-bkt mgr-bkt-${pl.bucket}`}>{pl.bucket}</span>
                     </button>
                   ))}
-                  {eligible.length>60&&<div className="mgr-more">+{eligible.length-60} more - use position filter</div>}
+
                 </div>
               </>
             ):(
@@ -200,9 +203,10 @@ export default function ManagerModePage() {
           </div>
         </div>
       </div>
+      </div>
     );
   }
-  return <CompleteView pack={pack!} userTeam={userTeam} rosters={rosters} log={log}/>;
+  return <div className="mgr-page"><CompleteView pack={pack!} userTeam={userTeam} rosters={rosters} log={log}/></div>;
 }
 
 function SelectView({pack,userTeam,setUserTeam,onStart}:{pack:DraftPack;userTeam:string;setUserTeam:(t:string)=>void;onStart:()=>void}) {
