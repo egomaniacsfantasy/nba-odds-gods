@@ -1,5 +1,5 @@
 // Auto-generated AdvancementPanel.tsx — do not edit manually
-// Updated: 2026-03-28
+// Updated: 2026-03-29
 import { formatDelta, formatProbabilityCell } from '../lib/formatOdds';
 import type {
   AdvancementSortKey,

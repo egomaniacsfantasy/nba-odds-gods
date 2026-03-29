@@ -1,7 +1,7 @@
 // Auto-generated App.tsx — uses pre-computed MC results by default
 // When no picks are locked, shows nba_mc_results data directly.
 // After any pick, runs 10,000-iteration MC simulation using model p_home_wins.
-// Updated: 2026-03-28
+// Updated: 2026-03-29
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdvancementPanel } from './components/AdvancementPanel';
 import { PlayoffSection } from './components/PlayoffSection';
