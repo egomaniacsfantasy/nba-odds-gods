@@ -406,7 +406,7 @@ function CompleteView({pack,userTeam,rosters:_r,log,onStartSeason,seasonErr}:{pa
   );
 }
 
-function SeasonView({pack,userTeam,rosters:_r,seasonData,stats,bpmZ,activeTab,onTabChange}:{
+function SeasonView({pack:_pack,userTeam,rosters:_r,seasonData,stats,bpmZ,activeTab,onTabChange}:{
   pack:DraftPack;userTeam:string;rosters:Record<string,number[]>;
   seasonData:SeasonData;stats:Record<string,TeamStat>;bpmZ:Record<string,number>;
   activeTab:"standings"|"schedule";onTabChange:(t:"standings"|"schedule")=>void;
