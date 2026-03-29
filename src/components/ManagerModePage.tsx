@@ -140,69 +140,94 @@ export default function ManagerModePage() {
       if(filter!=="all"&&pl.bucket!==filter) return false;
       return true;
     }).sort((a,b)=>a.playerName.localeCompare(b.playerName));
-    const recent=[...log].reverse().slice(0,20);
+    const recent=[...log].reverse().slice(0,30);
     const total=p.config.nTeams*p.config.nRounds;
+    const userRoster=rosters[userTeam]??[];
     return(
       <div className="mgr-page mgr-page--draft">
-      <div className="mgr-draft">
-        <div className="mgr-draft-hdr">
-          <span className="mgr-rnd-badge">Round {slot.round}</span>
-          <span className="mgr-pick-info">Pick #{slot.overallPick} / {total}</span>
-          {isUser?<span className="mgr-user-turn">YOUR PICK - {userTeam}</span>:<span className="mgr-ai-turn">{slot.team} picking...</span>}
+        <div className="mgr-draft-bar">
+          <div className="mgr-draft-bar-left">
+            <span className="mgr-round-badge">Round {slot.round} of {p.config.nRounds}</span>
+            <span className="mgr-pick-counter">Pick <strong>#{slot.overallPick}</strong> / {total}</span>
+          </div>
+          <div className="mgr-draft-bar-mid">
+            {isUser
+              ? <span className="mgr-turn-you">YOUR PICK &mdash; {userTeam}</span>
+              : <span className="mgr-turn-ai"><span className="mgr-ai-dots"><span/><span/><span/></span>{slot.team} is on the clock</span>
+            }
+          </div>
+          <div className="mgr-draft-bar-right">
+            <span className="mgr-progress">{avail.size} players left</span>
+          </div>
         </div>
-        <div className="mgr-draft-body">
-          <div className="mgr-draft-main">
-            {isUser?(
-              <>
-                <div className="mgr-cur-roster">
-                  <span className="mgr-lbl">Your roster ({rosters[userTeam]?.length??0} / {p.config.rosterSize})</span>
-                  <div className="mgr-chips">
-                    {(rosters[userTeam]??[]).map(i=>{const pl=p.players[i];return <span key={i} className={`mgr-chip mgr-chip-${pl.bucket}`}>{pl.playerName} ({pl.bucket})</span>;})}
-                    {(rosters[userTeam]??[]).length===0&&<span className="mgr-dim">none yet</span>}
-                  </div>
-                  {mustPick&&<div className="mgr-must-pick">Must pick: {needed.join(" or ")}</div>}
-                </div>
-                <div className="mgr-filter-row">
-                  {["all","G","W","B"].map(b=>(
-                    <button key={b} className={`mgr-fbtn${filter===b?" mgr-fbtn-on":""}${mustPick&&b!=="all"&&!needed.includes(b as Bkt)?" mgr-fbtn-dis":""}`} onClick={()=>setFilter(b)}>
-                      {b==="all"?"All":b}
-                    </button>
-                  ))}
-                  <span className="mgr-dim">{eligible.length} available</span>
-                </div>
-                <div className="mgr-player-list">
-                  <div className="mgr-pl-hdr"><span>Player</span><span>NBA Team</span><span>Pos</span></div>
-                  {eligible.map(pl=>(
-                    <button key={pl.playerIdx} className={`mgr-pl-row mgr-pl-${pl.bucket}`} onClick={()=>recordPick(pickIdx,pl.playerIdx,draftSlots)}>
-                      <span>{pl.playerName}</span>
-                      <span className="mgr-dim">{pl.teamAbbr}</span>
-                      <span className={`mgr-bkt mgr-bkt-${pl.bucket}`}>{pl.bucket}</span>
-                    </button>
-                  ))}
 
+        <div className="mgr-draft-layout">
+          <div className="mgr-draft-main">
+            {isUser ? (
+              <>
+                <div className="mgr-my-roster-strip">
+                  <span className="mgr-strip-lbl">Your roster ({userRoster.length}/{p.config.rosterSize})</span>
+                  <div className="mgr-chip-row">
+                    {userRoster.map(i=>{const pl=p.players[i];return <span key={i} className={`mgr-chip mgr-chip-${pl.bucket}`}>{pl.playerName}<span className="mgr-chip-pos">{pl.bucket}</span></span>;})}
+                    {userRoster.length===0&&<span className="mgr-empty">No picks yet</span>}
+                  </div>
+                  {mustPick&&<div className="mgr-must-alert">Must fill: <strong>{needed.join(" or ")}</strong></div>}
+                </div>
+
+                <div className="mgr-filter-bar">
+                  <div className="mgr-filter-pills">
+                    {["all","G","W","B"].map(b=>(
+                      <button key={b}
+                        className={`mgr-pill${filter===b?" mgr-pill--on":""}${mustPick&&b!=="all"&&!needed.includes(b as Bkt)?" mgr-pill--dim":""}`}
+                        onClick={()=>setFilter(b)}
+                      >
+                        {b==="all"?"All Positions":b==="G"?"Guards":b==="W"?"Wings":"Bigs"}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="mgr-avail-count">{eligible.length} available</span>
+                </div>
+
+                <div className="mgr-player-board">
+                  <div className="mgr-board-header">
+                    <span>Player</span>
+                    <span>NBA Team</span>
+                    <span>Pos</span>
+                  </div>
+                  {eligible.map(pl=>(
+                    <button key={pl.playerIdx} className={`mgr-player-row mgr-player-row--${pl.bucket}`}
+                      onClick={()=>recordPick(pickIdx,pl.playerIdx,draftSlots)}>
+                      <span className="mgr-player-name">{pl.playerName}</span>
+                      <span className="mgr-player-team">{pl.teamAbbr}</span>
+                      <span className={`mgr-pos-badge mgr-pos-badge--${pl.bucket}`}>{pl.bucket}</span>
+                    </button>
+                  ))}
                 </div>
               </>
-            ):(
-              <div className="mgr-ai-wait">
-                <div className="mgr-dots"><span/><span/><span/></div>
-                <p>{slot.team} is evaluating the board...</p>
+            ) : (
+              <div className="mgr-ai-card">
+                <div className="mgr-ai-dots-lg"><span/><span/><span/></div>
+                <p className="mgr-ai-label">{slot.team} is evaluating the board</p>
+                <p className="mgr-ai-sub">AI picks in ~0.15s</p>
               </div>
             )}
           </div>
-          <div className="mgr-log">
-            <p className="mgr-lbl" style={{marginBottom:"0.5rem"}}>Recent picks</p>
-            {recent.map(pk=>(
-              <div key={pk.overallPick} className={`mgr-log-row${pk.isUser?" mgr-log-u":""}`}>
-                <span className="mgr-dim">#{pk.overallPick}</span>
-                <span className="mgr-log-tm">{pk.team}</span>
-                <span className="mgr-log-pl">{pk.playerName}</span>
-                <span className={`mgr-bkt mgr-bkt-${pk.bucket}`}>{pk.bucket}</span>
-              </div>
-            ))}
-            {log.length===0&&<p className="mgr-dim">Draft starting...</p>}
-          </div>
+
+          <aside className="mgr-draft-side">
+            <div className="mgr-log-header">Recent Picks</div>
+            <div className="mgr-log-body">
+              {recent.map(pk=>(
+                <div key={pk.overallPick} className={`mgr-log-row${pk.isUser?" mgr-log-row--you":""}`}>
+                  <span className="mgr-log-pick">#{pk.overallPick}</span>
+                  <span className="mgr-log-team">{pk.team}</span>
+                  <span className="mgr-log-name">{pk.playerName}</span>
+                  <span className={`mgr-pos-badge mgr-pos-badge--${pk.bucket}`}>{pk.bucket}</span>
+                </div>
+              ))}
+              {log.length===0&&<p className="mgr-empty">Draft starting...</p>}
+            </div>
+          </aside>
         </div>
-      </div>
       </div>
     );
   }
@@ -213,20 +238,37 @@ function SelectView({pack,userTeam,setUserTeam,onStart}:{pack:DraftPack;userTeam
   const sorted=[...pack.teams].sort();
   return(
     <div className="mgr-select">
-      <h2 className="mgr-page-title">Manager Mode - {pack.season}</h2>
-      <p className="mgr-page-sub">Snake draft - {pack.config.nTeams} teams - {pack.config.rosterSize} rounds - Starting 5 must include {pack.config.reqGuards}G + {pack.config.reqWings}W + {pack.config.reqBigs}B</p>
-      <p className="mgr-lbl" style={{marginBottom:"0.75rem"}}>Choose your franchise:</p>
-      <div className="mgr-team-grid">
-        {sorted.map(t=>(
-          <button key={t} className={`mgr-team-btn${userTeam===t?" mgr-team-sel":""}`} onClick={()=>setUserTeam(t)}>{t}</button>
-        ))}
-      </div>
-      {userTeam&&(
-        <div className="mgr-start-row">
-          <span>Managing: <strong>{userTeam}</strong></span>
-          <button className="mgr-start-btn" onClick={onStart}>Start Draft</button>
+      <section className="mgr-select-hero">
+        <p className="mgr-eyebrow">Odds Gods</p>
+        <h1 className="mgr-title">Manager Mode</h1>
+        <p className="mgr-subtitle">
+          Snake draft &middot; {pack.config.nTeams} teams &middot; {pack.config.nRounds} rounds &middot; {pack.season}
+        </p>
+        <div className="mgr-rules-row">
+          <span className="mgr-rule-badge">Start 5: {pack.config.reqGuards}G + {pack.config.reqWings}W + {pack.config.reqBigs}B</span>
+          <span className="mgr-rule-badge">Bench 3: unrestricted</span>
         </div>
-      )}
+      </section>
+
+      <section className="mgr-select-body">
+        <p className="mgr-section-eyebrow">Choose your franchise</p>
+        <div className="mgr-team-grid">
+          {sorted.map(t=>(
+            <button key={t}
+              className={`mgr-team-tile${userTeam===t?" mgr-team-tile--selected":""}`}
+              onClick={()=>setUserTeam(t)}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        {userTeam&&(
+          <div className="mgr-start-bar">
+            <span className="mgr-managing-label">Managing: <strong>{userTeam}</strong></span>
+            <button className="mgr-start-btn" onClick={onStart}>Start Draft &rarr;</button>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -237,45 +279,61 @@ function CompleteView({pack,userTeam,rosters:_r,log}:{pack:DraftPack;userTeam:st
   const userPicks=log.filter(p=>p.team===userTeam).sort((a,b)=>a.overallPick-b.overallPick);
   return(
     <div className="mgr-complete">
-      <h2 className="mgr-page-title">Draft Complete - {pack.season}</h2>
-      <div className="mgr-final-roster">
-        <h3 className="mgr-section-ttl">Your Roster - {userTeam}</h3>
-        <table className="data-table">
-          <thead><tr><th>Rd</th><th>Pick</th><th className="left">Player</th><th>NBA Team</th><th>Pos</th><th>Slot</th></tr></thead>
-          <tbody>{(()=>{
-            const c:Req={G:0,W:0,B:0};
-            return userPicks.map(pk=>{
-              const b=pk.bucket as Bkt;
-              const isStart=c[b]<req[b]; c[b]++;
-              return(
-                <tr key={pk.overallPick} className={isStart?"mgr-tr-start":""}>
-                  <td>{pk.round}</td><td>#{pk.overallPick}</td>
-                  <td className="left">{pk.playerName}</td>
-                  <td>{pk.teamAbbr}</td>
-                  <td><span className={`mgr-bkt mgr-bkt-${pk.bucket}`}>{pk.bucket}</span></td>
-                  <td className={isStart?"mgr-start-slot":"mgr-bench-slot"}>{isStart?"Start":"Bench"}</td>
-                </tr>
-              );
-            });
-          })()}</tbody>
-        </table>
-      </div>
-      <button className="mgr-toggle-btn" onClick={()=>setShowAll(!showAll)}>{showAll?"Hide":"Show"} all 30 rosters</button>
-      {showAll&&(
-        <div className="mgr-all-rosters">
-          {[...pack.teams].sort().map(team=>{
-            const tPicks=log.filter(p=>p.team===team).sort((a,b)=>a.overallPick-b.overallPick);
-            return(
-              <div key={team} className={`mgr-team-card${team===userTeam?" mgr-team-card-u":""}`}>
-                <h4 className="mgr-team-card-hdr">{team}{team===userTeam?" (You)":""}</h4>
-                <div className="mgr-chips">
-                  {tPicks.map(pk=><span key={pk.overallPick} className={`mgr-chip mgr-chip-${pk.bucket}`}>{pk.playerName}</span>)}
-                </div>
-              </div>
-            );
-          })}
+      <section className="mgr-select-hero">
+        <p className="mgr-eyebrow">Draft Complete</p>
+        <h1 className="mgr-title">{userTeam} &mdash; {pack.season}</h1>
+        <p className="mgr-subtitle">Your {pack.config.rosterSize}-player roster is locked in.</p>
+      </section>
+
+      <section className="mgr-complete-body">
+        <h3 className="mgr-section-eyebrow">Your Roster</h3>
+        <div className="mgr-roster-card">
+          <table className="mgr-roster-table">
+            <thead>
+              <tr>
+                <th>Rd</th><th>Pick</th><th className="mgr-th-left">Player</th>
+                <th>NBA Team</th><th>Pos</th><th>Slot</th>
+              </tr>
+            </thead>
+            <tbody>{(()=>{
+              const c:Req={G:0,W:0,B:0};
+              return userPicks.map(pk=>{
+                const b=pk.bucket as Bkt;
+                const isStart=c[b]<req[b]; c[b]++;
+                return(
+                  <tr key={pk.overallPick} className={isStart?"mgr-tr-start":""}>
+                    <td className="mgr-td-dim">{pk.round}</td>
+                    <td className="mgr-td-dim">#{pk.overallPick}</td>
+                    <td className="mgr-th-left mgr-td-name">{pk.playerName}</td>
+                    <td className="mgr-td-dim">{pk.teamAbbr}</td>
+                    <td><span className={`mgr-pos-badge mgr-pos-badge--${pk.bucket}`}>{pk.bucket}</span></td>
+                    <td className={isStart?"mgr-slot-start":"mgr-slot-bench"}>{isStart?"Start":"Bench"}</td>
+                  </tr>
+                );
+              });
+            })()}</tbody>
+          </table>
         </div>
-      )}
+
+        <button className="mgr-toggle-btn" onClick={()=>setShowAll(!showAll)}>
+          {showAll?"Hide all rosters":"Show all 30 rosters"}
+        </button>
+        {showAll&&(
+          <div className="mgr-all-grid">
+            {[...pack.teams].sort().map(team=>{
+              const tPicks=log.filter(p=>p.team===team).sort((a,b)=>a.overallPick-b.overallPick);
+              return(
+                <div key={team} className={`mgr-team-card${team===userTeam?" mgr-team-card--you":""}`}>
+                  <div className="mgr-team-card-hdr">{team}{team===userTeam?" (You)":""}</div>
+                  <div className="mgr-chip-row">
+                    {tPicks.map(pk=><span key={pk.overallPick} className={`mgr-chip mgr-chip-${pk.bucket}`}>{pk.playerName}</span>)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
