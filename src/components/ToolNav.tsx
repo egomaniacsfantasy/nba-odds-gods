@@ -99,6 +99,13 @@ export function ToolNav({
         >
           Predictor
         </button>
+        <button
+          type="button"
+          className={activeTab === 'manager' ? 'og-nav-tab is-active' : 'og-nav-tab'}
+          onClick={() => onNavigate('manager')}
+        >
+          Manager
+        </button>
       </nav>
     </header>
   );
