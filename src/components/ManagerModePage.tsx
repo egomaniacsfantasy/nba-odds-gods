@@ -272,10 +272,6 @@ function bucketLabel(bucket: Bkt): string {
   return 'Big';
 }
 
-function formatOracleValue(value: number): string {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`;
-}
-
 function searchMatches(player: Player, query: string): boolean {
   const normalized = query.trim().toLowerCase();
   if (!normalized) {
