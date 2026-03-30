@@ -44,7 +44,7 @@ function computeBpmZ(rosters:Record<string,number[]>,players:Player[]):Record<st
   return r;
 }
 
-function runSeasonStats(games:SeasonGame[],bpmZ:Record<string,number>):Record<string,TeamStat>{
+function runSeasonStats(games:SeasonGame[],_bpmZ:Record<string,number>):Record<string,TeamStat>{
   const allTeams=[...new Set(games.flatMap(g=>[g.t1,g.t2]))];
   const result:Record<string,TeamStat>={};
   for(const t of allTeams)result[t]={w:0,l:0,projW:0,poPct:0,r1Pct:0,r2Pct:0,cfPct:0,finPct:0,champPct:0};
@@ -390,7 +390,6 @@ function SeasonView({pack:_pack,userTeam,rosters:_r,seasonData,stats,bpmZ,active
   seasonData:SeasonData;stats:Record<string,TeamStat>;bpmZ:Record<string,number>;
   activeTab:"standings"|"schedule";onTabChange:(t:"standings"|"schedule")=>void;
 }) {
-  const userStat=stats[userTeam];
   const myBpmZ=bpmZ[userTeam];
   return(
     <div className="mgr-season">
