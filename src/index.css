@@ -2047,7 +2047,7 @@ img[alt*='logo'],
 .mgr-stab { background: none; border: none; border-bottom: 2px solid transparent; padding: 0.65rem 1.25rem; font-size: 0.83rem; color: var(--text3); cursor: pointer; font-family: var(--mono); transition: all 0.1s; }
 .mgr-stab:hover { color: var(--text); }
 .mgr-stab--on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
-.mgr-standings-wrap { padding: 1.25rem 1.5rem; max-width: 900px; }
+.mgr-standings-wrap { padding: 1.25rem 1.5rem; max-width: 1100px; }
 @media (max-width: 600px) { .mgr-standings-wrap { padding: 0.75rem 0.75rem; } }
 .mgr-conf-block { margin-bottom: 2rem; }
 .mgr-conf-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); font-family: var(--mono); font-weight: 600; margin-bottom: 0.5rem; }
@@ -2063,17 +2063,17 @@ img[alt*='logo'],
 .mgr-po-mid { color: var(--text2); }
 .mgr-po-lo { color: var(--text3); }
 .mgr-standings-note { font-size: 0.72rem; color: var(--text3); font-family: var(--mono); margin-top: 0.5rem; }
-.mgr-schedule-wrap { padding: 1rem 1.5rem; max-width: 480px; }
-@media (max-width: 600px) { .mgr-schedule-wrap { padding: 0.75rem 0.75rem; max-width: 100%; } }
-.mgr-sched-day { margin-bottom: 1.25rem; }
-.mgr-sched-date { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-family: var(--mono); font-weight: 600; margin-bottom: 0.3rem; }
-.mgr-sched-row { display: grid; grid-template-columns: 26px 1fr 48px; align-items: center; padding: 0.42rem 0.7rem; border: 1px solid var(--border); border-radius: 5px; margin-bottom: 0.3rem; font-size: 0.84rem; gap: 0.5rem; transition: background 0.1s; }
-.mgr-sched-win { background: rgba(104,211,145,0.06); border-color: rgba(104,211,145,0.25); }
-.mgr-sched-loss { background: rgba(252,129,129,0.06); border-color: rgba(252,129,129,0.25); }
-.mgr-sched-vs { font-size: 0.7rem; color: var(--text3); font-family: var(--mono); font-weight: 600; }
-.mgr-sched-opp { font-weight: 500; font-family: var(--mono); }
-.mgr-sched-prob { text-align: right; font-family: var(--mono); font-size: 0.8rem; color: var(--accent); font-weight: 600; }
-.mgr-sched-result { text-align: right; font-family: var(--mono); font-size: 0.8rem; font-weight: 700; }
-.mgr-sched-result--w { color: #68d391; }
-.mgr-sched-result--l { color: #fc8181; }
+.mgr-schedule-wrap { padding: 1rem 1.5rem; }
+@media (max-width: 600px) { .mgr-schedule-wrap { padding: 0.75rem 0.75rem; } }
+.mgr-sched-day { margin-bottom: 1.5rem; }
+.mgr-sched-date { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-family: var(--mono); font-weight: 600; margin-bottom: 0.4rem; border-bottom: 1px solid var(--border); padding-bottom: 0.25rem; }
+.mgr-sched-ngames { opacity: 0.5; font-weight: 400; margin-left: 0.4rem; }
+.mgr-sched-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.3rem; }
+.mgr-matchup { display: grid; grid-template-columns: 36px 30px 18px 30px 1fr; align-items: center; gap: 0.2rem; padding: 0.32rem 0.6rem; border: 1px solid var(--border); border-radius: 5px; font-size: 0.78rem; font-family: var(--mono); }
+.mgr-matchup--you { border-color: rgba(240,180,41,0.4); background: rgba(240,180,41,0.04); }
+.mgr-mu-team { font-weight: 600; color: var(--text2); white-space: nowrap; }
+.mgr-mu-team--you { color: var(--accent); }
+.mgr-mu-prob { font-size: 0.72rem; color: var(--text3); text-align: right; }
+.mgr-mu-vs { font-size: 0.62rem; color: var(--text3); text-align: center; }
+.mgr-mu-home { font-size: 0.6rem; color: var(--text3); font-weight: 400; }
 

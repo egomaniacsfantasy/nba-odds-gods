@@ -9,8 +9,12 @@ interface DraftSlot { round:number; pickInRound:number; overallPick:number; team
 interface Req { G:number; W:number; B:number; }
 interface PickRecord { overallPick:number; round:number; team:string; playerIdx:number; playerName:string; teamAbbr:string; bucket:string; isUser:boolean; }
 interface SeasonGame { gid:number; date:string; dn:number; t1:string; t2:string; loc:number; done:boolean; t1w:number|null; wp:number[]; }
-interface SeasonData { season:string; bpm_grid:number[]; regular_season:SeasonGame[]; }
-interface TeamStat { w:number; l:number; projW:number; poPct:number; }
+interface PoState { ssd:number; wp:number[]; }
+interface PoGame { gnum:number; dn:number; loc:number; states:PoState[]; }
+type PoData = Record<string,PoGame[]>;
+interface PlayInGame { dn:number; loc:number; wp:number[]; }
+interface SeasonData { season:string; bpm_grid:number[]; regular_season:SeasonGame[]; play_in:Record<string,PlayInGame>; playoffs:PoData; }
+interface TeamStat { w:number; l:number; projW:number; poPct:number; r1Pct:number; r2Pct:number; cfPct:number; finPct:number; champPct:number; }
 type Phase = "loading"|"select"|"draft"|"complete"|"season_load"|"season";
 
 const EAST=new Set(["ATL","BOS","BKN","CHA","CHI","CLE","DET","IND","MIA","MIL","NYK","ORL","PHI","TOR","WAS"]);
@@ -40,35 +44,10 @@ function computeBpmZ(rosters:Record<string,number[]>,players:Player[]):Record<st
   return r;
 }
 
-function runSeasonStats(games:SeasonGame[],bpmZ:Record<string,number>,nSims=10000):Record<string,TeamStat>{
-  const remaining=games.filter(g=>!g.done);
-  const probs=remaining.map(g=>interpWP(g.wp,(bpmZ[g.t1]??0)-(bpmZ[g.t2]??0)));
-  const cw:Record<string,number>={},cl:Record<string,number>={};
-  for(const g of games){
-    if(!g.done) continue;
-    if(g.t1w===1){cw[g.t1]=(cw[g.t1]??0)+1;cl[g.t2]=(cl[g.t2]??0)+1;}
-    else if(g.t1w===0){cw[g.t2]=(cw[g.t2]??0)+1;cl[g.t1]=(cl[g.t1]??0)+1;}
-  }
-  const expW:Record<string,number>={};
-  for(let i=0;i<remaining.length;i++){
-    const g=remaining[i];const p=probs[i];
-    expW[g.t1]=(expW[g.t1]??0)+p;expW[g.t2]=(expW[g.t2]??0)+(1-p);
-  }
+function runSeasonStats(games:SeasonGame[],bpmZ:Record<string,number>):Record<string,TeamStat>{
   const allTeams=[...new Set(games.flatMap(g=>[g.t1,g.t2]))];
-  const poCount:Record<string,number>={};
-  for(let s=0;s<nSims;s++){
-    const sw:{[k:string]:number}={...cw};
-    for(let i=0;i<remaining.length;i++){
-      const g=remaining[i];
-      if(Math.random()<probs[i])sw[g.t1]=(sw[g.t1]??0)+1;
-      else sw[g.t2]=(sw[g.t2]??0)+1;
-    }
-    const eastS=[...allTeams].filter(t=>EAST.has(t)).sort((a,b)=>(sw[b]??0)-(sw[a]??0));
-    const westS=[...allTeams].filter(t=>WEST.has(t)).sort((a,b)=>(sw[b]??0)-(sw[a]??0));
-    for(const t of [...eastS.slice(0,8),...westS.slice(0,8)])poCount[t]=(poCount[t]??0)+1;
-  }
   const result:Record<string,TeamStat>={};
-  for(const t of allTeams)result[t]={w:cw[t]??0,l:cl[t]??0,projW:(cw[t]??0)+(expW[t]??0),poPct:((poCount[t]??0)/nSims)*100};
+  for(const t of allTeams)result[t]={w:0,l:0,projW:0,poPct:0,r1Pct:0,r2Pct:0,cfPct:0,finPct:0,champPct:0};
   return result;
 }
 
@@ -88,7 +67,7 @@ export default function ManagerModePage() {
   const [seasonErr,setSeasonErr]=useState<string|null>(null);
   const [stats,setStats]=useState<Record<string,TeamStat>>({});
   const [bpmZ,setBpmZ]=useState<Record<string,number>>({});
-  const [seasonTab,setSeasonTab]=useState<"standings"|"schedule">("standings");
+  const [seasonTab,setSeasonTab]=useState<"standings"|"schedule">("schedule");
   const availRef=useRef<Set<number>>(new Set());
   const reqsRef=useRef<Record<string,Req>>({});
   availRef.current=avail; reqsRef.current=reqs;
@@ -164,7 +143,7 @@ export default function ManagerModePage() {
   if(phase==="season_load") return(
     <div className="mgr-page">
       <div className="mgr-loading">
-        <p className="mgr-hint">Loading season data &amp; running simulations...</p>
+        <p className="mgr-hint">Loading season data...</p>
         {seasonErr&&<p className="mgr-error">{seasonErr}</p>}
       </div>
     </div>
@@ -419,18 +398,13 @@ function SeasonView({pack:_pack,userTeam,rosters:_r,seasonData,stats,bpmZ,active
         <p className="mgr-eyebrow">Manager Mode &mdash; Season Simulation</p>
         <h1 className="mgr-title">{userTeam}</h1>
         <div className="mgr-season-stats-row">
-          {userStat&&<>
-            <span className="mgr-stat-badge">{userStat.w}W &ndash; {userStat.l}L</span>
-            <span className="mgr-stat-badge">Proj: {userStat.projW.toFixed(1)}W</span>
-            <span className="mgr-stat-badge">PO%: {userStat.poPct.toFixed(1)}%</span>
             <span className="mgr-stat-badge">Lineup BPM-Z: {myBpmZ!=null?(myBpmZ>=0?"+":"")+myBpmZ.toFixed(2):"—"}</span>
-          </>}
         </div>
       </section>
 
       <div className="mgr-season-tabs">
         <button className={`mgr-stab${activeTab==="standings"?" mgr-stab--on":""}`} onClick={()=>onTabChange("standings")}>Standings</button>
-        <button className={`mgr-stab${activeTab==="schedule"?" mgr-stab--on":""}`} onClick={()=>onTabChange("schedule")}>My Schedule</button>
+        <button className={`mgr-stab${activeTab==="schedule"?" mgr-stab--on":""}`} onClick={()=>onTabChange("schedule")}>Schedule</button>
       </div>
 
       {activeTab==="standings"&&<StandingsPanel seasonData={seasonData} stats={stats} userTeam={userTeam}/>}
@@ -439,37 +413,27 @@ function SeasonView({pack:_pack,userTeam,rosters:_r,seasonData,stats,bpmZ,active
   );
 }
 
-function StandingsPanel({seasonData,stats,userTeam}:{seasonData:SeasonData;stats:Record<string,TeamStat>;userTeam:string}){
+function StandingsPanel({seasonData,stats:_s,userTeam}:{seasonData:SeasonData;stats:Record<string,TeamStat>;userTeam:string}){
   const allTeams=[...new Set(seasonData.regular_season.flatMap(g=>[g.t1,g.t2]))];
   function confTable(conf:Set<string>,label:string){
-    const teams=allTeams.filter(t=>conf.has(t)).sort((a,b)=>{
-      const sa=stats[a]??{w:0,l:0,projW:0,poPct:0};
-      const sb=stats[b]??{w:0,l:0,projW:0,poPct:0};
-      if(sb.w!==sa.w) return sb.w-sa.w;
-      return sa.l-sb.l;
-    });
+    const teams=allTeams.filter(t=>conf.has(t)).sort();
     if(!teams.length) return null;
-    const ls=stats[teams[0]]??{w:0,l:0,projW:0,poPct:0};
     return(
       <div className="mgr-conf-block">
         <div className="mgr-conf-label">{label}</div>
         <table className="mgr-standings-table">
           <thead><tr>
             <th className="mgr-th-left">Team</th>
-            <th>W</th><th>L</th><th>GB</th><th>Proj W</th><th>PO%</th>
+            <th>Proj W</th><th>PO%</th><th>Champ%</th>
           </tr></thead>
-          <tbody>{teams.map((t,i)=>{
-            const s=stats[t]??{w:0,l:0,projW:0,poPct:0};
-            const gb=Math.max(0,((ls.w-s.w)+(s.l-ls.l))/2);
+          <tbody>{teams.map(t=>{
             const isUser=t===userTeam;
             return(
-              <tr key={t} className={`${isUser?"mgr-tr-you":""} ${i<6?"mgr-tr-clinch":i<8?"mgr-tr-playin":""}`}>
+              <tr key={t} className={isUser?"mgr-tr-you":""}>
                 <td className="mgr-th-left mgr-td-name">{isUser?"▶ ":""}{t}</td>
-                <td className="mgr-td-num">{s.w}</td>
-                <td className="mgr-td-num">{s.l}</td>
-                <td className="mgr-td-num">{gb===0?"—":Number.isInteger(gb*2)&&!Number.isInteger(gb)?gb.toFixed(1):gb.toFixed(0)}</td>
-                <td className="mgr-td-num">{s.projW.toFixed(1)}</td>
-                <td className={`mgr-td-num ${s.poPct>=60?"mgr-po-hi":s.poPct>=25?"mgr-po-mid":"mgr-po-lo"}`}>{s.poPct.toFixed(0)}%</td>
+                <td className="mgr-td-num mgr-po-lo">—</td>
+                <td className="mgr-td-num mgr-po-lo">—</td>
+                <td className="mgr-td-num mgr-po-lo">—</td>
               </tr>
             );
           })}</tbody>
@@ -481,47 +445,45 @@ function StandingsPanel({seasonData,stats,userTeam}:{seasonData:SeasonData;stats
     <div className="mgr-standings-wrap">
       {confTable(EAST,"Eastern Conference")}
       {confTable(WEST,"Western Conference")}
-      <p className="mgr-standings-note">Top 6 auto-qualify &middot; Seeds 7&ndash;8 play-in &middot; 10k simulations</p>
+      <p className="mgr-standings-note">Season projections coming soon.</p>
     </div>
   );
 }
 
 function SchedulePanel({seasonData,userTeam,bpmZ}:{seasonData:SeasonData;userTeam:string;bpmZ:Record<string,number>}){
-  const myGames=seasonData.regular_season.filter(g=>g.t1===userTeam||g.t2===userTeam);
   const byDate:Record<string,SeasonGame[]>={};
-  for(const g of myGames){
-    if(!byDate[g.date]) byDate[g.date]=[];
+  for(const g of seasonData.regular_season){
+    if(!byDate[g.date])byDate[g.date]=[];
     byDate[g.date].push(g);
   }
   const dates=Object.keys(byDate).sort();
-  if(!dates.length) return <div className="mgr-schedule-wrap"><p className="mgr-empty">No games found for {userTeam}.</p></div>;
+  if(!dates.length)return <div className="mgr-schedule-wrap"><p className="mgr-empty">No schedule data.</p></div>;
   return(
     <div className="mgr-schedule-wrap">
       {dates.map(d=>{
-        const dayGames=byDate[d];
-        const label=new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",weekday:"short"});
+        const dayGames=byDate[d].slice().sort((a,b)=>a.gid-b.gid);
+        const label=new Date(d+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
         return(
           <div key={d} className="mgr-sched-day">
-            <div className="mgr-sched-date">{label}</div>
-            {dayGames.map(g=>{
-              const isHome=g.t1===userTeam;
-              const opp=isHome?g.t2:g.t1;
-              const bDiff=isHome?(bpmZ[userTeam]??0)-(bpmZ[opp]??0):(bpmZ[g.t1]??0)-(bpmZ[g.t2]??0);
-              const rawProb=interpWP(g.wp,bDiff);
-              const userWp=isHome?rawProb:1-rawProb;
-              const done=g.done;
-              const userWon=done&&((isHome&&g.t1w===1)||(!isHome&&g.t1w===0));
-              return(
-                <div key={g.gid} className={`mgr-sched-row${done?(userWon?" mgr-sched-win":" mgr-sched-loss"):""}`}>
-                  <span className="mgr-sched-vs">{isHome?"vs":"@"}</span>
-                  <span className="mgr-sched-opp">{opp}</span>
-                  {done
-                    ?<span className={`mgr-sched-result${userWon?" mgr-sched-result--w":" mgr-sched-result--l"}`}>{userWon?"W":"L"}</span>
-                    :<span className="mgr-sched-prob">{(userWp*100).toFixed(0)}%</span>
-                  }
-                </div>
-              );
-            })}
+            <div className="mgr-sched-date">{label} <span className="mgr-sched-ngames">{dayGames.length}G</span></div>
+            <div className="mgr-sched-grid">
+              {dayGames.map(g=>{
+                const bDiff=(bpmZ[g.t1]??0)-(bpmZ[g.t2]??0);
+                const p1=interpWP(g.wp,bDiff);
+                const p2=1-p1;
+                const isUserGame=g.t1===userTeam||g.t2===userTeam;
+                const userIsT1=g.t1===userTeam;
+                return(
+                  <div key={g.gid} className={`mgr-matchup${isUserGame?" mgr-matchup--you":""}`}>
+                    <span className={`mgr-mu-team${userIsT1?" mgr-mu-team--you":""}`}>{g.t1}</span>
+                    <span className="mgr-mu-prob">{(p1*100).toFixed(0)}%</span>
+                    <span className="mgr-mu-vs">vs</span>
+                    <span className="mgr-mu-prob">{(p2*100).toFixed(0)}%</span>
+                    <span className={`mgr-mu-team${!userIsT1&&g.t2===userTeam?" mgr-mu-team--you":""}`}>{g.t2}{g.loc===1?<span className="mgr-mu-home"> H</span>:null}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
       })}
