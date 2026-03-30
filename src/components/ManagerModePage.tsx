@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 const BUCKETS = ["G","W","B"] as const;
 type Bkt = typeof BUCKETS[number];
 interface DraftConfig { nTeams:number; rosterSize:number; nRounds:number; reqGuards:number; reqWings:number; reqBigs:number; sigmaNoise:number; }
-interface Player { playerIdx:number; playerId:number; playerName:string; teamAbbr:string; bucket:string; bpmC:number; }
+interface Player { playerIdx:number; playerId:number; playerName:string; teamAbbr:string; bucket:string; bpmC:number; adp?:number; adpStd?:number; }
 interface DraftPack { season:string; config:DraftConfig; players:Player[]; teams:string[]; aiValuations:Record<string,number[]>; }
 interface DraftSlot { round:number; pickInRound:number; overallPick:number; team:string; }
 interface Req { G:number; W:number; B:number; }
@@ -164,7 +164,7 @@ export default function ManagerModePage() {
       if(mustPick&&!needed.includes(pl.bucket as Bkt)) return false;
       if(filter!=="all"&&pl.bucket!==filter) return false;
       return true;
-    }).sort((a,b)=>a.playerName.localeCompare(b.playerName));
+    }).sort((a,b)=>(a.adp??999)-(b.adp??999));
     const recent=[...log].reverse().slice(0,30);
     const total=p.config.nTeams*p.config.nRounds;
     const userRoster=rosters[userTeam]??[];
@@ -218,6 +218,8 @@ export default function ManagerModePage() {
                     <span>Player</span>
                     <span>NBA Team</span>
                     <span>Pos</span>
+                    <span>ADP</span>
+                    <span>&plusmn;&sigma;</span>
                   </div>
                   {eligible.map(pl=>(
                     <button key={pl.playerIdx} className={`mgr-player-row mgr-player-row--${pl.bucket}`}
@@ -225,6 +227,8 @@ export default function ManagerModePage() {
                       <span className="mgr-player-name">{pl.playerName}</span>
                       <span className="mgr-player-team">{pl.teamAbbr}</span>
                       <span className={`mgr-pos-badge mgr-pos-badge--${pl.bucket}`}>{pl.bucket}</span>
+                      <span className="mgr-adp">{pl.adp!=null?pl.adp.toFixed(1):"—"}</span>
+                      <span className="mgr-adp-std">{pl.adpStd!=null?pl.adpStd.toFixed(1):"—"}</span>
                     </button>
                   ))}
                 </div>
