@@ -123,6 +123,16 @@ interface RenderSlot {
   bucket: Bkt | null;
 }
 
+interface TeamProjection {
+  projectedWins: number;
+  projectedLosses: number;
+  seed: number;
+  titleOdds: number;
+  rating: number;
+  conference: 'East' | 'West';
+  bpmZ: number;
+}
+
 type Phase = 'loading' | 'select' | 'draft' | 'complete' | 'season_load' | 'season';
 
 const EAST = new Set(['ATL', 'BOS', 'BKN', 'CHA', 'CHI', 'CLE', 'DET', 'IND', 'MIA', 'MIL', 'NYK', 'ORL', 'PHI', 'TOR', 'WAS']);
@@ -276,6 +286,19 @@ function formatOracleValue(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`;
 }
 
+function valueTierClass(value: number): 'elite' | 'strong' | 'decent' | 'role' {
+  if (value >= 3.5) {
+    return 'elite';
+  }
+  if (value >= 2.5) {
+    return 'strong';
+  }
+  if (value >= 1.5) {
+    return 'decent';
+  }
+  return 'role';
+}
+
 function playerInitials(playerName: string): string {
   return playerName
     .split(' ')
@@ -295,6 +318,86 @@ function teamCity(teamAbbr: string): string {
 
 function teamLogoUrl(teamAbbr: string): string | null {
   return TEAM_META_BY_ABBR.get(teamAbbr)?.logoUrl ?? null;
+}
+
+function teamDisplayName(teamAbbr: string): string {
+  return TEAM_META_BY_ABBR.get(teamAbbr)?.name ?? teamAbbr;
+}
+
+function teamConference(teamAbbr: string): 'East' | 'West' {
+  const metaConference = TEAM_META_BY_ABBR.get(teamAbbr)?.conference;
+  if (metaConference === 'East' || metaConference === 'West') {
+    return metaConference;
+  }
+  return EAST.has(teamAbbr) ? 'East' : 'West';
+}
+
+function getBpmLabel(bpmZ: number): { label: string; color: string } {
+  if (bpmZ >= 1.5) {
+    return { label: 'Elite', color: 'var(--green-win)' };
+  }
+  if (bpmZ >= 0.5) {
+    return { label: 'Strong', color: '#4ade80' };
+  }
+  if (bpmZ >= -0.5) {
+    return { label: 'Average', color: 'var(--text-amber)' };
+  }
+  if (bpmZ >= -1.5) {
+    return { label: 'Below Average', color: 'var(--red-loss)' };
+  }
+  return { label: 'Rebuilding', color: 'var(--red-loss)' };
+}
+
+function totalRosterValue(playerIndexes: number[], players: Player[]): number {
+  return playerIndexes.reduce((sum, index) => sum + (players[index]?.bpmC ?? 0), 0);
+}
+
+function buildTeamProjection(teamAbbr: string, rosters: Record<string, number[]>, players: Player[]): TeamProjection | null {
+  const teams = Object.keys(rosters);
+  if (!teams.length || !rosters[teamAbbr]) {
+    return null;
+  }
+
+  const totals = teams.map((team) => ({
+    team,
+    total: totalRosterValue(rosters[team] ?? [], players),
+  }));
+
+  const sortedOverall = [...totals].sort((teamA, teamB) => teamB.total - teamA.total);
+  const userOverall = sortedOverall.find((team) => team.team === teamAbbr);
+  if (!userOverall) {
+    return null;
+  }
+
+  const totalValues = totals.map((team) => team.total);
+  const mean = totalValues.reduce((sum, value) => sum + value, 0) / Math.max(1, totalValues.length);
+  const variance = totalValues.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, totalValues.length);
+  const std = Math.sqrt(variance) || 1;
+  const bpmZ = (userOverall.total - mean) / std;
+
+  const minTotal = Math.min(...totalValues);
+  const maxTotal = Math.max(...totalValues);
+  const normalized = (userOverall.total - minTotal) / Math.max(1, maxTotal - minTotal);
+  const rating = Math.max(1, Math.min(100, Math.round(normalized * 99) + 1));
+
+  const conference = teamConference(teamAbbr);
+  const conferenceTeams = sortedOverall.filter((team) => teamConference(team.team) === conference);
+  const seed = Math.max(1, conferenceTeams.findIndex((team) => team.team === teamAbbr) + 1);
+
+  const projectedWins = Math.max(18, Math.min(64, Math.round(41 + bpmZ * 8)));
+  const projectedLosses = 82 - projectedWins;
+  const overallRank = Math.max(1, sortedOverall.findIndex((team) => team.team === teamAbbr) + 1);
+  const titleOdds = Number(Math.max(0.2, (((teams.length - overallRank) / Math.max(1, teams.length - 1)) ** 2) * 18).toFixed(1));
+
+  return {
+    projectedWins,
+    projectedLosses,
+    seed,
+    titleOdds,
+    rating,
+    conference,
+    bpmZ,
+  };
 }
 
 function searchMatches(player: Player, query: string): boolean {
@@ -716,7 +819,7 @@ export default function ManagerModePage({
       recordPick(pickIdx, playerIdx, draftSlots);
       setJustDraftedPlayerIdx(null);
       setJustFilledSlotLabel(slotLabel);
-    }, 500);
+    }, 550);
   }, [draftSlots, justDraftedPlayerIdx, pack, phase, pickIdx, recordPick, rosters, userTeam]);
 
   if (phase === 'loading') {
@@ -999,7 +1102,7 @@ export default function ManagerModePage({
                     </span>
                   </div>
 
-                  <div className="player-list-header">
+                  <div className="player-list-header player-list-header--board">
                     <span aria-hidden="true" />
                     <span>Pos</span>
                     <span className="player-list-header__name">Player</span>
@@ -1014,6 +1117,7 @@ export default function ManagerModePage({
                       type="button"
                       className={[
                         'player-row',
+                        'player-row--board',
                         player.playerIdx === justDraftedPlayerIdx ? 'player-row--drafted' : '',
                         recommendedPlayerIds.has(player.playerIdx) ? 'recommended' : '',
                       ].filter(Boolean).join(' ')}
@@ -1023,17 +1127,17 @@ export default function ManagerModePage({
                       <div className="player-avatar-cell">
                         <PlayerAvatar
                           player={player}
-                          size={44}
-                          imgClassName="player-headshot"
-                          fallbackClassName="player-initials-fallback"
+                          size={48}
+                          imgClassName={`player-headshot player-headshot--board ${bucketClass(player.bucket as Bkt)}`}
+                          fallbackClassName="player-initials-fallback player-initials-fallback--board"
                         />
                       </div>
-                      <span className={`player-pos-badge ${bucketClass(player.bucket as Bkt)}`}>{player.bucket}</span>
-                      <div className="player-name-cell">
-                        <span className="player-name">{player.playerName}</span>
-                        <span className="player-team-sub">{player.teamAbbr}</span>
+                      <span className={`player-pos-badge player-pos-badge--board ${bucketClass(player.bucket as Bkt)}`}>{player.bucket}</span>
+                      <div className="player-name-cell player-name-cell--board">
+                        <span className="player-name player-name--board">{player.playerName}</span>
+                        <span className="player-team-sub player-team-sub--board">{player.teamAbbr}</span>
                       </div>
-                      <span className="player-value">{formatOracleValue(player.bpmC)}</span>
+                      <span className={`player-value player-value--board ${valueTierClass(player.bpmC)}`}>{formatOracleValue(player.bpmC)}</span>
                       <span className="player-adp">{player.adp != null ? player.adp.toFixed(1) : '—'}</span>
                       <span className="player-rec-cell">
                         {recommendedPlayerIds.has(player.playerIdx) ? (
@@ -1271,7 +1375,7 @@ function SelectView({
 function CompleteView({
   pack,
   userTeam,
-  rosters: _rosters,
+  rosters,
   log,
   onStartSeason,
   seasonErr,
@@ -1286,13 +1390,42 @@ function CompleteView({
   const [showAll, setShowAll] = useState(false);
   const req = getReq(pack.config);
   const userPicks = log.filter((pick) => pick.team === userTeam).sort((pickA, pickB) => pickA.overallPick - pickB.overallPick);
+  const userTeamMeta = TEAM_META_BY_ABBR.get(userTeam);
+  const projection = buildTeamProjection(userTeam, rosters, pack.players);
+  const rosterSections = (() => {
+    const counts: Req = { G: 0, W: 0, B: 0 };
+    const starters: Array<PickRecord & { value: number }> = [];
+    const bench: Array<PickRecord & { value: number }> = [];
+
+    userPicks.forEach((pick) => {
+      const bucket = pick.bucket as Bkt;
+      const isStarter = counts[bucket] < req[bucket];
+      counts[bucket] += 1;
+      const enrichedPick = { ...pick, value: pack.players[pick.playerIdx]?.bpmC ?? 0 };
+
+      if (isStarter) {
+        starters.push(enrichedPick);
+      } else {
+        bench.push(enrichedPick);
+      }
+    });
+
+    return { starters, bench };
+  })();
 
   return (
     <div className="mgr-complete">
-      <section className="mgr-select-hero">
-        <p className="mgr-eyebrow">Draft Complete</p>
-        <h1 className="mgr-title">{userTeam} - {pack.season}</h1>
-        <p className="mgr-subtitle">Your {pack.config.rosterSize}-player roster is locked in.</p>
+      <section className="draft-complete-header">
+        <p className="dc-eyebrow">Draft Complete</p>
+        <div className="dc-team-identity">
+          {userTeamMeta ? (
+            <img className="dc-team-logo" src={userTeamMeta.logoUrl} alt={userTeamMeta.abbr} loading="lazy" />
+          ) : (
+            <span className="logo-fallback dc-team-logo-fallback">{userTeam}</span>
+          )}
+          <h2 className="dc-team-name">{teamDisplayName(userTeam)}</h2>
+        </div>
+        <p className="dc-subtitle">Your {pack.config.rosterSize}-player roster is locked in.</p>
         {seasonErr ? <p className="mgr-error mgr-error--inline">{seasonErr}</p> : null}
         <button type="button" className="mgr-start-btn" onClick={onStartSeason}>
           Simulate Season &rarr;
@@ -1300,45 +1433,91 @@ function CompleteView({
       </section>
 
       <section className="mgr-complete-body">
-        <h3 className="mgr-section-eyebrow">Your Roster</h3>
-        <div className="mgr-roster-card">
-          <table className="mgr-roster-table">
-            <thead>
-              <tr>
-                <th>Rd</th>
-                <th>Pick</th>
-                <th className="mgr-th-left">Player</th>
-                <th>NBA Team</th>
-                <th>Pos</th>
-                <th>Slot</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(() => {
-                const counts: Req = { G: 0, W: 0, B: 0 };
-                return userPicks.map((pick) => {
-                  const bucket = pick.bucket as Bkt;
-                  const isStarter = counts[bucket] < req[bucket];
-                  counts[bucket] += 1;
+        {projection ? (
+          <div className="dc-projection">
+            <div className="dc-projection-item">
+              <span className="dc-proj-value">{projection.projectedWins}-{projection.projectedLosses}</span>
+              <span className="dc-proj-label">Proj. Record</span>
+            </div>
+            <div className="dc-projection-divider" />
+            <div className="dc-projection-item">
+              <span className="dc-proj-value">#{projection.seed}</span>
+              <span className="dc-proj-label">Proj. Seed</span>
+            </div>
+            <div className="dc-projection-divider" />
+            <div className="dc-projection-item">
+              <span className="dc-proj-value">{projection.titleOdds.toFixed(1)}%</span>
+              <span className="dc-proj-label">Title Odds</span>
+            </div>
+          </div>
+        ) : null}
 
-                  return (
-                    <tr key={pick.overallPick} className={isStarter ? 'mgr-tr-start' : ''}>
-                      <td className="mgr-td-dim">{pick.round}</td>
-                      <td className="mgr-td-dim">#{pick.overallPick}</td>
-                      <td className="mgr-th-left mgr-td-name">{pick.playerName}</td>
-                      <td className="mgr-td-dim">{pick.teamAbbr}</td>
-                      <td><span className={`mgr-pos-badge mgr-pos-badge--${pick.bucket}`}>{pick.bucket}</span></td>
-                      <td className={isStarter ? 'mgr-slot-start' : 'mgr-slot-bench'}>{isStarter ? 'Starter' : 'Bench'}</td>
-                    </tr>
-                  );
-                });
-              })()}
-            </tbody>
-          </table>
+        <div className="dc-roster">
+          <div className="dc-roster-section">
+            <h4 className="dc-section-label">Starters</h4>
+            {rosterSections.starters.map((pick, index) => (
+              <div className="dc-player-card" style={{ animationDelay: `${index * 80}ms` }} key={pick.overallPick}>
+                <div className="dc-player-headshot-wrap">
+                  <PlayerAvatar
+                    player={pack.players[pick.playerIdx]}
+                    size={48}
+                    imgClassName="dc-player-headshot"
+                    fallbackClassName="dc-player-initials"
+                  />
+                  <span className={`dc-pos-badge ${pick.bucket.toLowerCase()}`}>{pick.bucket}</span>
+                </div>
+                <div className="dc-player-info">
+                  <span className="dc-player-name">{pick.playerName}</span>
+                  <div className="dc-player-meta">
+                    {teamLogoUrl(pick.teamAbbr) ? (
+                      <img className="dc-player-team-logo" src={teamLogoUrl(pick.teamAbbr) ?? undefined} alt={pick.teamAbbr} loading="lazy" />
+                    ) : null}
+                    <span className="dc-player-team">{pick.teamAbbr}</span>
+                    <span className="dc-player-draft">R{pick.round} · #{pick.overallPick}</span>
+                  </div>
+                </div>
+                <div className="dc-player-value">
+                  <span className="dc-value-num">{formatOracleValue(pick.value)}</span>
+                  <span className="dc-value-label">Value</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="dc-roster-section">
+            <h4 className="dc-section-label">Bench</h4>
+            {rosterSections.bench.map((pick, index) => (
+              <div className="dc-player-card" style={{ animationDelay: `${(rosterSections.starters.length + index) * 80}ms` }} key={pick.overallPick}>
+                <div className="dc-player-headshot-wrap">
+                  <PlayerAvatar
+                    player={pack.players[pick.playerIdx]}
+                    size={48}
+                    imgClassName="dc-player-headshot"
+                    fallbackClassName="dc-player-initials"
+                  />
+                  <span className={`dc-pos-badge ${pick.bucket.toLowerCase()}`}>{pick.bucket}</span>
+                </div>
+                <div className="dc-player-info">
+                  <span className="dc-player-name">{pick.playerName}</span>
+                  <div className="dc-player-meta">
+                    {teamLogoUrl(pick.teamAbbr) ? (
+                      <img className="dc-player-team-logo" src={teamLogoUrl(pick.teamAbbr) ?? undefined} alt={pick.teamAbbr} loading="lazy" />
+                    ) : null}
+                    <span className="dc-player-team">{pick.teamAbbr}</span>
+                    <span className="dc-player-draft">R{pick.round} · #{pick.overallPick}</span>
+                  </div>
+                </div>
+                <div className="dc-player-value">
+                  <span className="dc-value-num">{formatOracleValue(pick.value)}</span>
+                  <span className="dc-value-label">Value</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <button type="button" className="mgr-toggle-btn" onClick={() => setShowAll((current) => !current)}>
-          {showAll ? 'Hide all rosters' : 'Show all 30 rosters'}
+        <button type="button" className="show-rosters-btn" onClick={() => setShowAll((current) => !current)}>
+          {showAll ? 'Hide All 30 Rosters' : 'Show All 30 Rosters'}
         </button>
         {showAll ? (
           <div className="mgr-all-grid">
@@ -1365,9 +1544,9 @@ function CompleteView({
 }
 
 function SeasonView({
-  pack: _pack,
+  pack,
   userTeam,
-  rosters: _rosters,
+  rosters,
   seasonData,
   stats,
   bpmZ,
@@ -1383,7 +1562,12 @@ function SeasonView({
   activeTab: 'standings' | 'schedule';
   onTabChange: (tab: 'standings' | 'schedule') => void;
 }) {
+  const projection = buildTeamProjection(userTeam, rosters, pack.players);
   const myBpmZ = bpmZ[userTeam];
+  const bpmLabel = getBpmLabel(myBpmZ ?? 0);
+  const summaryText = projection
+    ? `Projected Record: ${projection.projectedWins}-${projection.projectedLosses} · ${projection.seed}${projection.seed === 1 ? 'st' : projection.seed === 2 ? 'nd' : projection.seed === 3 ? 'rd' : 'th'} Seed ${projection.conference} · ${projection.titleOdds.toFixed(1)}% Title Odds`
+    : `Roster Strength: ${bpmLabel.label}`;
 
   return (
     <div className="mgr-season">
@@ -1391,7 +1575,13 @@ function SeasonView({
         <p className="mgr-eyebrow">Manager Mode - Season Simulation</p>
         <h1 className="mgr-title">{userTeam}</h1>
         <div className="mgr-season-stats-row">
-          <span className="mgr-stat-badge">Lineup BPM-Z: {myBpmZ != null ? `${myBpmZ >= 0 ? '+' : ''}${myBpmZ.toFixed(2)}` : '—'}</span>
+          <span
+            className="mgr-stat-badge mgr-stat-badge--summary"
+            title={myBpmZ != null ? `Lineup BPM-Z: ${myBpmZ >= 0 ? '+' : ''}${myBpmZ.toFixed(2)}` : 'Lineup BPM-Z unavailable'}
+            style={!projection ? { color: bpmLabel.color } : undefined}
+          >
+            {summaryText}
+          </span>
         </div>
       </section>
 
@@ -1475,6 +1665,7 @@ function SchedulePanel({
   userTeam: string;
   bpmZ: Record<string, number>;
 }) {
+  const [showAllGames, setShowAllGames] = useState(true);
   const byDate: Record<string, SeasonGame[]> = {};
   for (const game of seasonData.regular_season) {
     if (!byDate[game.date]) {
@@ -1484,6 +1675,16 @@ function SchedulePanel({
   }
 
   const dates = Object.keys(byDate).sort();
+  const visibleDates = dates
+    .map((date) => ({
+      date,
+      games: byDate[date]
+        .filter((game) => showAllGames || game.t1 === userTeam || game.t2 === userTeam)
+        .sort((gameA, gameB) => gameA.gid - gameB.gid),
+    }))
+    .filter(({ games }) => games.length > 0);
+
+  const strengthLabel = getBpmLabel(bpmZ[userTeam] ?? 0);
   if (!dates.length) {
     return (
       <div className="mgr-schedule-wrap">
@@ -1494,13 +1695,26 @@ function SchedulePanel({
 
   return (
     <div className="mgr-schedule-wrap">
-      {dates.map((date) => {
-        const games = byDate[date].slice().sort((gameA, gameB) => gameA.gid - gameB.gid);
+      <div className="schedule-filter">
+        <button type="button" className={showAllGames ? 'filter-btn active' : 'filter-btn'} onClick={() => setShowAllGames(true)}>
+          All Games
+        </button>
+        <button type="button" className={!showAllGames ? 'filter-btn active' : 'filter-btn'} onClick={() => setShowAllGames(false)}>
+          My Games
+        </button>
+      </div>
+      <p className="mgr-schedule-strength" title={bpmZ[userTeam] != null ? `Lineup BPM-Z: ${bpmZ[userTeam] >= 0 ? '+' : ''}${bpmZ[userTeam].toFixed(2)}` : 'Lineup BPM-Z unavailable'}>
+        Roster Strength: <span style={{ color: strengthLabel.color }}>{strengthLabel.label}</span>
+      </p>
+      {visibleDates.map(({ date, games }) => {
         const label = new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
         return (
           <div key={date} className="mgr-sched-day">
-            <div className="mgr-sched-date">{label} <span className="mgr-sched-ngames">{games.length}G</span></div>
+            <div className="sim-date-header">
+              {label}
+              <span className="sim-date-count">{games.length} games</span>
+            </div>
             <div className="mgr-sched-grid">
               {games.map((game) => {
                 const bpmDiff = (bpmZ[game.t1] ?? 0) - (bpmZ[game.t2] ?? 0);
@@ -1511,11 +1725,15 @@ function SchedulePanel({
 
                 return (
                   <div key={game.gid} className={isUserGame ? 'mgr-matchup mgr-matchup--you' : 'mgr-matchup'}>
-                    <span className={userIsT1 ? 'mgr-mu-team mgr-mu-team--you' : 'mgr-mu-team'}>{game.t1}</span>
+                    <span className={userIsT1 ? 'mgr-mu-team mgr-mu-team--you' : 'mgr-mu-team'}>
+                      {teamLogoUrl(game.t1) ? <img className="chip-logo" src={teamLogoUrl(game.t1) ?? undefined} alt={game.t1} loading="lazy" /> : null}
+                      {game.t1}
+                    </span>
                     <span className="mgr-mu-prob">{(p1 * 100).toFixed(0)}%</span>
                     <span className="mgr-mu-vs">vs</span>
                     <span className="mgr-mu-prob">{(p2 * 100).toFixed(0)}%</span>
                     <span className={!userIsT1 && game.t2 === userTeam ? 'mgr-mu-team mgr-mu-team--you' : 'mgr-mu-team'}>
+                      {teamLogoUrl(game.t2) ? <img className="chip-logo" src={teamLogoUrl(game.t2) ?? undefined} alt={game.t2} loading="lazy" /> : null}
                       {game.t2}
                       {game.loc === 1 ? <span className="mgr-mu-home"> H</span> : null}
                     </span>

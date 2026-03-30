@@ -2774,21 +2774,22 @@ img[alt*='logo'],
 
 @keyframes playerDrafted {
   0% {
-    background: rgba(184, 125, 24, 0.2);
-    box-shadow: inset 0 0 30px rgba(184, 125, 24, 0.15);
+    background: rgba(184, 125, 24, 0.18);
+    box-shadow: inset 0 0 24px rgba(184, 125, 24, 0.12);
   }
 
-  40% {
-    background: rgba(184, 125, 24, 0.08);
-    box-shadow: inset 0 0 0 rgba(184, 125, 24, 0);
+  35% {
+    background: rgba(184, 125, 24, 0.06);
   }
 
   100% {
     opacity: 0;
     max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
+    padding: 0;
+    margin: 0;
+    min-height: 0;
     overflow: hidden;
+    border: none;
   }
 }
 
@@ -2920,6 +2921,61 @@ img[alt*='logo'],
 .mgr-select-hero {
   text-align: center;
   padding: 32px 24px 24px;
+}
+
+.draft-complete-header {
+  text-align: center;
+  padding: 32px 24px 20px;
+}
+
+.dc-eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin: 0 0 16px;
+}
+
+.dc-team-identity {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.dc-team-logo,
+.dc-team-logo-fallback {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.dc-team-logo {
+  object-fit: contain;
+  border-radius: 0;
+  animation: logoReveal 500ms ease-out;
+}
+
+.dc-team-logo-fallback {
+  font-size: 14px;
+}
+
+.dc-team-name {
+  font-family: var(--font-serif);
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  color: var(--text-primary);
+  font-weight: 400;
+  margin: 0;
+}
+
+.dc-subtitle {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 16px;
 }
 
 .mgr-eyebrow,
@@ -3590,6 +3646,11 @@ img[alt*='logo'],
   text-align: right !important;
 }
 
+.player-list-header--board {
+  grid-template-columns: 52px 34px minmax(220px, 1fr) 64px 52px 60px;
+  padding: 6px 16px;
+}
+
 .player-row {
   position: relative;
   overflow: hidden;
@@ -3606,6 +3667,15 @@ img[alt*='logo'],
   background: transparent;
   cursor: pointer;
   transition: background 100ms ease;
+}
+
+.player-row--board {
+  grid-template-columns: 52px 34px minmax(220px, 1fr) 64px 52px 60px;
+  min-height: 64px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  margin-bottom: 2px;
+  transition: background 120ms ease, box-shadow 120ms ease;
 }
 
 .player-row::after {
@@ -3633,6 +3703,12 @@ img[alt*='logo'],
   background: rgba(184, 125, 24, 0.05);
 }
 
+.player-row--board:hover {
+  background: rgba(184, 125, 24, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(184, 125, 24, 0.15);
+  cursor: pointer;
+}
+
 .player-row--preview {
   cursor: default;
 }
@@ -3646,13 +3722,18 @@ img[alt*='logo'],
 }
 
 .player-row--drafted {
-  animation: playerDrafted 500ms ease-out forwards;
+  animation: playerDrafted 550ms ease-out forwards;
   pointer-events: none;
 }
 
 .player-row.recommended {
   border-left: 3px solid rgba(184, 125, 24, 0.4);
   background: rgba(184, 125, 24, 0.03);
+}
+
+.player-row--board.recommended {
+  border-left: 3px solid var(--amber);
+  background: rgba(184, 125, 24, 0.025);
 }
 
 .player-avatar-cell {
@@ -3676,6 +3757,37 @@ img[alt*='logo'],
   border: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
+.player-headshot--board,
+.player-avatar-cell img.player-headshot--board,
+.player-row--board .player-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top center;
+  background: rgba(30, 22, 12, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.06);
+  transition: transform 150ms ease, border-color 150ms ease;
+}
+
+.player-row--board:hover .player-headshot--board,
+.player-row--board:hover .player-avatar-cell img.player-headshot--board {
+  border-color: rgba(184, 125, 24, 0.3);
+  transform: scale(1.04);
+}
+
+.player-headshot--board.guard {
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+.player-headshot--board.wing {
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.player-headshot--board.big {
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
 .player-initials-fallback {
   display: flex;
   align-items: center;
@@ -3683,6 +3795,12 @@ img[alt*='logo'],
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 700;
+}
+
+.player-initials-fallback--board {
+  width: 48px;
+  height: 48px;
+  font-size: 15px;
 }
 
 .player-initials-fallback.guard {
@@ -3718,6 +3836,12 @@ img[alt*='logo'],
   letter-spacing: 0.04em;
 }
 
+.player-pos-badge--board {
+  width: 30px;
+  height: 24px;
+  border-radius: 5px;
+}
+
 .player-pos-badge.guard {
   background: rgba(96, 165, 250, 0.15);
   color: #60a5fa;
@@ -3741,11 +3865,22 @@ img[alt*='logo'],
   min-width: 0;
 }
 
+.player-name-cell--board {
+  justify-content: center;
+  gap: 2px;
+}
+
 .player-name {
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.player-name--board {
+  font-size: 14px;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -3756,6 +3891,10 @@ img[alt*='logo'],
   line-height: 1;
 }
 
+.player-team-sub--board {
+  font-size: 11px;
+}
+
 .player-rec-cell {
   display: flex;
   justify-content: flex-end;
@@ -3763,17 +3902,17 @@ img[alt*='logo'],
 
 .rec-badge {
   font-family: var(--font-sans);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--amber);
-  background: rgba(184, 125, 24, 0.1);
-  border: 1px solid rgba(184, 125, 24, 0.2);
-  padding: 2px 8px;
+  color: var(--bg-app);
+  background: var(--amber);
+  padding: 3px 10px;
   border-radius: 4px;
   white-space: nowrap;
   flex-shrink: 0;
   cursor: help;
+  animation: recPulse 2s ease-in-out infinite alternate;
 }
 
 .player-value {
@@ -3784,11 +3923,46 @@ img[alt*='logo'],
   text-align: right;
 }
 
+.player-value--board.elite {
+  color: #ffc857;
+  font-size: 16px;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(255, 200, 87, 0.15);
+}
+
+.player-value--board.strong {
+  color: var(--text-amber);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.player-value--board.decent {
+  color: rgba(231, 191, 114, 0.75);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.player-value--board.role {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .player-adp {
   font-family: var(--font-sans);
   font-size: 12px;
   color: var(--text-secondary);
   text-align: right;
+}
+
+@keyframes recPulse {
+  from {
+    box-shadow: 0 0 0 rgba(184, 125, 24, 0);
+  }
+
+  to {
+    box-shadow: 0 0 10px rgba(184, 125, 24, 0.2);
+  }
 }
 
 .mgr-board-empty {
@@ -4055,6 +4229,218 @@ img[alt*='logo'],
   padding: 0 24px 32px;
 }
 
+.dc-projection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 16px 24px;
+  margin: 0 auto 24px;
+  max-width: 500px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.dc-projection-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.dc-proj-value {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dc-proj-label {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.dc-projection-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-subtle);
+}
+
+.dc-roster {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.dc-roster-section {
+  margin-bottom: 20px;
+}
+
+.dc-section-label {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dc-player-card {
+  display: grid;
+  grid-template-columns: 56px 1fr 60px;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+  opacity: 0;
+  transform: translateX(-12px);
+  animation: cardSlideIn 400ms ease-out forwards;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.dc-player-card:hover {
+  border-color: rgba(184, 125, 24, 0.2);
+  box-shadow: 0 2px 12px rgba(184, 125, 24, 0.05);
+}
+
+.dc-player-headshot-wrap {
+  position: relative;
+  width: 48px;
+  height: 48px;
+}
+
+.dc-player-headshot,
+.dc-player-initials {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.dc-player-headshot {
+  object-fit: cover !important;
+  object-position: top center !important;
+  background: rgba(30, 22, 12, 0.6) !important;
+  border: 2px solid rgba(184, 125, 24, 0.2) !important;
+}
+
+.dc-player-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  background: rgba(184, 125, 24, 0.08);
+  color: var(--text-amber);
+  border: 2px solid rgba(184, 125, 24, 0.2);
+}
+
+.dc-pos-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -4px;
+  min-width: 20px;
+  height: 16px;
+  border-radius: 3px;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.dc-pos-badge.g {
+  background: rgba(96, 165, 250, 0.85);
+  color: white;
+}
+
+.dc-pos-badge.w {
+  background: rgba(74, 222, 128, 0.85);
+  color: white;
+}
+
+.dc-pos-badge.b {
+  background: rgba(248, 113, 113, 0.85);
+  color: white;
+}
+
+.dc-player-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dc-player-name {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.dc-player-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dc-player-team-logo {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  border-radius: 0;
+}
+
+.dc-player-team {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.dc-player-draft {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.dc-player-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.dc-value-num {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-amber);
+}
+
+.dc-value-label {
+  font-family: var(--font-sans);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
 .mgr-roster-card {
   overflow: hidden;
   margin-bottom: 20px;
@@ -4143,6 +4529,27 @@ img[alt*='logo'],
   color: var(--text-primary);
 }
 
+.show-rosters-btn {
+  display: block;
+  margin: 20px auto 0;
+  padding: 10px 28px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.show-rosters-btn:hover {
+  color: var(--text-primary);
+  border-color: rgba(184, 125, 24, 0.3);
+  background: rgba(184, 125, 24, 0.04);
+}
+
 .mgr-all-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -4170,6 +4577,11 @@ img[alt*='logo'],
   justify-content: center;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.mgr-stat-badge--summary {
+  max-width: 720px;
+  text-align: center;
 }
 
 .mgr-season-tabs {
@@ -4254,6 +4666,61 @@ img[alt*='logo'],
   opacity: 0.7;
 }
 
+.schedule-filter {
+  display: inline-flex;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 2px;
+  margin-bottom: 16px;
+}
+
+.schedule-filter .filter-btn {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: calc(var(--radius-md) - 2px);
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  background: transparent;
+  transition: all 120ms ease;
+}
+
+.schedule-filter .filter-btn.active {
+  background: rgba(184, 125, 24, 0.15);
+  color: var(--text-amber);
+}
+
+.mgr-schedule-strength {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 16px;
+}
+
+.sim-date-header {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 16px 0 6px;
+  letter-spacing: 0.03em;
+}
+
+.sim-date-count {
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-left: 8px;
+}
+
+.sim-date-count::before {
+  content: '·';
+  margin-right: 8px;
+}
+
 .mgr-sched-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -4276,6 +4743,9 @@ img[alt*='logo'],
 }
 
 .mgr-mu-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--text-primary);
   font-weight: 600;
   white-space: nowrap;
@@ -4290,6 +4760,34 @@ img[alt*='logo'],
 .mgr-mu-home {
   color: var(--text-tertiary);
   text-align: center;
+}
+
+.chip-logo {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  border-radius: 0;
+  vertical-align: middle;
+  margin-right: 2px;
+}
+
+@keyframes logoReveal {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes cardSlideIn {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @media (max-width: 1024px) {
@@ -4338,12 +4836,36 @@ img[alt*='logo'],
   .mgr-season-tabs {
     padding: 0 16px;
   }
+
+  .dc-team-identity {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .dc-projection {
+    gap: 14px;
+    padding: 14px 16px;
+  }
+
+  .dc-roster {
+    padding: 0 16px;
+  }
+
+  .dc-player-card {
+    grid-template-columns: 48px 1fr;
+  }
+
+  .dc-player-value {
+    grid-column: 2;
+    align-items: flex-start;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .franchise-card--entering,
   .franchise-card.selected::after,
   .player-row--drafted,
+  .rec-badge,
   .roster-slot--just-filled,
   .recent-pick--new,
   .your-pick-badge--entering,
@@ -4370,5 +4892,21 @@ img[alt*='logo'],
 
   .player-row::after {
     display: none;
+  }
+
+  .player-row--board:hover .player-headshot--board,
+  .player-row--board:hover .player-avatar-cell img.player-headshot--board {
+    transform: none;
+  }
+
+  .player-row--drafted {
+    display: none;
+  }
+
+  .dc-player-card,
+  .dc-team-logo {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
   }
 }
