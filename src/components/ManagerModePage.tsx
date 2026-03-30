@@ -4,9 +4,8 @@ import { NBA_TEAMS } from '../data/nbaTeams';
 const BUCKETS = ['G', 'W', 'B'] as const;
 const POSITION_FILTERS = ['all', 'G', 'W', 'B'] as const;
 const PLAYER_SORTS = [
-  { id: 'value', label: 'Value' },
   { id: 'adp', label: 'ADP' },
-  { id: 'volatility', label: 'Risk' },
+  { id: 'volatility', label: 'StdDev' },
   { id: 'name', label: 'Name' },
 ] as const;
 type Bkt = typeof BUCKETS[number];
@@ -300,7 +299,7 @@ function comparePlayers(a: Player, b: Player, sortBy: PlayerSort): number {
     return delta || b.bpmC - a.bpmC || a.playerName.localeCompare(b.playerName);
   }
 
-  return b.bpmC - a.bpmC || (a.adp ?? Number.POSITIVE_INFINITY) - (b.adp ?? Number.POSITIVE_INFINITY) || a.playerName.localeCompare(b.playerName);
+  return (a.adp ?? Number.POSITIVE_INFINITY) - (b.adp ?? Number.POSITIVE_INFINITY) || a.playerName.localeCompare(b.playerName);
 }
 
 function buildRosterSlots(playerIndexes: number[], players: Player[], req: Req): { starters: RenderSlot[]; bench: RenderSlot[] } {
@@ -391,7 +390,7 @@ export default function ManagerModePage() {
   const [log, setLog] = useState<PickRecord[]>([]);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<PlayerSort>('value');
+  const [sortBy, setSortBy] = useState<PlayerSort>('adp');
   const [seasonData, setSeasonData] = useState<SeasonData | null>(null);
   const [seasonErr, setSeasonErr] = useState<string | null>(null);
   const [stats, setStats] = useState<Record<string, TeamStat>>({});
@@ -438,7 +437,7 @@ export default function ManagerModePage() {
     setPickIdx(0);
     setFilter('all');
     setSearchQuery('');
-    setSortBy('value');
+    setSortBy('adp');
     setPhase('draft');
   }, [pack]);
 
@@ -761,9 +760,8 @@ export default function ManagerModePage() {
                     <span>Pos</span>
                     <span className="player-list-header__name">Player</span>
                     <span>Team</span>
-                    <span>Value</span>
                     <span>ADP</span>
-                    <span>Risk</span>
+                    <span>StdDev</span>
                   </div>
 
                   {boardPlayers.map((player) => (
@@ -776,7 +774,6 @@ export default function ManagerModePage() {
                       <span className={`player-pos-badge ${bucketClass(player.bucket as Bkt)}`}>{player.bucket}</span>
                       <span className="player-name">{player.playerName}</span>
                       <span className="player-team">{player.teamAbbr}</span>
-                      <span className="player-value">{formatOracleValue(player.bpmC)}</span>
                       <span className="player-stat">{player.adp != null ? player.adp.toFixed(1) : '—'}</span>
                       <span className="player-stat">{player.adpStd != null ? player.adpStd.toFixed(1) : '—'}</span>
                     </button>
@@ -812,16 +809,14 @@ export default function ManagerModePage() {
                     <span>Pos</span>
                     <span className="player-list-header__name">Player</span>
                     <span>Team</span>
-                    <span>Value</span>
                     <span>ADP</span>
-                    <span>Risk</span>
+                    <span>StdDev</span>
                   </div>
                   {previewPlayers.map((player) => (
                     <div key={player.playerIdx} className="player-row player-row--preview">
                       <span className={`player-pos-badge ${bucketClass(player.bucket as Bkt)}`}>{player.bucket}</span>
                       <span className="player-name">{player.playerName}</span>
                       <span className="player-team">{player.teamAbbr}</span>
-                      <span className="player-value">{formatOracleValue(player.bpmC)}</span>
                       <span className="player-stat">{player.adp != null ? player.adp.toFixed(1) : '—'}</span>
                       <span className="player-stat">{player.adpStd != null ? player.adpStd.toFixed(1) : '—'}</span>
                     </div>

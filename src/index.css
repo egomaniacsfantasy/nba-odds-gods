@@ -3317,7 +3317,7 @@ img[alt*='logo'],
 
 .player-list-header {
   display: grid;
-  grid-template-columns: 32px minmax(220px, 1fr) 48px 58px 52px 52px;
+  grid-template-columns: 32px minmax(220px, 1fr) 48px 52px 52px;
   gap: 8px;
   padding: 4px 12px 8px;
   border-bottom: 1px solid var(--border-subtle);
@@ -3341,7 +3341,7 @@ img[alt*='logo'],
 
 .player-row {
   display: grid;
-  grid-template-columns: 32px minmax(220px, 1fr) 48px 58px 52px 52px;
+  grid-template-columns: 32px minmax(220px, 1fr) 48px 52px 52px;
   align-items: start;
   gap: 8px;
   width: 100%;
