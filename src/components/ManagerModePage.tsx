@@ -276,16 +276,6 @@ function formatOracleValue(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`;
 }
 
-function bucketAccent(bucket: Bkt): string {
-  if (bucket === 'G') {
-    return '#60a5fa';
-  }
-  if (bucket === 'W') {
-    return '#4ade80';
-  }
-  return '#f87171';
-}
-
 function playerInitials(playerName: string): string {
   return playerName
     .split(' ')
@@ -295,12 +285,16 @@ function playerInitials(playerName: string): string {
     .toUpperCase();
 }
 
-function headshotUrl(playerId: number, size: number): string {
-  return `https://a.espncdn.com/combiner/i?img=/i/headshots/nba/players/full/${playerId}.png&w=${size * 2}&h=${Math.round(size * 1.45)}`;
+function headshotUrl(playerId: number): string {
+  return `https://cdn.nba.com/headshots/nba/latest/260x190/${playerId}.png`;
 }
 
 function teamCity(teamAbbr: string): string {
   return TEAM_META_BY_ABBR.get(teamAbbr)?.city ?? teamAbbr;
+}
+
+function teamLogoUrl(teamAbbr: string): string | null {
+  return TEAM_META_BY_ABBR.get(teamAbbr)?.logoUrl ?? null;
 }
 
 function searchMatches(player: Player, query: string): boolean {
@@ -393,24 +387,24 @@ function remainingNeedsText(playerIndexes: number[], players: Player[], req: Req
 function PlayerAvatar({
   player,
   size = 40,
+  imgClassName = 'player-avatar',
+  fallbackClassName = 'player-avatar-fallback',
 }: {
   player: Player;
   size?: number;
+  imgClassName?: string;
+  fallbackClassName?: string;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const bucket = player.bucket as Bkt;
-  const accent = bucketAccent(bucket);
+  const bucketClassName = bucketClass(bucket);
+  const avatarStyle = { '--avatar-size': `${size}px` } as { [key: string]: string };
 
   if (!player.playerId || imgFailed) {
     return (
       <div
-        className="player-avatar-fallback"
-        style={{
-          '--avatar-size': `${size}px`,
-          background: `${accent}15`,
-          border: `1px solid ${accent}30`,
-          color: accent,
-        } as { [key: string]: string }}
+        className={`${fallbackClassName} ${bucketClassName}`.trim()}
+        style={avatarStyle}
       >
         {playerInitials(player.playerName)}
       </div>
@@ -419,10 +413,10 @@ function PlayerAvatar({
 
   return (
     <img
-      src={headshotUrl(player.playerId, size)}
+      src={headshotUrl(player.playerId)}
       alt={player.playerName}
-      className="player-avatar"
-      style={{ '--avatar-size': `${size}px` } as { [key: string]: string }}
+      className={imgClassName}
+      style={avatarStyle}
       loading="lazy"
       onError={() => setImgFailed(true)}
     />
@@ -998,12 +992,20 @@ export default function ManagerModePage({
                 </div>
 
                 <div className={playerBoardClassName}>
+                  <div className="board-legend">
+                    <span className="legend-item">
+                      <span className="rec-badge" title="Recommended — fills a position you need">★ REC</span>
+                      Fills a position you need
+                    </span>
+                  </div>
+
                   <div className="player-list-header">
                     <span aria-hidden="true" />
                     <span>Pos</span>
                     <span className="player-list-header__name">Player</span>
-                    <span title="Oracle projected value added. Higher is better, with elite players usually landing around +3 to +5.">Value</span>
-                    <span title="Average Draft Position. Lower means the player typically comes off the board earlier.">ADP</span>
+                    <span className="player-list-header__metric" title="Oracle projected value added. Higher is better, with elite players usually landing around +3 to +5.">Value</span>
+                    <span className="player-list-header__metric" title="Average Draft Position. Lower means the player typically comes off the board earlier.">ADP</span>
+                    <span aria-hidden="true" />
                   </div>
 
                   {boardPlayers.map((player) => (
@@ -1018,17 +1020,26 @@ export default function ManagerModePage({
                       onClick={() => handleAnimatedUserPick(player.playerIdx)}
                       disabled={isDraftLocked}
                     >
-                      <PlayerAvatar player={player} size={36} />
+                      <div className="player-avatar-cell">
+                        <PlayerAvatar
+                          player={player}
+                          size={44}
+                          imgClassName="player-headshot"
+                          fallbackClassName="player-initials-fallback"
+                        />
+                      </div>
                       <span className={`player-pos-badge ${bucketClass(player.bucket as Bkt)}`}>{player.bucket}</span>
-                      <span className="player-info">
-                        <span className="player-name-row">
-                          <span className="player-name">{player.playerName}</span>
-                          {recommendedPlayerIds.has(player.playerIdx) ? <span className="recommended-badge">REC</span> : null}
-                        </span>
-                        <span className="player-team-label">{player.teamAbbr}</span>
-                      </span>
+                      <div className="player-name-cell">
+                        <span className="player-name">{player.playerName}</span>
+                        <span className="player-team-sub">{player.teamAbbr}</span>
+                      </div>
                       <span className="player-value">{formatOracleValue(player.bpmC)}</span>
                       <span className="player-adp">{player.adp != null ? player.adp.toFixed(1) : '—'}</span>
+                      <span className="player-rec-cell">
+                        {recommendedPlayerIds.has(player.playerIdx) ? (
+                          <span className="rec-badge" title="Recommended — fills a position you need">★ REC</span>
+                        ) : null}
+                      </span>
                     </button>
                   ))}
 
@@ -1056,21 +1067,28 @@ export default function ManagerModePage({
                     <span aria-hidden="true" />
                     <span>Pos</span>
                     <span className="player-list-header__name">Player</span>
-                    <span>Value</span>
-                    <span>ADP</span>
+                    <span className="player-list-header__metric">Value</span>
+                    <span className="player-list-header__metric">ADP</span>
+                    <span aria-hidden="true" />
                   </div>
                   {previewPlayers.map((player) => (
                     <div key={player.playerIdx} className="player-row player-row--preview">
-                      <PlayerAvatar player={player} size={32} />
+                      <div className="player-avatar-cell">
+                        <PlayerAvatar
+                          player={player}
+                          size={44}
+                          imgClassName="player-headshot"
+                          fallbackClassName="player-initials-fallback"
+                        />
+                      </div>
                       <span className={`player-pos-badge ${bucketClass(player.bucket as Bkt)}`}>{player.bucket}</span>
-                      <span className="player-info">
-                        <span className="player-name-row">
-                          <span className="player-name">{player.playerName}</span>
-                        </span>
-                        <span className="player-team-label">{player.teamAbbr}</span>
-                      </span>
+                      <div className="player-name-cell">
+                        <span className="player-name">{player.playerName}</span>
+                        <span className="player-team-sub">{player.teamAbbr}</span>
+                      </div>
                       <span className="player-value">{formatOracleValue(player.bpmC)}</span>
                       <span className="player-adp">{player.adp != null ? player.adp.toFixed(1) : '—'}</span>
+                      <span className="player-rec-cell" aria-hidden="true" />
                     </div>
                   ))}
                 </div>
@@ -1090,11 +1108,38 @@ export default function ManagerModePage({
                     latestPickOverall === pick.overallPick ? 'recent-pick--new' : '',
                   ].filter(Boolean).join(' ')}
                 >
-                  <span className="pick-round">R{pick.round}</span>
-                  {playersByIdx.get(pick.playerIdx) ? <PlayerAvatar player={playersByIdx.get(pick.playerIdx)!} size={28} /> : null}
-                  <div className="pick-info">
+                  <div className="pick-number-cell">
+                    <span className="pick-round">R{pick.round}</span>
+                    <span className="pick-num">#{pick.overallPick}</span>
+                  </div>
+                  <div className="pick-headshot-cell">
+                    {playersByIdx.get(pick.playerIdx) ? (
+                      <PlayerAvatar
+                        player={playersByIdx.get(pick.playerIdx)!}
+                        size={32}
+                        imgClassName="pick-headshot"
+                        fallbackClassName="pick-initials"
+                      />
+                    ) : (
+                      <span className="pick-initials">?</span>
+                    )}
+                  </div>
+                  <div className="pick-details">
                     <span className="pick-player-name">{pick.playerName}</span>
-                    <span className="pick-team">{pick.team}</span>
+                    <div className="pick-meta">
+                      {teamLogoUrl(pick.team) ? (
+                        <img
+                          className="pick-team-logo"
+                          src={teamLogoUrl(pick.team) ?? undefined}
+                          alt={pick.team}
+                          loading="lazy"
+                          onError={(event: { currentTarget: HTMLImageElement }) => {
+                            event.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : null}
+                      <span className="pick-team-abbr">{pick.team}</span>
+                    </div>
                   </div>
                   <span className={`pick-pos-badge player-pos-badge ${bucketClass(pick.bucket as Bkt)}`}>{pick.bucket}</span>
                 </div>
@@ -1157,10 +1202,6 @@ function SelectView({
     }),
     [pack.teams],
   );
-  const roundOnePickByTeam = useMemo(
-    () => new Map(pack.teams.map((team, index) => [team, index + 1])),
-    [pack.teams],
-  );
 
   return (
     <div className={isExiting ? 'mgr-select franchise-exit' : 'mgr-select'}>
@@ -1180,7 +1221,6 @@ function SelectView({
         {teams.map((abbr, index) => {
           const team = TEAM_META_BY_ABBR.get(abbr);
           const displayName = team?.city ?? abbr;
-          const roundOnePick = roundOnePickByTeam.get(abbr);
           const className = userTeam === abbr
             ? 'franchise-card franchise-card--entering selected'
             : 'franchise-card franchise-card--entering';
@@ -1220,7 +1260,6 @@ function SelectView({
               )}
               </span>
               <span className="franchise-city">{displayName}</span>
-              {roundOnePick ? <span className="franchise-pick">Pick #{roundOnePick}</span> : null}
             </button>
           );
         })}
