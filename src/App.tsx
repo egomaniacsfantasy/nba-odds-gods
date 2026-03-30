@@ -385,11 +385,23 @@ export default function App(_props: AppProps) {
         isScrolled={isScrolled}
       />
       <main className="app-shell">
-        <section className="hero-header">
-          <p className="hero-eyebrow">Odds Gods</p>
-          <h1>The NBA Oracle</h1>
-          <p className="subtitle">Pick every game. Watch the playoff picture shift. The Oracle sees all.</p>
-        </section>
+        {mainTab === 'oracle' ? (
+          <section className="oracle-hero">
+            <div className="hero-glow" aria-hidden="true" />
+            <p className="hero-eyebrow">ODDS GODS</p>
+            <h1 className="oracle-title">
+              <span className="oracle-title-prefix">The NBA</span>
+              <span className="oracle-title-name">Oracle</span>
+            </h1>
+            <p className="hero-subtitle">Pick every game. Watch the playoff picture shift. The Oracle sees all.</p>
+          </section>
+        ) : (
+          <section className="tab-header">
+            <h1 className="tab-header__title">
+              {mainTab === 'teamdata' ? 'Team Stats' : mainTab === 'predictor' ? 'Predictor' : 'Manager'}
+            </h1>
+          </section>
+        )}
 
         {mainTab === 'manager' ? <ManagerModePage /> : mainTab === 'predictor' ? <PredictorTab oddsFormat={oddsFormat} /> : mainTab === 'teamdata' ? <TeamDataTab /> : <>
             <SimControls

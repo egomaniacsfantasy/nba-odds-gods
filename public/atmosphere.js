@@ -32,6 +32,7 @@
     if (!canvas) return;
     const { ctx, w, h } = sizeCanvas(canvas);
     const rng = mulberry32(42);
+    const compactMode = prefersReducedMotion || window.innerWidth < 768;
 
     const stats = [
       // NBA stats
@@ -55,14 +56,14 @@
     ];
 
     const placed = [];
-    const count = prefersReducedMotion ? 30 : Math.floor(80 + rng() * 40);
+    const count = compactMode ? 30 + Math.floor(rng() * 11) : 80 + Math.floor(rng() * 41);
     // Exclude top-left corner (nav area)
-    const exclusion = [{ x: 0, y: 0, x2: 350, y2: 70 }];
+    const exclusion = [{ x: 0, y: 0, x2: compactMode ? 210 : 290, y2: compactMode ? 58 : 64 }];
 
     let attempts = 0;
     let painted = 0;
 
-    while (painted < count && attempts < count * 8) {
+    while (painted < count && attempts < count * 14) {
       attempts++;
       const txt = stats[Math.floor(rng() * stats.length)];
       const isGreek = /^[Σ-ω]$/u.test(txt) || "ΣΔμσπΩβλφθ".includes(txt);
@@ -70,8 +71,16 @@
       const isLatin = txt.length > 8 && /^[A-Z\s]+$/.test(txt);
 
       const serif = isGreek || isRoman || isLatin;
-      const size = isGreek ? 28 + Math.floor(rng() * 10) : 13 + Math.floor(rng() * 6);
-      const alpha = isGreek ? 0.012 + rng() * 0.015 : 0.01 + rng() * 0.015;
+      let size;
+      if (isGreek) size = 28 + Math.floor(rng() * 11);
+      else if (isRoman) size = 16 + Math.floor(rng() * 9);
+      else if (isLatin) size = 12 + Math.floor(rng() * 5);
+      else size = 14 + Math.floor(rng() * 7);
+
+      let alpha;
+      if (isGreek) alpha = 0.022 + rng() * 0.013;
+      else if (isLatin) alpha = 0.015 + rng() * 0.014;
+      else alpha = 0.017 + rng() * 0.016;
 
       ctx.font = serif
         ? `400 ${size}px "Instrument Serif", serif`
@@ -81,7 +90,7 @@
       const th = size * 1.3;
       const x = rng() * (w - tw - 20) + 10;
       const y = rng() * (h - th - 20) + 10;
-      const box = { x: x - 6, y: y - 4, x2: x + tw + 6, y2: y + th + 4 };
+      const box = { x: x - 4, y: y - 3, x2: x + tw + 4, y2: y + th + 3 };
 
       // Check exclusion zones
       const blocked = exclusion.some(
@@ -139,7 +148,7 @@
     }
 
     // Main bolt — top-right area to center-right
-    const bolt = genBolt(w * 0.82, h * 0.03, w * 0.56, h * 0.72, 58, 5);
+    const bolt = genBolt(w * 0.8, h * 0.05, w * 0.55, h * 0.7, 58, 5);
 
     // Branch off main bolt at ~35%
     const mid = bolt[Math.floor(bolt.length * 0.35)];
@@ -150,15 +159,15 @@
     );
 
     // Draw main bolt — 5 passes from outer glow to bright core
-    drawBolt(bolt, "rgba(184,125,24,0.020)", 20);
-    drawBolt(bolt, "rgba(184,125,24,0.036)", 12);
-    drawBolt(bolt, "rgba(184,125,24,0.055)", 6);
-    drawBolt(bolt, "rgba(184,125,24,0.044)", 3);
-    drawBolt(bolt, "rgba(240,230,208,0.070)", 1);
+    drawBolt(bolt, "rgba(184,125,24,0.025)", 22);
+    drawBolt(bolt, "rgba(184,125,24,0.045)", 14);
+    drawBolt(bolt, "rgba(184,125,24,0.070)", 7);
+    drawBolt(bolt, "rgba(184,125,24,0.055)", 3);
+    drawBolt(bolt, "rgba(240,230,208,0.090)", 1.5);
 
     // Draw branch — 2 passes
-    drawBolt(branch, "rgba(184,125,24,0.026)", 5);
-    drawBolt(branch, "rgba(184,125,24,0.040)", 2);
+    drawBolt(branch, "rgba(184,125,24,0.045)", 4);
+    drawBolt(branch, "rgba(240,230,208,0.060)", 1.5);
   }
 
   // === PAINT ALL ===
