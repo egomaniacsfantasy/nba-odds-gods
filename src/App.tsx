@@ -388,6 +388,23 @@ export default function App(_props: AppProps) {
         {mainTab === 'oracle' ? (
           <section className="oracle-hero">
             <div className="hero-glow" aria-hidden="true" />
+            <svg className="hero-lightning" viewBox="0 0 700 520" aria-hidden="true">
+              <path d="M458 72 L396 210 L462 210 L404 356" />
+              <path d="M536 118 L492 216 L540 216 L500 320" />
+              <path d="M338 136 L304 214 L342 214 L310 286" />
+            </svg>
+            <svg className="hero-halo-arcs" viewBox="0 0 620 620" aria-hidden="true">
+              <circle cx="310" cy="310" r="182" />
+              <circle cx="310" cy="310" r="210" />
+              <path d="M128 310h34M458 310h34M310 128v34M310 458v34" />
+            </svg>
+            <div className="hero-starfield" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
             <p className="hero-eyebrow">ODDS GODS</p>
             <h1 className="oracle-title">
               <span className="oracle-title-prefix">The NBA</span>
