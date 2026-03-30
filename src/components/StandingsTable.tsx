@@ -68,6 +68,7 @@ export function StandingsTable({
           }
 
           const classes = ['standings-row', changedTeamIds.includes(row.teamId) ? 'standings-row--changed' : '']
+            .concat(index >= 10 ? 'eliminated' : '')
             .filter(Boolean)
             .join(' ');
 
@@ -99,7 +100,7 @@ export function StandingsTable({
                   </span>
                 </span>
                 <span className="team-col">
-                  <span className="standings-team__abbr">{team.abbr}</span>
+                  <span className="standings-team__abbr team-abbr">{team.abbr}</span>
                   <span className="standings-team__division">{team.division.slice(0, 1)}</span>
                 </span>
                 <span className="num-col">{currentW}</span>

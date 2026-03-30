@@ -77,9 +77,9 @@ export function DateGroup({
   return (
     <section className="date-group">
       <button type="button" className="date-group__header" onClick={toggleCollapsed}>
-        <div>
+        <div className="date-group-header">
           <div className="date-group__title">{formatDate(date)}</div>
-          <div className="date-group__meta">
+          <div className="date-group__meta date-group-count">
             {allResolved ? `${resolvedCount}/${games.length} ✓` : `${resolvedCount}/${games.length} picked`}
           </div>
         </div>

@@ -6,7 +6,6 @@ import { startTransition, useCallback, useEffect, useMemo, useRef, useState } fr
 import { AdvancementPanel } from './components/AdvancementPanel';
 import { OddsTicker } from './components/OddsTicker';
 import { PlayoffSection } from './components/PlayoffSection';
-import { ProgressBar } from './components/ProgressBar';
 import { ScheduleView } from './components/ScheduleView';
 import { SimControls } from './components/SimControls';
 import { StandingsTable } from './components/StandingsTable';
@@ -107,9 +106,12 @@ export default function App(_props: AppProps) {
   const deltaTimeoutRef = useRef<number | null>(null);
   const pickFlashTimeoutRef = useRef<number | null>(null);
   const standingsTimeoutRef = useRef<number | null>(null);
+  const sidePanelRef = useRef<HTMLElement | null>(null);
   const desktopPlayoffSectionRef = useRef<HTMLDivElement | null>(null);
+  const desktopFuturesPanelRef = useRef<HTMLDivElement | null>(null);
   const mobilePlayoffSectionRef = useRef<HTMLDivElement | null>(null);
   const revealShownRef = useRef(false);
+  const [showFuturesTeaser, setShowFuturesTeaser] = useState(false);
 
   const scheduleGroups = useMemo(
     () => Array.from(groupGamesByDate(NBA_SCHEDULE).entries()).map(([date, games]) => ({ date, games })),
@@ -324,6 +326,42 @@ export default function App(_props: AppProps) {
   useEffect(() => { if (mobileTab === 'standings') setStandingsDirty(false); }, [mobileTab]);
 
   useEffect(() => {
+    if (mainTab !== 'oracle' || isMobile) {
+      setShowFuturesTeaser(false);
+      return;
+    }
+
+    const root = sidePanelRef.current;
+    const target = desktopFuturesPanelRef.current;
+
+    if (!root || !target) {
+      setShowFuturesTeaser(false);
+      return;
+    }
+
+    if (!window.IntersectionObserver) {
+      setShowFuturesTeaser(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowFuturesTeaser(!entry.isIntersecting);
+      },
+      {
+        root,
+        threshold: 0.35,
+      },
+    );
+
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [isMobile, mainTab]);
+
+  useEffect(() => {
     if (allGamesPicked && !revealShownRef.current) {
       revealShownRef.current = true;
       setShowOracleReveal(true);
@@ -469,6 +507,17 @@ export default function App(_props: AppProps) {
     });
   }, [isMobile]);
 
+  const handleScrollToFutures = useCallback(() => {
+    const target = desktopFuturesPanelRef.current;
+
+    if (!target) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+  }, []);
+
   return (
     <>
       <ToolNav
@@ -483,24 +532,7 @@ export default function App(_props: AppProps) {
         {mainTab === 'oracle' ? (
           <section className="oracle-hero">
             <div className="hero-glow" aria-hidden="true" />
-            <svg className="hero-lightning" viewBox="0 0 700 520" aria-hidden="true">
-              <path d="M458 72 L396 210 L462 210 L404 356" />
-              <path d="M536 118 L492 216 L540 216 L500 320" />
-              <path d="M338 136 L304 214 L342 214 L310 286" />
-            </svg>
-            <svg className="hero-halo-arcs" viewBox="0 0 620 620" aria-hidden="true">
-              <circle cx="310" cy="310" r="182" />
-              <circle cx="310" cy="310" r="210" />
-              <path d="M128 310h34M458 310h34M310 128v34M310 458v34" />
-            </svg>
-            <div className="hero-starfield" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-            <p className="hero-eyebrow">ODDS GODS</p>
+            <div className="hero-particles" aria-hidden="true" />
             <h1 className="oracle-title">
               <span className="oracle-title-prefix">The NBA</span>
               <span className="oracle-title-name">Oracle</span>
@@ -531,11 +563,6 @@ export default function App(_props: AppProps) {
               onReSimulate={() => {}}
               onUndo={handleUndo}
               onReset={() => setResetOpen(true)}
-            />
-            <ProgressBar
-              pickedCount={pickedCount}
-              totalCount={totalPickableGames}
-              unlocked={allGamesPicked}
               onGoToPlayoffs={handleGoToPlayoffs}
             />
             <div className="main-layout desktop-layout">
@@ -566,7 +593,7 @@ export default function App(_props: AppProps) {
                   />
                 </div>
               </section>
-              <aside className="side-panel">
+              <aside ref={sidePanelRef} className="side-panel">
                 <StandingsTable
                   east={displayEast}
                   west={displayWest}
@@ -577,16 +604,24 @@ export default function App(_props: AppProps) {
                   expWins={currentExpWins}
                   onConferenceChange={setActiveConference}
                 />
-                <AdvancementPanel
-                  rows={advancementRows}
-                  teamsById={NBA_TEAM_LOOKUP}
-                  oddsFormat={oddsFormat}
-                  sortKey={advancementSort}
-                  sortDirection={advancementSortDirection}
-                  deltaMap={deltaMap}
-                  isSimulating={isSimulating}
-                  onSort={handleSort}
-                />
+                <div ref={desktopFuturesPanelRef}>
+                  <AdvancementPanel
+                    rows={advancementRows}
+                    teamsById={NBA_TEAM_LOOKUP}
+                    oddsFormat={oddsFormat}
+                    sortKey={advancementSort}
+                    sortDirection={advancementSortDirection}
+                    deltaMap={deltaMap}
+                    isSimulating={isSimulating}
+                    onSort={handleSort}
+                  />
+                </div>
+                {showFuturesTeaser ? (
+                  <button type="button" className="futures-teaser" onClick={handleScrollToFutures}>
+                    <span className="futures-teaser-text">Oracle Futures</span>
+                    <span className="futures-teaser-arrow">↓</span>
+                  </button>
+                ) : null}
               </aside>
             </div>
             <div className="mobile-layout">

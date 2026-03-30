@@ -291,17 +291,14 @@ img[alt*='logo'],
 
 .oracle-hero {
   position: relative;
-  padding: 56px 24px 34px;
+  padding: 44px 24px 24px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   isolation: isolate;
-  animation: heroEnter 700ms cubic-bezier(0.19, 1, 0.22, 1) both;
 }
 
-.hero-eyebrow,
 .oracle-title,
 .hero-subtitle {
   margin-left: auto;
@@ -311,153 +308,61 @@ img[alt*='logo'],
 
 .hero-glow {
   position: absolute;
-  top: 50%;
+  top: 45%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 760px;
-  height: 480px;
+  width: 800px;
+  height: 500px;
   background: radial-gradient(
     ellipse at center,
-    rgba(184, 125, 24, 0.26) 0%,
-    rgba(184, 125, 24, 0.12) 30%,
-    rgba(184, 125, 24, 0.04) 56%,
-    transparent 76%
+    rgba(232, 184, 110, 0.22) 0%,
+    rgba(184, 125, 24, 0.1) 35%,
+    rgba(184, 125, 24, 0.04) 55%,
+    transparent 72%
   );
   pointer-events: none;
   z-index: 0;
-  mix-blend-mode: screen;
-  animation: glowPulse 5.4s ease-in-out infinite alternate;
-}
-
-.hero-lightning {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.34;
-}
-
-.hero-lightning path {
-  fill: none;
-  stroke: rgba(232, 184, 110, 0.72);
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: blur(0.2px);
-  animation: lightning-pulse 9s ease-in-out infinite;
-}
-
-.hero-lightning path:nth-child(2) {
-  animation-delay: 1.8s;
-}
-
-.hero-lightning path:nth-child(3) {
-  animation-delay: 3.2s;
-}
-
-.hero-halo-arcs {
-  position: absolute;
-  right: -84px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 620px;
-  height: 620px;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.18;
-  color: rgba(240, 230, 208, 0.95);
-  animation: haloDrift 24s linear infinite;
-}
-
-.hero-halo-arcs circle,
-.hero-halo-arcs path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.2;
-}
-
-.hero-starfield {
-  position: absolute;
-  right: 8%;
-  top: 16%;
-  width: 360px;
-  height: 220px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.hero-starfield span {
-  position: absolute;
-  width: 3px;
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(240, 230, 208, 0.7);
-  box-shadow: 0 0 10px rgba(232, 184, 110, 0.55);
-  animation: star-breathe 7s ease-in-out infinite;
-}
-
-.hero-starfield span:nth-child(1) { left: 14%; top: 20%; }
-.hero-starfield span:nth-child(2) { left: 32%; top: 52%; animation-delay: 1s; }
-.hero-starfield span:nth-child(3) { left: 56%; top: 24%; animation-delay: 2s; }
-.hero-starfield span:nth-child(4) { left: 76%; top: 60%; animation-delay: 3s; }
-.hero-starfield span:nth-child(5) { left: 88%; top: 36%; animation-delay: 4s; }
-
-.hero-eyebrow,
-.oracle-title-prefix,
-.hero-subtitle {
-  opacity: 0;
-  animation: heroFadeUp 700ms cubic-bezier(0.19, 1, 0.22, 1) both;
-}
-
-.hero-eyebrow {
-  position: relative;
-  z-index: 2;
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--amber);
-  margin: 0 0 20px;
-  text-align: center;
-  animation-delay: 110ms;
+  animation: heroGlow 4s ease-in-out infinite alternate;
 }
 
 .oracle-title {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   margin: 0;
-  text-align: center;
   line-height: 1;
 }
 
 .oracle-title-prefix {
+  position: relative;
+  z-index: 1;
   font-family: var(--font-sans);
-  font-size: clamp(0.9rem, 2vw, 1.15rem);
+  font-size: clamp(0.85rem, 1.8vw, 1.1rem);
   font-weight: 500;
-  letter-spacing: 0.35em;
+  letter-spacing: 0.4em;
   text-transform: uppercase;
-  color: rgba(231, 191, 114, 0.5);
+  color: rgba(231, 191, 114, 0.55);
   margin-bottom: 8px;
-  animation-delay: 180ms;
+  opacity: 0;
+  animation: titleFadeUp 600ms ease-out 200ms forwards;
 }
 
 .oracle-title-name {
+  position: relative;
+  z-index: 1;
   font-family: var(--font-serif);
-  font-size: clamp(4rem, 12vw, 8rem);
+  font-size: clamp(4.5rem, 14vw, 9rem);
   font-weight: 400;
   letter-spacing: 0.02em;
   background: linear-gradient(
     120deg,
-    #b87d18 0%,
-    #f5edd8 25%,
-    #e7bf72 50%,
-    #b87d18 75%,
+    #d4a44a 0%,
+    #f5edd8 20%,
+    #ffc857 40%,
+    #e7bf72 60%,
+    #d4a44a 80%,
     #f5edd8 100%
   );
   background-size: 200% auto;
@@ -465,27 +370,61 @@ img[alt*='logo'],
   -webkit-text-fill-color: transparent;
   background-clip: text;
   filter:
-    drop-shadow(0 0 36px rgba(184, 125, 24, 0.22))
-    drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+    drop-shadow(0 0 40px rgba(255, 200, 87, 0.3))
+    drop-shadow(0 0 80px rgba(184, 125, 24, 0.2))
+    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
   opacity: 0;
   animation:
-    shimmer 4.2s linear infinite,
-    titleGlow 3.2s ease-in-out infinite alternate,
-    heroFadeUp 820ms cubic-bezier(0.19, 1, 0.22, 1) 250ms both;
+    titleFadeUp 800ms ease-out 400ms forwards,
+    oracleShimmer 5s linear 400ms infinite;
 }
 
 .hero-subtitle {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   font-family: var(--font-sans);
   font-size: clamp(13px, 2vw, 15px);
   color: var(--text-secondary);
-  max-width: 520px;
-  margin: 20px auto 0;
+  max-width: 480px;
+  margin: 16px auto 0;
   line-height: 1.6;
   text-align: center;
-  text-shadow: 0 0 18px rgba(8, 6, 3, 0.5);
-  animation-delay: 320ms;
+  opacity: 0;
+  animation: titleFadeUp 600ms ease-out 700ms forwards;
+}
+
+.hero-particles {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 300px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hero-particles::before,
+.hero-particles::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(232, 184, 110, 0.6);
+  box-shadow: 0 0 8px rgba(232, 184, 110, 0.4);
+}
+
+.hero-particles::before {
+  top: 20%;
+  left: 15%;
+  animation: particleFloat 7s ease-in-out infinite;
+}
+
+.hero-particles::after {
+  top: 60%;
+  right: 20%;
+  animation: particleFloat 9s ease-in-out infinite reverse;
 }
 
 .tab-header {
@@ -502,22 +441,22 @@ img[alt*='logo'],
   margin: 0;
 }
 
-@keyframes glowPulse {
-  0% {
-    opacity: 0.76;
-    transform: translate(-50%, -50%) scale(0.98);
+@keyframes heroGlow {
+  from {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(1);
   }
 
-  100% {
+  to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1.06);
   }
 }
 
-@keyframes heroEnter {
+@keyframes titleFadeUp {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(15px);
   }
 
   to {
@@ -526,75 +465,31 @@ img[alt*='logo'],
   }
 }
 
-@keyframes heroFadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes shimmer {
+@keyframes oracleShimmer {
   to {
     background-position: 200% center;
   }
 }
 
-@keyframes titleGlow {
-  from {
-    filter:
-      drop-shadow(0 0 32px rgba(184, 125, 24, 0.18))
-      drop-shadow(0 4px 8px rgba(0, 0, 0, 0.34));
-  }
-
-  to {
-    filter:
-      drop-shadow(0 0 60px rgba(184, 125, 24, 0.4))
-      drop-shadow(0 4px 14px rgba(0, 0, 0, 0.42));
-  }
-}
-
-@keyframes haloDrift {
-  from {
-    transform: translateY(-50%) rotate(0deg) scale(1);
-  }
-
-  to {
-    transform: translateY(-50%) rotate(360deg) scale(1.03);
-  }
-}
-
-@keyframes lightning-pulse {
-  0%, 70%, 100% {
-    opacity: 0.2;
-  }
-
-  72% {
-    opacity: 0.56;
-  }
-
-  74% {
-    opacity: 0.24;
-  }
-
-  76% {
-    opacity: 0.42;
-  }
-}
-
-@keyframes star-breathe {
+@keyframes particleFloat {
   0%, 100% {
-    opacity: 0.25;
-    transform: scale(1);
+    transform: translate(0, 0);
+    opacity: 0.4;
+  }
+
+  25% {
+    transform: translate(10px, -15px);
+    opacity: 0.8;
   }
 
   50% {
-    opacity: 0.6;
-    transform: scale(1.25);
+    transform: translate(-5px, -25px);
+    opacity: 0.5;
+  }
+
+  75% {
+    transform: translate(15px, -10px);
+    opacity: 0.9;
   }
 }
 
@@ -609,6 +504,17 @@ img[alt*='logo'],
 
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes bounceDown {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(4px);
   }
 }
 
@@ -758,26 +664,49 @@ img[alt*='logo'],
   background: transparent;
 }
 
-.sim-controls {
+.sim-controls,
+.sim-controls-bar {
   position: sticky;
   top: 52px;
   z-index: 15;
-  background: rgba(14, 12, 9, 0.92);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  transition: box-shadow 200ms ease;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
   justify-content: center;
-  padding: var(--space-3) var(--space-6);
-  width: 100%;
-  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 24px;
+  background: rgba(14, 12, 9, 0.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+  width: 100%;
+  transition: box-shadow 200ms ease;
+}
+
+.sim-controls-bar::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: var(--progress-pct, 0%);
+  height: 2px;
+  background: var(--amber);
+  transition: width 300ms ease, background-color 300ms ease;
+}
+
+.sim-controls-bar--complete::after {
+  background: var(--green-win);
 }
 
 .sim-controls.is-scrolled {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.sim-controls-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .sim-controls__button,
@@ -828,46 +757,20 @@ img[alt*='logo'],
   border-color: transparent;
 }
 
-.sim-controls-status {
-  margin-left: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  width: 100%;
-  max-width: 600px;
-}
-
-.sim-controls-progress-track {
-  width: min(100%, 600px);
-  height: 6px;
-  border-radius: 999px;
-  background: var(--bg-inset);
-  overflow: hidden;
-}
-
-.sim-controls-progress-fill {
-  height: 100%;
-  background: var(--amber);
-  border-radius: 999px;
-  transition: width 300ms ease-out;
-}
-
 .sim-controls-progress {
   font-family: var(--font-sans);
   font-size: 12px;
   color: var(--text-tertiary);
   white-space: nowrap;
-  text-align: center;
+  margin-left: auto;
+  text-align: right;
 }
 
 .sim-controls-live-indicator {
   font-family: var(--font-sans);
   font-size: 11px;
   color: var(--text-amber);
-  width: 100%;
-  text-align: center;
+  white-space: nowrap;
 }
 
 .progress-container,
@@ -920,7 +823,9 @@ img[alt*='logo'],
   padding: 10px 24px;
   cursor: pointer;
   transition: all 150ms ease;
-  margin-top: 8px;
+  margin-top: 0;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .playoffs-unlocked-cta:hover {
@@ -955,7 +860,8 @@ img[alt*='logo'],
   top: 72px;
   max-height: calc(100vh - 84px);
   overflow-y: auto;
-  padding-bottom: var(--space-8);
+  padding-bottom: calc(var(--space-8) + 56px);
+  scroll-padding-bottom: 72px;
 }
 
 .side-panel::-webkit-scrollbar {
@@ -978,6 +884,34 @@ img[alt*='logo'],
   padding: var(--space-4);
   margin-bottom: var(--space-4);
   box-shadow: var(--shadow-panel);
+}
+
+.futures-teaser {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  background: linear-gradient(0deg, rgba(14, 12, 9, 0.98) 60%, transparent 100%);
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.futures-teaser-text {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-amber);
+}
+
+.futures-teaser-arrow {
+  display: block;
+  font-size: 14px;
+  color: var(--text-amber);
+  animation: bounceDown 1.5s ease-in-out infinite;
 }
 
 .panel-header {
@@ -1032,7 +966,14 @@ img[alt*='logo'],
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   text-align: left;
+}
+
+.date-group-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .date-group__title {
@@ -1042,6 +983,12 @@ img[alt*='logo'],
 }
 
 .date-group__meta {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.date-group-count {
+  font-family: var(--font-sans);
   font-size: 12px;
   color: var(--text-tertiary);
 }
@@ -1078,12 +1025,12 @@ img[alt*='logo'],
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   overflow: visible;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .game-card:hover {
-  border-color: rgba(184, 125, 24, 0.15);
-  box-shadow: 0 0 12px rgba(184, 125, 24, 0.04);
+  border-color: rgba(184, 125, 24, 0.2);
+  box-shadow: 0 0 16px rgba(184, 125, 24, 0.05);
 }
 
 .game-card--picked {
@@ -1124,7 +1071,7 @@ img[alt*='logo'],
   border-left: 3px solid transparent;
   border-radius: var(--radius-sm);
   transition:
-    background 120ms ease,
+    background 100ms ease,
     opacity 250ms ease,
     border-color var(--transition-fast),
     transform 80ms ease;
@@ -1163,7 +1110,7 @@ img[alt*='logo'],
 }
 
 .team-row:hover:enabled {
-  background: rgba(184, 125, 24, 0.07);
+  background: rgba(184, 125, 24, 0.06);
 }
 
 .team-row--winner {
@@ -1328,6 +1275,14 @@ img[alt*='logo'],
 
 .standings-row:hover {
   background: var(--bg-hover);
+}
+
+.standings-row.eliminated {
+  opacity: 0.5;
+}
+
+.standings-row.eliminated .standings-team__abbr {
+  color: var(--text-tertiary);
 }
 
 .standings-row--changed {
@@ -2558,35 +2513,12 @@ img[alt*='logo'],
   }
 
   .oracle-hero {
-    padding: 34px 16px 18px;
-  }
-
-  .hero-eyebrow {
-    font-size: 10px;
-    margin-bottom: 14px;
+    padding: 28px 16px 14px;
   }
 
   .hero-glow {
-    width: 390px;
+    width: 400px;
     height: 300px;
-  }
-
-  .hero-lightning {
-    opacity: 0.24;
-  }
-
-  .hero-halo-arcs {
-    right: -190px;
-    width: 420px;
-    height: 420px;
-    opacity: 0.12;
-  }
-
-  .hero-starfield {
-    right: 2%;
-    top: 12%;
-    width: 220px;
-    height: 150px;
   }
 
   .oracle-title-prefix {
@@ -2595,13 +2527,18 @@ img[alt*='logo'],
   }
 
   .oracle-title-name {
-    font-size: clamp(3.2rem, 16vw, 5.5rem);
+    font-size: clamp(3.5rem, 18vw, 6rem);
   }
 
   .hero-subtitle {
     font-size: 12px;
-    margin-top: 14px;
+    margin-top: 12px;
     max-width: 340px;
+  }
+
+  .hero-particles {
+    width: 300px;
+    height: 150px;
   }
 
   .tab-header {
@@ -2665,29 +2602,25 @@ img[alt*='logo'],
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .sim-controls {
+  .sim-controls,
+  .sim-controls-bar {
     top: 94px;
     padding: var(--space-3);
     flex-wrap: wrap;
     justify-content: center;
   }
 
-  .sim-controls-status {
+  .sim-controls-bar__actions {
     width: 100%;
-    align-items: center;
+    justify-content: center;
   }
 
-  .sim-controls-progress-track {
-    width: 100%;
-  }
-
-  .sim-controls-live-indicator {
+  .sim-controls-live-indicator,
+  .sim-controls-progress,
+  .playoffs-unlocked-cta {
     width: 100%;
     text-align: center;
-  }
-
-  .progress-panel {
-    padding: var(--space-3);
+    margin-left: 0;
   }
 
   .og-nav-inner {
@@ -2744,22 +2677,17 @@ img[alt*='logo'],
 
   .hero-glow {
     animation: none;
-    opacity: 0.9;
+    opacity: 1;
   }
 
-  .hero-lightning path,
-  .hero-halo-arcs,
-  .hero-starfield span,
-  .oracle-hero,
-  .hero-eyebrow,
   .oracle-title-prefix,
   .oracle-title-name,
   .hero-subtitle,
-  .lightning-flash {
+  .hero-particles::before,
+  .hero-particles::after {
     animation: none !important;
   }
 
-  .hero-eyebrow,
   .oracle-title-prefix,
   .oracle-title-name,
   .hero-subtitle {
@@ -2768,10 +2696,11 @@ img[alt*='logo'],
   }
 
   .oracle-title-name {
-    background-position: 40% center;
+    background-position: 0% center;
     filter:
-      drop-shadow(0 0 30px rgba(184, 125, 24, 0.26))
-      drop-shadow(0 4px 8px rgba(0, 0, 0, 0.34));
+      drop-shadow(0 0 40px rgba(255, 200, 87, 0.3))
+      drop-shadow(0 0 80px rgba(184, 125, 24, 0.2))
+      drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
   }
 
   .odds-ticker-track,
@@ -2780,7 +2709,8 @@ img[alt*='logo'],
   .delta-badge,
   .game-card--sim-filling,
   .oracle-reveal,
-  .oracle-reveal-card {
+  .oracle-reveal-card,
+  .futures-teaser-arrow {
     animation: none;
   }
 
