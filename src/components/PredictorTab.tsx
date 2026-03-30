@@ -1,9 +1,9 @@
 // Auto-generated PredictorTab.tsx — do not edit manually
 // Updated: 2026-03-29
-import { useState, useMemo } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { NBA_TEAMS } from '../data/nbaTeams';
-import type { OddsFormat } from '../types';
+import type { NbaTeam, OddsFormat } from '../types';
 import { formatOdds } from '../lib/formatOdds';
 
 interface PredictorTabProps {
@@ -44,6 +44,42 @@ function oddsPair(probability: number, oddsFormat: OddsFormat): { primary: strin
   };
 }
 
+function probabilityFillStyle(probability: number): CSSProperties {
+  return { '--prob-width': `${(probability * 100).toFixed(1)}%` } as CSSProperties;
+}
+
+function TeamLogo({
+  team,
+  className,
+  fallbackClassName,
+}: {
+  team: NbaTeam;
+  className: string;
+  fallbackClassName: string;
+}) {
+  return (
+    <>
+      <img
+        className={className}
+        src={team.logoUrl}
+        alt={team.abbr}
+        loading="lazy"
+        onError={(event: { currentTarget: HTMLImageElement }) => {
+          event.currentTarget.style.display = 'none';
+          const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+          if (fallback) {
+            fallback.style.display = 'flex';
+          }
+        }}
+      />
+      <span className={`logo-fallback ${fallbackClassName}`} style={{ display: 'none' }}>
+        {team.abbr}
+      </span>
+    </>
+  );
+}
+
 export function PredictorTab({ oddsFormat }: PredictorTabProps) {
   const defaultA = SORTED_TEAMS.find(t => t.abbr === 'OKC')?.id ?? SORTED_TEAMS[0].id;
   const defaultB = SORTED_TEAMS.find(t => t.abbr === 'BOS')?.id ?? SORTED_TEAMS[1].id;
@@ -82,21 +118,21 @@ export function PredictorTab({ oddsFormat }: PredictorTabProps) {
   const OUTCOMES_A = ['4-0','4-1','4-2','4-3'] as const;
   const OUTCOMES_B = ['0-4','1-4','2-4','3-4'] as const;
 
-  const cellStyle = {
-    background: 'var(--bg-subtle)', borderRadius: 6, padding: '8px 4px', textAlign: 'center' as const,
-  };
+  const singleGameRows = [
+    { team: teamA, probability: pA, isFavorite: pA >= pB },
+    { team: teamB, probability: pB, isFavorite: pB > pA },
+  ];
+
+  const mostLikelyA = series
+    ? OUTCOMES_A.reduce((best, outcome) => ((series[outcome] ?? 0) > (series[best] ?? 0) ? outcome : best), OUTCOMES_A[0])
+    : OUTCOMES_A[0];
+  const mostLikelyB = series
+    ? OUTCOMES_B.reduce((best, outcome) => ((series[outcome] ?? 0) > (series[best] ?? 0) ? outcome : best), OUTCOMES_B[0])
+    : OUTCOMES_B[0];
 
   return (
     <div className="predictor-shell">
-      <section className="side-panel-section">
-        <div className="panel-header">
-          <div>
-            <p className="panel-kicker">Oracle Analytics</p>
-            <h2 className="panel-title">Matchup Predictor</h2>
-          </div>
-        </div>
-
-        {/* Team selectors */}
+      <div className="predictor-container">
         <div className="predictor-select-row">
           <select className="predictor-select" value={teamAId} onChange={(e: { target: { value: string } }) => handleTeamAChange(Number(e.target.value))}>
             {SORTED_TEAMS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -107,67 +143,35 @@ export function PredictorTab({ oddsFormat }: PredictorTabProps) {
           </select>
         </div>
 
-        <div className="predictor-matchup">
-          <div className="predictor-team">
-            <span className="predictor-logo-wrap">
-              <img
-                className="predictor-logo"
-                src={teamA.logoUrl}
-                alt={teamA.abbr}
-                loading="lazy"
-                onError={(event: { currentTarget: HTMLImageElement }) => {
-                  event.currentTarget.style.display = 'none';
-                  const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
-
-                  if (fallback) {
-                    fallback.style.display = 'flex';
-                  }
-                }}
-              />
-              <span className="logo-fallback predictor-logo-fallback" style={{ display: 'none' }}>
-                {teamA.abbr}
-              </span>
+        <div className="predictor-arena">
+          <div className="arena-team arena-team-left">
+            <span className="arena-logo-wrap">
+              <TeamLogo team={teamA} className="arena-logo" fallbackClassName="arena-logo-fallback" />
             </span>
-            <span className="predictor-team-copy">
-              <span className="predictor-name">{teamA.name}</span>
-              <span className="predictor-abbr">{teamA.abbr}</span>
-            </span>
+            <span className="arena-abbr">{teamA.abbr}</span>
+            <span className="arena-name">{teamA.city}</span>
           </div>
-          <span className="predictor-vs">vs</span>
-          <div className="predictor-team predictor-team--reverse">
-            <span className="predictor-team-copy">
-              <span className="predictor-name">{teamB.name}</span>
-              <span className="predictor-abbr">{teamB.abbr}</span>
+          <div className="arena-center">
+            <span className="arena-vs">VS</span>
+          </div>
+          <div className="arena-team arena-team-right">
+            <span className="arena-logo-wrap">
+              <TeamLogo team={teamB} className="arena-logo" fallbackClassName="arena-logo-fallback" />
             </span>
-            <span className="predictor-logo-wrap">
-              <img
-                className="predictor-logo"
-                src={teamB.logoUrl}
-                alt={teamB.abbr}
-                loading="lazy"
-                onError={(event: { currentTarget: HTMLImageElement }) => {
-                  event.currentTarget.style.display = 'none';
-                  const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
-
-                  if (fallback) {
-                    fallback.style.display = 'flex';
-                  }
-                }}
-              />
-              <span className="logo-fallback predictor-logo-fallback" style={{ display: 'none' }}>
-                {teamB.abbr}
-              </span>
-            </span>
+            <span className="arena-abbr">{teamB.abbr}</span>
+            <span className="arena-name">{teamB.city}</span>
+          </div>
+          <div className="arena-prob-bar" aria-hidden="true">
+            <div className="arena-prob-fill" style={{ width: `${(pA * 100).toFixed(1)}%` }} />
           </div>
         </div>
 
-        {/* Home court toggle */}
-        <div className="predictor-homecourt-toggle">
+        <div className="venue-toggle" role="tablist" aria-label="Venue toggle">
           {(['A', 'neutral', 'B'] as HomeCourt[]).map(hc => (
             <button
               key={hc}
               type="button"
-              className={homeCourt === hc ? 'conference-toggle__button is-active' : 'conference-toggle__button'}
+              className={homeCourt === hc ? 'venue-toggle-btn active' : 'venue-toggle-btn'}
               onClick={() => setHomeCourt(hc)}
             >
               {hc === 'A' ? `${teamA.abbr} Home` : hc === 'B' ? `${teamB.abbr} Home` : 'Neutral'}
@@ -175,78 +179,90 @@ export function PredictorTab({ oddsFormat }: PredictorTabProps) {
           ))}
         </div>
 
-        {/* Single game */}
-        <div style={{ marginBottom: 24 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8 }}>Single Game</p>
-          {([{ team: teamA, p: pA }, { team: teamB, p: pB }]).map(({ team, p }) => {
-            const values = oddsPair(p, oddsFormat);
+        <section className="predictor-panel">
+          <p className="predictor-section-label">Single Game</p>
+          {singleGameRows.map(({ team, probability, isFavorite }) => {
+            const values = oddsPair(probability, oddsFormat);
+            const className = isFavorite
+              ? 'predictor-result-row is-favorite'
+              : 'predictor-result-row is-underdog';
 
             return (
-              <div key={team.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <img src={team.logoUrl} alt={team.abbr} width={24} height={24} style={{ display: 'block' }} />
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>{team.abbr}</span>
-                  <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{team.name.replace(team.city + ' ', '')}</span>
+              <div key={team.id} className={className} style={probabilityFillStyle(probability)}>
+                <div className="predictor-row-team">
+                  <span className="predictor-row-logo-wrap">
+                    <TeamLogo team={team} className="team-logo predictor-row-logo" fallbackClassName="predictor-row-logo-fallback" />
+                  </span>
+                  <div className="predictor-row-copy">
+                    <span className="predictor-row-abbr">{team.abbr}</span>
+                    <span className="predictor-row-name">{team.name}</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-amber)', minWidth: 52, textAlign: 'right' }}>{values.primary}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', minWidth: 52, textAlign: 'right' }}>{values.secondary}</span>
+                <div className="predictor-row-values">
+                  <span className="predictor-prob">{values.primary}</span>
+                  <span className="predictor-odds">{values.secondary}</span>
                 </div>
               </div>
             );
           })}
-        </div>
+        </section>
 
-        {/* Series */}
-        {series ? (
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 12 }}>Best of 7 Series</p>
-            {([
-              { team: teamA, p: pAWinsSeries, outs: OUTCOMES_A, isA: true },
-              { team: teamB, p: pBWinsSeries, outs: OUTCOMES_B, isA: false },
-            ]).map(({ team, p, outs, isA }) => {
-              const values = oddsPair(p, oddsFormat);
+        <section className="predictor-panel">
+          <p className="predictor-section-label">Best of 7 Series</p>
+          {series ? (
+            <div className="predictor-series-stack">
+              {([
+                { team: teamA, probability: pAWinsSeries, outcomes: OUTCOMES_A, isA: true, mostLikely: mostLikelyA },
+                { team: teamB, probability: pBWinsSeries, outcomes: OUTCOMES_B, isA: false, mostLikely: mostLikelyB },
+              ]).map(({ team, probability, outcomes, isA, mostLikely }) => {
+                const values = oddsPair(probability, oddsFormat);
 
-              return (
-                <div key={team.id} style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <img src={team.logoUrl} alt={team.abbr} width={20} height={20} style={{ display: 'block' }} />
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>{team.abbr} wins series</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-amber)', minWidth: 52, textAlign: 'right' }}>{values.primary}</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', minWidth: 52, textAlign: 'right' }}>{values.secondary}</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-                    {outs.map(k => {
-                      const [hw, lw] = k.split('-').map(Number);
-                      const games = hw + lw;
-                      const score = isA ? `${teamA.abbr} 4-${lw}` : `${teamB.abbr} 4-${hw}`;
-                      return (
-                        <div key={k} style={cellStyle}>
-                          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>
-                            {games === 4 ? 'Sweep' : `In ${games}`}
-                          </div>
-                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>{score}</div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {((series[k] ?? 0) * 100).toFixed(1)}%
-                          </div>
+                return (
+                  <div key={team.id} className="predictor-series-card">
+                    <div className="predictor-series-header">
+                      <div className="predictor-row-team">
+                        <span className="predictor-row-logo-wrap">
+                          <TeamLogo team={team} className="team-logo predictor-row-logo" fallbackClassName="predictor-row-logo-fallback" />
+                        </span>
+                        <div className="predictor-row-copy">
+                          <span className="predictor-row-abbr">{team.abbr}</span>
+                          <span className="predictor-series-title">{team.abbr} wins series</span>
                         </div>
-                      );
-                    })}
+                      </div>
+                      <div className="predictor-row-values">
+                        <span className="predictor-prob">{values.primary}</span>
+                        <span className="predictor-odds">{values.secondary}</span>
+                      </div>
+                    </div>
+
+                    <div className="series-length-grid">
+                      {outcomes.map(outcome => {
+                        const [aWins, bWins] = outcome.split('-').map(Number);
+                        const games = aWins + bWins;
+                        const detail = isA ? `${teamA.abbr} 4-${bWins}` : `${teamB.abbr} 4-${aWins}`;
+                        const probabilityValue = series[outcome] ?? 0;
+                        const columnClassName = outcome === mostLikely
+                          ? 'series-length-col most-likely'
+                          : 'series-length-col';
+
+                        return (
+                          <div key={outcome} className={columnClassName}>
+                            <span className="series-length-label">{games === 4 ? 'Sweep' : `In ${games}`}</span>
+                            <span className="series-length-detail">{detail}</span>
+                            <span className="series-length-prob">{(probabilityValue * 100).toFixed(1)}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>
-            Select a home team above to see series predictions.
-          </p>
-        )}
-      </section>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="predictor-note">Select a home team above to see series predictions.</p>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
