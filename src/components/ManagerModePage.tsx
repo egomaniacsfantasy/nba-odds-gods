@@ -1,337 +1,1008 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { NBA_TEAMS } from '../data/nbaTeams';
 
-const BUCKETS = ["G","W","B"] as const;
+const BUCKETS = ['G', 'W', 'B'] as const;
+const POSITION_FILTERS = ['all', 'G', 'W', 'B'] as const;
+const PLAYER_SORTS = [
+  { id: 'value', label: 'Value' },
+  { id: 'adp', label: 'ADP' },
+  { id: 'volatility', label: 'Risk' },
+  { id: 'name', label: 'Name' },
+] as const;
 type Bkt = typeof BUCKETS[number];
-interface DraftConfig { nTeams:number; rosterSize:number; nRounds:number; reqGuards:number; reqWings:number; reqBigs:number; sigmaNoise:number; }
-interface Player { playerIdx:number; playerId:number; playerName:string; teamAbbr:string; bucket:string; bpmC:number; adp?:number; adpStd?:number; }
-interface DraftPack { season:string; config:DraftConfig; players:Player[]; teams:string[]; aiValuations:Record<string,number[]>; }
-interface DraftSlot { round:number; pickInRound:number; overallPick:number; team:string; }
-interface Req { G:number; W:number; B:number; }
-interface PickRecord { overallPick:number; round:number; team:string; playerIdx:number; playerName:string; teamAbbr:string; bucket:string; isUser:boolean; }
-interface SeasonGame { gid:number; date:string; dn:number; t1:string; t2:string; loc:number; done:boolean; t1w:number|null; wp:number[]; }
-interface PoState { ssd:number; wp:number[]; }
-interface PoGame { gnum:number; dn:number; loc:number; states:PoState[]; }
-type PoData = Record<string,PoGame[]>;
-interface PlayInGame { dn:number; loc:number; wp:number[]; }
-interface SeasonData { season:string; bpm_grid:number[]; regular_season:SeasonGame[]; play_in:Record<string,PlayInGame>; playoffs:PoData; }
-interface TeamStat { w:number; l:number; projW:number; poPct:number; r1Pct:number; r2Pct:number; cfPct:number; finPct:number; champPct:number; }
-type Phase = "loading"|"select"|"draft"|"complete"|"season_load"|"season";
+type FilterKey = typeof POSITION_FILTERS[number];
+type PlayerSort = typeof PLAYER_SORTS[number]['id'];
 
-const EAST=new Set(["ATL","BOS","BKN","CHA","CHI","CLE","DET","IND","MIA","MIL","NYK","ORL","PHI","TOR","WAS"]);
-const WEST=new Set(["DAL","DEN","GSW","HOU","LAC","LAL","MEM","MIN","NOP","OKC","PHX","POR","SAC","SAS","UTA"]);
-
-function shuffle<T>(arr:T[]):T[]{const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-function buildSlots(teams:string[],nRounds:number):DraftSlot[]{const slots:DraftSlot[]=[];for(let r=1;r<=nRounds;r++){const order=r%2===1?teams:[...teams].reverse();order.forEach((team,i)=>slots.push({round:r,pickInRound:i+1,overallPick:(r-1)*teams.length+i+1,team}));}return slots;}
-function getReq(c:DraftConfig):Req{return{G:c.reqGuards,W:c.reqWings,B:c.reqBigs};}
-function neededBuckets(filled:Req,req:Req):Bkt[]{return BUCKETS.filter(b=>filled[b]<req[b]);}
-function unfilledCount(filled:Req,req:Req):number{return BUCKETS.reduce((s,b)=>s+Math.max(0,req[b]-filled[b]),0);}
-function scarcityPrem(bkt:Bkt,avail:Set<number>,players:Player[],reqs:Record<string,Req>,teams:string[],req:Req,sigma:number):number{const nA=[...avail].filter(i=>players[i]?.bucket===bkt).length;const nN=teams.filter(t=>(reqs[t]?.[bkt]??0)<req[bkt]).length;if(!nN)return 0;return Math.max(0,1-nA/nN/2)*sigma*0.5;}
-function aiPickPlayer(team:string,slot:DraftSlot,pack:DraftPack,slots:DraftSlot[],avail:Set<number>,reqs:Record<string,Req>):number{const req=getReq(pack.config);const filled=reqs[team]??{G:0,W:0,B:0};const needed=neededBuckets(filled,req);const pLeft=slots.filter(s=>s.team===team&&s.overallPick>=slot.overallPick).length;let eligible=[...avail];if(pLeft<=unfilledCount(filled,req)&&needed.length>0){const r=eligible.filter(i=>needed.includes(pack.players[i]?.bucket as Bkt));if(r.length>0)eligible=r;}const vals=pack.aiValuations[team]??[];let best=eligible[0]??0,bestV=-Infinity;for(const i of eligible){let v=vals[i]??0;const b=pack.players[i]?.bucket as Bkt;if(b&&needed.includes(b))v+=scarcityPrem(b,avail,pack.players,reqs,pack.teams,req,pack.config.sigmaNoise);if(v>bestV){bestV=v;best=i;}}return best;}
-
-function interpWP(wp:number[],diff:number):number{
-  const idx=Math.max(0,Math.min(120,(diff+6)/0.1));
-  const lo=Math.floor(idx),hi=Math.min(120,lo+1),t=idx-lo;
-  return wp[lo]*(1-t)+wp[hi]*t;
+interface DraftConfig {
+  nTeams: number;
+  rosterSize: number;
+  nRounds: number;
+  reqGuards: number;
+  reqWings: number;
+  reqBigs: number;
+  sigmaNoise: number;
 }
 
-function computeBpmZ(rosters:Record<string,number[]>,players:Player[]):Record<string,number>{
-  const teams=Object.keys(rosters);
-  const bpms=teams.map(t=>(rosters[t]??[]).reduce((s,i)=>s+(players[i]?.bpmC??0),0));
-  const mean=bpms.reduce((a,b)=>a+b,0)/Math.max(1,bpms.length);
-  const std=Math.sqrt(bpms.reduce((s,b)=>s+(b-mean)**2,0)/Math.max(1,bpms.length))||1;
-  const r:Record<string,number>={};
-  teams.forEach((t,i)=>r[t]=(bpms[i]-mean)/std);
-  return r;
+interface Player {
+  playerIdx: number;
+  playerId: number;
+  playerName: string;
+  teamAbbr: string;
+  bucket: string;
+  bpmC: number;
+  adp?: number;
+  adpStd?: number;
 }
 
-function runSeasonStats(games:SeasonGame[],_bpmZ:Record<string,number>):Record<string,TeamStat>{
-  const allTeams=[...new Set(games.flatMap(g=>[g.t1,g.t2]))];
-  const result:Record<string,TeamStat>={};
-  for(const t of allTeams)result[t]={w:0,l:0,projW:0,poPct:0,r1Pct:0,r2Pct:0,cfPct:0,finPct:0,champPct:0};
+interface DraftPack {
+  season: string;
+  config: DraftConfig;
+  players: Player[];
+  teams: string[];
+  aiValuations: Record<string, number[]>;
+}
+
+interface DraftSlot {
+  round: number;
+  pickInRound: number;
+  overallPick: number;
+  team: string;
+}
+
+interface Req {
+  G: number;
+  W: number;
+  B: number;
+}
+
+interface PickRecord {
+  overallPick: number;
+  round: number;
+  team: string;
+  playerIdx: number;
+  playerName: string;
+  teamAbbr: string;
+  bucket: string;
+  isUser: boolean;
+}
+
+interface SeasonGame {
+  gid: number;
+  date: string;
+  dn: number;
+  t1: string;
+  t2: string;
+  loc: number;
+  done: boolean;
+  t1w: number | null;
+  wp: number[];
+}
+
+interface PoState {
+  ssd: number;
+  wp: number[];
+}
+
+interface PoGame {
+  gnum: number;
+  dn: number;
+  loc: number;
+  states: PoState[];
+}
+
+type PoData = Record<string, PoGame[]>;
+
+interface PlayInGame {
+  dn: number;
+  loc: number;
+  wp: number[];
+}
+
+interface SeasonData {
+  season: string;
+  bpm_grid: number[];
+  regular_season: SeasonGame[];
+  play_in: Record<string, PlayInGame>;
+  playoffs: PoData;
+}
+
+interface TeamStat {
+  w: number;
+  l: number;
+  projW: number;
+  poPct: number;
+  r1Pct: number;
+  r2Pct: number;
+  cfPct: number;
+  finPct: number;
+  champPct: number;
+}
+
+interface RenderSlot {
+  label: string;
+  player: Player | null;
+  bucket: Bkt | null;
+}
+
+type Phase = 'loading' | 'select' | 'draft' | 'complete' | 'season_load' | 'season';
+
+const EAST = new Set(['ATL', 'BOS', 'BKN', 'CHA', 'CHI', 'CLE', 'DET', 'IND', 'MIA', 'MIL', 'NYK', 'ORL', 'PHI', 'TOR', 'WAS']);
+const WEST = new Set(['DAL', 'DEN', 'GSW', 'HOU', 'LAC', 'LAL', 'MEM', 'MIN', 'NOP', 'OKC', 'PHX', 'POR', 'SAC', 'SAS', 'UTA']);
+const TEAM_META_BY_ABBR = new Map(NBA_TEAMS.map((team) => [team.abbr, team]));
+
+function shuffle<T>(arr: T[]): T[] {
+  const next = [...arr];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+  return next;
+}
+
+function buildSlots(teams: string[], nRounds: number): DraftSlot[] {
+  const slots: DraftSlot[] = [];
+  for (let round = 1; round <= nRounds; round += 1) {
+    const order = round % 2 === 1 ? teams : [...teams].reverse();
+    order.forEach((team, index) => {
+      slots.push({
+        round,
+        pickInRound: index + 1,
+        overallPick: (round - 1) * teams.length + index + 1,
+        team,
+      });
+    });
+  }
+  return slots;
+}
+
+function getReq(config: DraftConfig): Req {
+  return { G: config.reqGuards, W: config.reqWings, B: config.reqBigs };
+}
+
+function neededBuckets(filled: Req, req: Req): Bkt[] {
+  return BUCKETS.filter((bucket) => filled[bucket] < req[bucket]);
+}
+
+function unfilledCount(filled: Req, req: Req): number {
+  return BUCKETS.reduce((sum, bucket) => sum + Math.max(0, req[bucket] - filled[bucket]), 0);
+}
+
+function scarcityPrem(
+  bucket: Bkt,
+  available: Set<number>,
+  players: Player[],
+  requirements: Record<string, Req>,
+  teams: string[],
+  req: Req,
+  sigma: number,
+): number {
+  const availableCount = [...available].filter((index) => players[index]?.bucket === bucket).length;
+  const needyTeams = teams.filter((team) => (requirements[team]?.[bucket] ?? 0) < req[bucket]).length;
+  if (!needyTeams) {
+    return 0;
+  }
+  return Math.max(0, 1 - availableCount / needyTeams / 2) * sigma * 0.5;
+}
+
+function aiPickPlayer(
+  team: string,
+  slot: DraftSlot,
+  pack: DraftPack,
+  slots: DraftSlot[],
+  available: Set<number>,
+  requirements: Record<string, Req>,
+): number {
+  const req = getReq(pack.config);
+  const filled = requirements[team] ?? { G: 0, W: 0, B: 0 };
+  const needed = neededBuckets(filled, req);
+  const picksLeft = slots.filter((draftSlot) => draftSlot.team === team && draftSlot.overallPick >= slot.overallPick).length;
+  let eligible = [...available];
+
+  if (picksLeft <= unfilledCount(filled, req) && needed.length > 0) {
+    const restricted = eligible.filter((index) => needed.includes(pack.players[index]?.bucket as Bkt));
+    if (restricted.length > 0) {
+      eligible = restricted;
+    }
+  }
+
+  const values = pack.aiValuations[team] ?? [];
+  let bestIndex = eligible[0] ?? 0;
+  let bestValue = -Infinity;
+
+  for (const index of eligible) {
+    let value = values[index] ?? 0;
+    const bucket = pack.players[index]?.bucket as Bkt;
+    if (bucket && needed.includes(bucket)) {
+      value += scarcityPrem(bucket, available, pack.players, requirements, pack.teams, req, pack.config.sigmaNoise);
+    }
+    if (value > bestValue) {
+      bestValue = value;
+      bestIndex = index;
+    }
+  }
+
+  return bestIndex;
+}
+
+function interpWP(wp: number[], diff: number): number {
+  const index = Math.max(0, Math.min(120, (diff + 6) / 0.1));
+  const low = Math.floor(index);
+  const high = Math.min(120, low + 1);
+  const mix = index - low;
+  return wp[low] * (1 - mix) + wp[high] * mix;
+}
+
+function computeBpmZ(rosters: Record<string, number[]>, players: Player[]): Record<string, number> {
+  const teams = Object.keys(rosters);
+  const totals = teams.map((team) => (rosters[team] ?? []).reduce((sum, index) => sum + (players[index]?.bpmC ?? 0), 0));
+  const mean = totals.reduce((sum, value) => sum + value, 0) / Math.max(1, totals.length);
+  const std = Math.sqrt(totals.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, totals.length)) || 1;
+  const result: Record<string, number> = {};
+  teams.forEach((team, index) => {
+    result[team] = (totals[index] - mean) / std;
+  });
   return result;
 }
 
+function runSeasonStats(games: SeasonGame[], _bpmZ: Record<string, number>): Record<string, TeamStat> {
+  const allTeams = [...new Set(games.flatMap((game) => [game.t1, game.t2]))];
+  const result: Record<string, TeamStat> = {};
+  for (const team of allTeams) {
+    result[team] = { w: 0, l: 0, projW: 0, poPct: 0, r1Pct: 0, r2Pct: 0, cfPct: 0, finPct: 0, champPct: 0 };
+  }
+  return result;
+}
+
+function bucketClass(bucket: Bkt): 'guard' | 'wing' | 'big' {
+  if (bucket === 'G') {
+    return 'guard';
+  }
+  if (bucket === 'W') {
+    return 'wing';
+  }
+  return 'big';
+}
+
+function bucketLabel(bucket: Bkt): string {
+  if (bucket === 'G') {
+    return 'Guard';
+  }
+  if (bucket === 'W') {
+    return 'Wing';
+  }
+  return 'Big';
+}
+
+function formatOracleValue(value: number): string {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`;
+}
+
+function searchMatches(player: Player, query: string): boolean {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  return player.playerName.toLowerCase().includes(normalized) || player.teamAbbr.toLowerCase().includes(normalized);
+}
+
+function comparePlayers(a: Player, b: Player, sortBy: PlayerSort): number {
+  if (sortBy === 'name') {
+    return a.playerName.localeCompare(b.playerName);
+  }
+
+  if (sortBy === 'adp') {
+    const delta = (a.adp ?? Number.POSITIVE_INFINITY) - (b.adp ?? Number.POSITIVE_INFINITY);
+    return delta || b.bpmC - a.bpmC || a.playerName.localeCompare(b.playerName);
+  }
+
+  if (sortBy === 'volatility') {
+    const delta = (b.adpStd ?? -1) - (a.adpStd ?? -1);
+    return delta || b.bpmC - a.bpmC || a.playerName.localeCompare(b.playerName);
+  }
+
+  return b.bpmC - a.bpmC || (a.adp ?? Number.POSITIVE_INFINITY) - (b.adp ?? Number.POSITIVE_INFINITY) || a.playerName.localeCompare(b.playerName);
+}
+
+function buildRosterSlots(playerIndexes: number[], players: Player[], req: Req): { starters: RenderSlot[]; bench: RenderSlot[] } {
+  const rosterPlayers = playerIndexes.map((index) => players[index]).filter(Boolean);
+  const guards: Player[] = [];
+  const wings: Player[] = [];
+  const bigs: Player[] = [];
+  const bench: Player[] = [];
+
+  for (const player of rosterPlayers) {
+    const bucket = player.bucket as Bkt;
+    if (bucket === 'G' && guards.length < req.G) {
+      guards.push(player);
+      continue;
+    }
+    if (bucket === 'W' && wings.length < req.W) {
+      wings.push(player);
+      continue;
+    }
+    if (bucket === 'B' && bigs.length < req.B) {
+      bigs.push(player);
+      continue;
+    }
+    bench.push(player);
+  }
+
+  return {
+    starters: [
+      { label: 'Guard 1', player: guards[0] ?? null, bucket: 'G' },
+      { label: 'Guard 2', player: guards[1] ?? null, bucket: 'G' },
+      { label: 'Wing 1', player: wings[0] ?? null, bucket: 'W' },
+      { label: 'Wing 2', player: wings[1] ?? null, bucket: 'W' },
+      { label: 'Big 1', player: bigs[0] ?? null, bucket: 'B' },
+    ],
+    bench: [
+      { label: 'Bench 1', player: bench[0] ?? null, bucket: null },
+      { label: 'Bench 2', player: bench[1] ?? null, bucket: null },
+      { label: 'Bench 3', player: bench[2] ?? null, bucket: null },
+    ],
+  };
+}
+
+function remainingNeedsText(playerIndexes: number[], players: Player[], req: Req, rosterSize: number): string {
+  const rosterPlayers = playerIndexes.map((index) => players[index]).filter(Boolean);
+  const counts: Req = { G: 0, W: 0, B: 0 };
+  rosterPlayers.forEach((player) => {
+    const bucket = player.bucket as Bkt;
+    if (counts[bucket] < req[bucket]) {
+      counts[bucket] += 1;
+    }
+  });
+
+  const parts: string[] = [];
+  BUCKETS.forEach((bucket) => {
+    const missing = Math.max(0, req[bucket] - counts[bucket]);
+    if (missing > 0) {
+      parts.push(`${missing} ${bucketLabel(bucket)}${missing === 1 ? '' : 's'}`);
+    }
+  });
+
+  const benchMissing = Math.max(0, rosterSize - rosterPlayers.length);
+  if (benchMissing > 0) {
+    parts.push(`${benchMissing} Bench`);
+  }
+
+  return parts.length > 0 ? parts.join(', ') : 'Roster complete';
+}
+
+function nextUserPick(slots: DraftSlot[], pickIndex: number, userTeam: string): { slot: DraftSlot; picksUntil: number } | null {
+  for (let index = pickIndex + 1; index < slots.length; index += 1) {
+    if (slots[index].team === userTeam) {
+      return { slot: slots[index], picksUntil: index - pickIndex };
+    }
+  }
+  return null;
+}
+
 export default function ManagerModePage() {
-  const [pack,setPack]=useState<DraftPack|null>(null);
-  const [phase,setPhase]=useState<Phase>("loading");
-  const [fetchErr,setFetchErr]=useState<string|null>(null);
-  const [userTeam,setUserTeam]=useState("");
-  const [draftSlots,setDraftSlots]=useState<DraftSlot[]>([]);
-  const [pickIdx,setPickIdx]=useState(0);
-  const [avail,setAvail]=useState<Set<number>>(new Set());
-  const [reqs,setReqs]=useState<Record<string,Req>>({});
-  const [rosters,setRosters]=useState<Record<string,number[]>>({});
-  const [log,setLog]=useState<PickRecord[]>([]);
-  const [filter,setFilter]=useState("all");
-  const [seasonData,setSeasonData]=useState<SeasonData|null>(null);
-  const [seasonErr,setSeasonErr]=useState<string|null>(null);
-  const [stats,setStats]=useState<Record<string,TeamStat>>({});
-  const [bpmZ,setBpmZ]=useState<Record<string,number>>({});
-  const [seasonTab,setSeasonTab]=useState<"standings"|"schedule">("schedule");
-  const availRef=useRef<Set<number>>(new Set());
-  const reqsRef=useRef<Record<string,Req>>({});
-  availRef.current=avail; reqsRef.current=reqs;
+  const [pack, setPack] = useState<DraftPack | null>(null);
+  const [phase, setPhase] = useState<Phase>('loading');
+  const [fetchErr, setFetchErr] = useState<string | null>(null);
+  const [userTeam, setUserTeam] = useState('');
+  const [draftSlots, setDraftSlots] = useState<DraftSlot[]>([]);
+  const [pickIdx, setPickIdx] = useState(0);
+  const [avail, setAvail] = useState<Set<number>>(new Set());
+  const [reqs, setReqs] = useState<Record<string, Req>>({});
+  const [rosters, setRosters] = useState<Record<string, number[]>>({});
+  const [log, setLog] = useState<PickRecord[]>([]);
+  const [filter, setFilter] = useState<FilterKey>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<PlayerSort>('value');
+  const [seasonData, setSeasonData] = useState<SeasonData | null>(null);
+  const [seasonErr, setSeasonErr] = useState<string | null>(null);
+  const [stats, setStats] = useState<Record<string, TeamStat>>({});
+  const [bpmZ, setBpmZ] = useState<Record<string, number>>({});
+  const [seasonTab, setSeasonTab] = useState<'standings' | 'schedule'>('schedule');
+  const availRef = useRef<Set<number>>(new Set());
+  const reqsRef = useRef<Record<string, Req>>({});
 
-  useEffect(()=>{
-    fetch("/data/mgr_draft_pack.json")
-      .then(r=>{if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();})
-      .then((d:DraftPack)=>{setPack(d);setPhase("select");})
-      .catch((e:unknown)=>setFetchErr(String(e)));
-  },[]);
+  availRef.current = avail;
+  reqsRef.current = reqs;
 
-  const startDraft=useCallback(()=>{
-    if(!pack) return;
-    const order=shuffle(pack.teams);
-    const slots=buildSlots(order,pack.config.nRounds);
-    const ir:Record<string,Req>={},rr:Record<string,number[]>={};
-    for(const t of pack.teams){ir[t]={G:0,W:0,B:0};rr[t]=[];}
-    setDraftSlots(slots);setReqs(ir);setRosters(rr);
-    setAvail(new Set(pack.players.map(p=>p.playerIdx)));
-    setLog([]);setPickIdx(0);setPhase("draft");
-  },[pack]);
-
-  const recordPick=useCallback((sIdx:number,playerIdx:number,slots:DraftSlot[])=>{
-    if(!pack) return;
-    const slot=slots[sIdx];
-    const player=pack.players[playerIdx];
-    const req=getReq(pack.config);
-    const b=player.bucket as Bkt;
-    setAvail(prev=>{const n=new Set(prev);n.delete(playerIdx);return n;});
-    setReqs(prev=>{const f=prev[slot.team]??{G:0,W:0,B:0};return f[b]<req[b]?{...prev,[slot.team]:{...f,[b]:f[b]+1}}:prev;});
-    setRosters(prev=>({...prev,[slot.team]:[...(prev[slot.team]??[]),playerIdx]}));
-    setLog(prev=>[...prev,{overallPick:slot.overallPick,round:slot.round,team:slot.team,playerIdx,playerName:player.playerName,teamAbbr:player.teamAbbr,bucket:player.bucket,isUser:slot.team===userTeam}]);
-    const next=sIdx+1;
-    setPickIdx(next);
-    if(next>=slots.length) setPhase("complete");
-  },[pack,userTeam]);
-
-  useEffect(()=>{
-    if(phase!=="draft"||!pack||draftSlots.length===0) return;
-    if(pickIdx>=draftSlots.length) return;
-    const slot=draftSlots[pickIdx];
-    if(slot.team===userTeam) return;
-    const t=setTimeout(()=>{
-      const picked=aiPickPlayer(slot.team,slot,pack,draftSlots,availRef.current,reqsRef.current);
-      recordPick(pickIdx,picked,draftSlots);
-    },150);
-    return ()=>clearTimeout(t);
-  },[phase,pickIdx,pack,userTeam,draftSlots,recordPick]);
-
-  const startSeason=useCallback(()=>{
-    if(!pack) return;
-    setPhase("season_load");
-    setSeasonErr(null);
-    fetch("/data/mgr_season_data.json")
-      .then(r=>{if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();})
-      .then((d:SeasonData)=>{
-        const z=computeBpmZ(rosters,pack.players);
-        const st=runSeasonStats(d.regular_season,z);
-        setBpmZ(z);setSeasonData(d);setStats(st);setPhase("season");
+  useEffect(() => {
+    fetch('/data/mgr_draft_pack.json')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
       })
-      .catch((e:unknown)=>{setSeasonErr(String(e));setPhase("complete");});
-  },[pack,rosters]);
+      .then((data: DraftPack) => {
+        setPack(data);
+        setPhase('select');
+      })
+      .catch((error: unknown) => setFetchErr(String(error)));
+  }, []);
 
-  if(phase==="loading") return(
-    <div className="mgr-page">
-      <div className="mgr-loading">
-        {fetchErr
-          ?<><p className="mgr-error">{fetchErr}</p><p className="mgr-hint">Run manager_mode.py CELL 2 to generate the draft pack.</p></>
-          :<p className="mgr-hint">Loading draft pack...</p>}
+  const startDraft = useCallback(() => {
+    if (!pack) {
+      return;
+    }
+    const order = shuffle(pack.teams);
+    const slots = buildSlots(order, pack.config.nRounds);
+    const initialReqs: Record<string, Req> = {};
+    const initialRosters: Record<string, number[]> = {};
+    for (const team of pack.teams) {
+      initialReqs[team] = { G: 0, W: 0, B: 0 };
+      initialRosters[team] = [];
+    }
+    setDraftSlots(slots);
+    setReqs(initialReqs);
+    setRosters(initialRosters);
+    setAvail(new Set(pack.players.map((player) => player.playerIdx)));
+    setLog([]);
+    setPickIdx(0);
+    setFilter('all');
+    setSearchQuery('');
+    setSortBy('value');
+    setPhase('draft');
+  }, [pack]);
+
+  const recordPick = useCallback((slotIndex: number, playerIdx: number, slots: DraftSlot[]) => {
+    if (!pack) {
+      return;
+    }
+    const slot = slots[slotIndex];
+    const player = pack.players[playerIdx];
+    const req = getReq(pack.config);
+    const bucket = player.bucket as Bkt;
+
+    setAvail((current) => {
+      const next = new Set(current);
+      next.delete(playerIdx);
+      return next;
+    });
+
+    setReqs((current) => {
+      const filled = current[slot.team] ?? { G: 0, W: 0, B: 0 };
+      return filled[bucket] < req[bucket]
+        ? { ...current, [slot.team]: { ...filled, [bucket]: filled[bucket] + 1 } }
+        : current;
+    });
+
+    setRosters((current) => ({
+      ...current,
+      [slot.team]: [...(current[slot.team] ?? []), playerIdx],
+    }));
+
+    setLog((current) => [
+      ...current,
+      {
+        overallPick: slot.overallPick,
+        round: slot.round,
+        team: slot.team,
+        playerIdx,
+        playerName: player.playerName,
+        teamAbbr: player.teamAbbr,
+        bucket: player.bucket,
+        isUser: slot.team === userTeam,
+      },
+    ]);
+
+    const nextIndex = slotIndex + 1;
+    setPickIdx(nextIndex);
+    if (nextIndex >= slots.length) {
+      setPhase('complete');
+    }
+  }, [pack, userTeam]);
+
+  useEffect(() => {
+    if (phase !== 'draft' || !pack || draftSlots.length === 0) {
+      return;
+    }
+    if (pickIdx >= draftSlots.length) {
+      return;
+    }
+    const slot = draftSlots[pickIdx];
+    if (slot.team === userTeam) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const picked = aiPickPlayer(slot.team, slot, pack, draftSlots, availRef.current, reqsRef.current);
+      recordPick(pickIdx, picked, draftSlots);
+    }, 150);
+
+    return () => window.clearTimeout(timer);
+  }, [draftSlots, pack, phase, pickIdx, recordPick, userTeam]);
+
+  const startSeason = useCallback(() => {
+    if (!pack) {
+      return;
+    }
+    setPhase('season_load');
+    setSeasonErr(null);
+    fetch('/data/mgr_season_data.json')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data: SeasonData) => {
+        const zScores = computeBpmZ(rosters, pack.players);
+        const seasonStats = runSeasonStats(data.regular_season, zScores);
+        setBpmZ(zScores);
+        setSeasonData(data);
+        setStats(seasonStats);
+        setPhase('season');
+      })
+      .catch((error: unknown) => {
+        setSeasonErr(String(error));
+        setPhase('complete');
+      });
+  }, [pack, rosters]);
+
+  if (phase === 'loading') {
+    return (
+      <div className="mgr-page">
+        <div className="mgr-loading">
+          {fetchErr ? (
+            <>
+              <p className="mgr-error">{fetchErr}</p>
+              <p className="mgr-hint">Run `manager_mode.py` cell 2 to generate the draft pack.</p>
+            </>
+          ) : (
+            <p className="mgr-hint">Loading draft pack...</p>
+          )}
+        </div>
       </div>
-    </div>
-  );
-  if(phase==="season_load") return(
-    <div className="mgr-page">
-      <div className="mgr-loading">
-        <p className="mgr-hint">Loading season data...</p>
-        {seasonErr&&<p className="mgr-error">{seasonErr}</p>}
+    );
+  }
+
+  if (phase === 'season_load') {
+    return (
+      <div className="mgr-page">
+        <div className="mgr-loading">
+          <p className="mgr-hint">Loading season data...</p>
+          {seasonErr ? <p className="mgr-error">{seasonErr}</p> : null}
+        </div>
       </div>
-    </div>
-  );
-  if(phase==="select") return <div className="mgr-page"><SelectView pack={pack!} userTeam={userTeam} setUserTeam={setUserTeam} onStart={startDraft}/></div>;
-  if(phase==="draft"){
-    const p=pack!;
-    const slot=draftSlots[pickIdx];
-    if(!slot) return null;
-    const isUser=slot.team===userTeam;
-    const req=getReq(p.config);
-    const filled=reqs[userTeam]??{G:0,W:0,B:0};
-    const needed=neededBuckets(filled,req);
-    const pLeft=draftSlots.filter(s=>s.team===userTeam&&s.overallPick>=slot.overallPick).length;
-    const mustPick=isUser&&pLeft<=unfilledCount(filled,req)&&needed.length>0;
-    const eligible=p.players.filter(pl=>{
-      if(!avail.has(pl.playerIdx)) return false;
-      if(mustPick&&!needed.includes(pl.bucket as Bkt)) return false;
-      if(filter!=="all"&&pl.bucket!==filter) return false;
+    );
+  }
+
+  if (phase === 'select') {
+    return (
+      <div className="mgr-page">
+        <SelectView pack={pack!} userTeam={userTeam} setUserTeam={setUserTeam} onStart={startDraft} />
+      </div>
+    );
+  }
+
+  if (phase === 'draft') {
+    const currentPack = pack!;
+    const slot = draftSlots[pickIdx];
+    if (!slot) {
+      return null;
+    }
+
+    const isUser = slot.team === userTeam;
+    const req = getReq(currentPack.config);
+    const filled = reqs[userTeam] ?? { G: 0, W: 0, B: 0 };
+    const needed = neededBuckets(filled, req);
+    const picksLeft = draftSlots.filter((draftSlot) => draftSlot.team === userTeam && draftSlot.overallPick >= slot.overallPick).length;
+    const mustPick = isUser && picksLeft <= unfilledCount(filled, req) && needed.length > 0;
+
+    const availablePlayers = currentPack.players.filter((player) => {
+      if (!avail.has(player.playerIdx)) {
+        return false;
+      }
+      if (mustPick && !needed.includes(player.bucket as Bkt)) {
+        return false;
+      }
+      if (filter !== 'all' && player.bucket !== filter) {
+        return false;
+      }
       return true;
-    }).sort((a,b)=>(a.adp??999)-(b.adp??999));
-    const recent=[...log].reverse().slice(0,30);
-    const total=p.config.nTeams*p.config.nRounds;
-    const userRoster=rosters[userTeam]??[];
-    return(
+    });
+
+    const boardPlayers = [...availablePlayers]
+      .filter((player) => searchMatches(player, searchQuery))
+      .sort((playerA, playerB) => comparePlayers(playerA, playerB, sortBy));
+
+    const previewPlayers = [...availablePlayers]
+      .sort((playerA, playerB) => comparePlayers(playerA, playerB, sortBy))
+      .slice(0, 12);
+
+    const recent = [...log].reverse().slice(0, 30);
+    const totalPicks = currentPack.config.nTeams * currentPack.config.nRounds;
+    const userRoster = rosters[userTeam] ?? [];
+    const rosterSlots = buildRosterSlots(userRoster, currentPack.players, req);
+    const nextPick = nextUserPick(draftSlots, pickIdx, userTeam);
+    const needsLabel = remainingNeedsText(userRoster, currentPack.players, req, currentPack.config.rosterSize);
+    const userTeamMeta = TEAM_META_BY_ABBR.get(userTeam);
+
+    return (
       <div className="mgr-page mgr-page--draft">
         <div className="mgr-draft-bar">
           <div className="mgr-draft-bar-left">
-            <span className="mgr-round-badge">Round {slot.round} of {p.config.nRounds}</span>
-            <span className="mgr-pick-counter">Pick <strong>#{slot.overallPick}</strong> / {total}</span>
+            <span className="mgr-round-badge">Round {slot.round} of {currentPack.config.nRounds}</span>
+            <span className="mgr-pick-counter">Pick <strong>#{slot.overallPick}</strong> / {totalPicks}</span>
           </div>
           <div className="mgr-draft-bar-mid">
-            {isUser
-              ? <span className="mgr-turn-you">YOUR PICK &mdash; {userTeam}</span>
-              : <span className="mgr-turn-ai"><span className="mgr-ai-dots"><span/><span/><span/></span>{slot.team} is on the clock</span>
-            }
+            {isUser ? (
+              <span className="mgr-turn-you">Your pick: {userTeam}</span>
+            ) : (
+              <span className="mgr-turn-ai">{slot.team} is on the clock</span>
+            )}
           </div>
           <div className="mgr-draft-bar-right">
             <span className="mgr-progress">{avail.size} players left</span>
           </div>
         </div>
 
-        <div className="mgr-draft-layout">
-          <div className="mgr-draft-main">
+        <div className="draft-layout">
+          <aside className="your-roster-panel">
+            <div className="mgr-roster-team">
+              <span className="mgr-roster-team-logo">
+                {userTeamMeta ? (
+                  <>
+                    <img
+                      className="franchise-logo"
+                      src={userTeamMeta.logoUrl}
+                      alt={userTeam}
+                      loading="lazy"
+                      onError={(event: { currentTarget: HTMLImageElement }) => {
+                        event.currentTarget.style.display = 'none';
+                        const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+                        if (fallback) {
+                          fallback.style.display = 'flex';
+                        }
+                      }}
+                    />
+                    <span className="logo-fallback mgr-roster-team-fallback" style={{ display: 'none' }}>
+                      {userTeam}
+                    </span>
+                  </>
+                ) : (
+                  <span className="logo-fallback mgr-roster-team-fallback">{userTeam}</span>
+                )}
+              </span>
+              <div>
+                <p className="roster-panel-kicker">Managing</p>
+                <h4 className="roster-panel-title">{userTeamMeta ? userTeamMeta.name : userTeam}</h4>
+              </div>
+            </div>
+
+            <div className="mgr-roster-group">
+              <p className="mgr-roster-group-title">Starters (5)</p>
+              {rosterSlots.starters.map((renderSlot) => (
+                <div key={renderSlot.label} className="roster-slot">
+                  <span className={renderSlot.bucket ? `slot-label slot-label--${bucketClass(renderSlot.bucket)}` : 'slot-label'}>
+                    {renderSlot.label}
+                  </span>
+                  <span className={renderSlot.player ? 'slot-player' : 'slot-player empty'}>
+                    {renderSlot.player?.playerName ?? '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mgr-roster-group">
+              <p className="mgr-roster-group-title">Bench (3)</p>
+              {rosterSlots.bench.map((renderSlot) => (
+                <div key={renderSlot.label} className="roster-slot">
+                  <span className="slot-label slot-label--bench">{renderSlot.label}</span>
+                  <span className={renderSlot.player ? 'slot-player' : 'slot-player empty'}>
+                    {renderSlot.player?.playerName ?? '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <p className="roster-needs">Need: {needsLabel}</p>
+            {mustPick ? (
+              <p className="mgr-must-alert">This pick must fill: <strong>{needed.map(bucketLabel).join(' or ')}</strong></p>
+            ) : null}
+          </aside>
+
+          <section className="mgr-draft-main">
             {isUser ? (
               <>
-                <div className="mgr-my-roster-strip">
-                  <span className="mgr-strip-lbl">Your roster ({userRoster.length}/{p.config.rosterSize})</span>
-                  <div className="mgr-chip-row">
-                    {userRoster.map(i=>{const pl=p.players[i];return <span key={i} className={`mgr-chip mgr-chip-${pl.bucket}`}>{pl.playerName}<span className="mgr-chip-pos">{pl.bucket}</span></span>;})}
-                    {userRoster.length===0&&<span className="mgr-empty">No picks yet</span>}
-                  </div>
-                  {mustPick&&<div className="mgr-must-alert">Must fill: <strong>{needed.join(" or ")}</strong></div>}
-                </div>
+                <div className="mgr-board-shell">
+                  <input
+                    className="player-search"
+                    type="text"
+                    placeholder="Search players..."
+                    value={searchQuery}
+                    onChange={(event: { target: HTMLInputElement }) => setSearchQuery(event.target.value)}
+                  />
 
-                <div className="mgr-filter-bar">
-                  <div className="mgr-filter-pills">
-                    {["all","G","W","B"].map(b=>(
-                      <button key={b}
-                        className={`mgr-pill${filter===b?" mgr-pill--on":""}${mustPick&&b!=="all"&&!needed.includes(b as Bkt)?" mgr-pill--dim":""}`}
-                        onClick={()=>setFilter(b)}
+                  <div className="player-sort-bar">
+                    <span className="sort-label">Sort:</span>
+                    {PLAYER_SORTS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={sortBy === option.id ? 'sort-btn active' : 'sort-btn'}
+                        onClick={() => setSortBy(option.id)}
                       >
-                        {b==="all"?"All Positions":b==="G"?"Guards":b==="W"?"Wings":"Bigs"}
+                        {option.label}
                       </button>
                     ))}
                   </div>
-                  <span className="mgr-avail-count">{eligible.length} available</span>
+
+                  <div className="player-sort-bar">
+                    <span className="sort-label">Filter:</span>
+                    {POSITION_FILTERS.map((option) => {
+                      const disabled = mustPick && option !== 'all' && !needed.includes(option as Bkt);
+                      const label = option === 'all' ? 'All' : option === 'G' ? 'Guards' : option === 'W' ? 'Wings' : 'Bigs';
+                      const classNames = ['sort-btn', filter === option ? 'active' : '', disabled ? 'sort-btn--dim' : '']
+                        .filter(Boolean)
+                        .join(' ');
+
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          className={classNames}
+                          onClick={() => setFilter(option)}
+                          disabled={disabled}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <p className="mgr-board-meta">
+                    {boardPlayers.length} available
+                    {mustPick ? ` • Must fill ${needed.map(bucketLabel).join(' or ')}` : ''}
+                  </p>
                 </div>
 
                 <div className="mgr-player-board">
-                  <div className="mgr-board-header">
-                    <span>Player</span>
-                    <span>NBA Team</span>
+                  <div className="player-list-header">
                     <span>Pos</span>
+                    <span className="player-list-header__name">Player</span>
+                    <span>Team</span>
+                    <span>Value</span>
                     <span>ADP</span>
-                    <span>&plusmn;&sigma;</span>
+                    <span>Risk</span>
                   </div>
-                  {eligible.map(pl=>(
-                    <button key={pl.playerIdx} className={`mgr-player-row mgr-player-row--${pl.bucket}`}
-                      onClick={()=>recordPick(pickIdx,pl.playerIdx,draftSlots)}>
-                      <span className="mgr-player-name">{pl.playerName}</span>
-                      <span className="mgr-player-team">{pl.teamAbbr}</span>
-                      <span className={`mgr-pos-badge mgr-pos-badge--${pl.bucket}`}>{pl.bucket}</span>
-                      <span className="mgr-adp">{pl.adp!=null?pl.adp.toFixed(1):"—"}</span>
-                      <span className="mgr-adp-std">{pl.adpStd!=null?pl.adpStd.toFixed(1):"—"}</span>
+
+                  {boardPlayers.map((player) => (
+                    <button
+                      key={player.playerIdx}
+                      type="button"
+                      className="player-row"
+                      onClick={() => recordPick(pickIdx, player.playerIdx, draftSlots)}
+                    >
+                      <span className={`player-pos-badge ${bucketClass(player.bucket as Bkt)}`}>{player.bucket}</span>
+                      <span className="player-name">{player.playerName}</span>
+                      <span className="player-team">{player.teamAbbr}</span>
+                      <span className="player-value">{formatOracleValue(player.bpmC)}</span>
+                      <span className="player-stat">{player.adp != null ? player.adp.toFixed(1) : '—'}</span>
+                      <span className="player-stat">{player.adpStd != null ? player.adpStd.toFixed(1) : '—'}</span>
                     </button>
                   ))}
+
+                  {boardPlayers.length === 0 ? (
+                    <div className="mgr-board-empty">
+                      <p>No players match your current search and filter.</p>
+                    </div>
+                  ) : null}
                 </div>
               </>
             ) : (
-              <div className="mgr-ai-card">
-                <div className="mgr-ai-dots-lg"><span/><span/><span/></div>
-                <p className="mgr-ai-label">{slot.team} is evaluating the board</p>
-                <p className="mgr-ai-sub">AI picks in ~0.15s</p>
+              <div className="mgr-ai-center">
+                <div className="ai-turn-info">
+                  <p className="ai-turn-team">{slot.team} is on the clock</p>
+                  <p className="ai-turn-countdown">
+                    {nextPick
+                      ? `Your next pick: #${nextPick.slot.overallPick} (in ${nextPick.picksUntil} pick${nextPick.picksUntil === 1 ? '' : 's'})`
+                      : 'Your draft is complete. Watch the board finish.'}
+                  </p>
+                </div>
+
+                <div className="mgr-ai-card">
+                  <div className="mgr-ai-dots-lg"><span /><span /><span /></div>
+                  <p className="mgr-ai-label">{slot.team} is evaluating the board</p>
+                  <p className="mgr-ai-sub">Need: {needsLabel}</p>
+                </div>
+
+                <div className="mgr-ai-preview">
+                  <div className="mgr-panel-title">Best Available</div>
+                  <div className="player-list-header">
+                    <span>Pos</span>
+                    <span className="player-list-header__name">Player</span>
+                    <span>Team</span>
+                    <span>Value</span>
+                    <span>ADP</span>
+                    <span>Risk</span>
+                  </div>
+                  {previewPlayers.map((player) => (
+                    <div key={player.playerIdx} className="player-row player-row--preview">
+                      <span className={`player-pos-badge ${bucketClass(player.bucket as Bkt)}`}>{player.bucket}</span>
+                      <span className="player-name">{player.playerName}</span>
+                      <span className="player-team">{player.teamAbbr}</span>
+                      <span className="player-value">{formatOracleValue(player.bpmC)}</span>
+                      <span className="player-stat">{player.adp != null ? player.adp.toFixed(1) : '—'}</span>
+                      <span className="player-stat">{player.adpStd != null ? player.adpStd.toFixed(1) : '—'}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
+          </section>
 
           <aside className="mgr-draft-side">
-            <div className="mgr-log-header">Recent Picks</div>
-            <div className="mgr-log-body">
-              {recent.map(pk=>(
-                <div key={pk.overallPick} className={`mgr-log-row${pk.isUser?" mgr-log-row--you":""}`}>
-                  <span className="mgr-log-pick">#{pk.overallPick}</span>
-                  <span className="mgr-log-team">{pk.team}</span>
-                  <span className="mgr-log-name">{pk.playerName}</span>
-                  <span className={`mgr-pos-badge mgr-pos-badge--${pk.bucket}`}>{pk.bucket}</span>
+            <div className="mgr-panel-title">Recent Picks</div>
+            <div className="recent-picks-list">
+              {recent.map((pick) => (
+                <div key={pick.overallPick} className={pick.isUser ? 'recent-pick-item recent-pick-item--you' : 'recent-pick-item'}>
+                  <span className="recent-pick-round">R{pick.round}</span>
+                  <span className="recent-pick-team">{pick.team}</span>
+                  <span className="recent-pick-player">{pick.playerName}</span>
+                  <span className={`player-pos-badge ${bucketClass(pick.bucket as Bkt)}`}>{pick.bucket}</span>
                 </div>
               ))}
-              {log.length===0&&<p className="mgr-empty">Draft starting...</p>}
+              {log.length === 0 ? <p className="mgr-empty">Draft starting...</p> : null}
             </div>
           </aside>
         </div>
       </div>
     );
   }
-  if(phase==="season"&&seasonData){
-    return(
+
+  if (phase === 'season' && seasonData) {
+    return (
       <div className="mgr-page">
         <SeasonView
-          pack={pack!} userTeam={userTeam} rosters={rosters}
-          seasonData={seasonData} stats={stats} bpmZ={bpmZ}
-          activeTab={seasonTab} onTabChange={setSeasonTab}
+          pack={pack!}
+          userTeam={userTeam}
+          rosters={rosters}
+          seasonData={seasonData}
+          stats={stats}
+          bpmZ={bpmZ}
+          activeTab={seasonTab}
+          onTabChange={setSeasonTab}
         />
       </div>
     );
   }
-  return(
+
+  return (
     <div className="mgr-page">
       <CompleteView
-        pack={pack!} userTeam={userTeam} rosters={rosters} log={log}
-        onStartSeason={startSeason} seasonErr={seasonErr}
+        pack={pack!}
+        userTeam={userTeam}
+        rosters={rosters}
+        log={log}
+        onStartSeason={startSeason}
+        seasonErr={seasonErr}
       />
     </div>
   );
 }
 
-function SelectView({pack,userTeam,setUserTeam,onStart}:{pack:DraftPack;userTeam:string;setUserTeam:(t:string)=>void;onStart:()=>void}) {
-  const sorted=[...pack.teams].sort();
-  return(
+function SelectView({
+  pack,
+  userTeam,
+  setUserTeam,
+  onStart,
+}: {
+  pack: DraftPack;
+  userTeam: string;
+  setUserTeam: (team: string) => void;
+  onStart: () => void;
+}) {
+  const teams = useMemo(
+    () => [...pack.teams].sort((teamA, teamB) => {
+      const metaA = TEAM_META_BY_ABBR.get(teamA);
+      const metaB = TEAM_META_BY_ABBR.get(teamB);
+      return (metaA?.city ?? teamA).localeCompare(metaB?.city ?? teamB);
+    }),
+    [pack.teams],
+  );
+
+  const selectedTeam = TEAM_META_BY_ABBR.get(userTeam);
+
+  return (
     <div className="mgr-select">
-      <section className="mgr-select-hero">
-        <p className="mgr-eyebrow">Odds Gods</p>
-        <h1 className="mgr-title">Manager Mode</h1>
-        <p className="mgr-subtitle">
-          Snake draft &middot; {pack.config.nTeams} teams &middot; {pack.config.nRounds} rounds &middot; {pack.season}
+      <section className="manager-intro">
+        <p className="mgr-section-eyebrow">Manager Mode</p>
+        <h3>Choose Your Franchise</h3>
+        <p>
+          Select a team to manage. You&apos;ll draft 8 players in a snake draft against 29 AI teams:
+          5 starters with 2 Guards, 2 Wings, and 1 Big, plus 3 bench spots for any position.
+          Build the strongest roster you can for the {pack.season} season.
         </p>
         <div className="mgr-rules-row">
-          <span className="mgr-rule-badge">Start 5: {pack.config.reqGuards}G + {pack.config.reqWings}W + {pack.config.reqBigs}B</span>
-          <span className="mgr-rule-badge">Bench 3: unrestricted</span>
+          <span className="mgr-rule-badge">{pack.config.nRounds}-round snake draft</span>
+          <span className="mgr-rule-badge">{pack.config.nTeams - 1} AI opponents</span>
+          <span className="mgr-rule-badge">{pack.season}</span>
         </div>
       </section>
 
-      <section className="mgr-select-body">
-        <p className="mgr-section-eyebrow">Choose your franchise</p>
-        <div className="mgr-team-grid">
-          {sorted.map(t=>(
-            <button key={t}
-              className={`mgr-team-tile${userTeam===t?" mgr-team-tile--selected":""}`}
-              onClick={()=>setUserTeam(t)}
+      <div className="franchise-grid">
+        {teams.map((abbr) => {
+          const team = TEAM_META_BY_ABBR.get(abbr);
+          const displayName = team?.city ?? abbr;
+
+          return (
+            <button
+              key={abbr}
+              type="button"
+              className={userTeam === abbr ? 'franchise-card selected' : 'franchise-card'}
+              onClick={() => setUserTeam(abbr)}
             >
-              {t}
+              <span className="franchise-logo-wrap">
+                {team ? (
+                  <>
+                    <img
+                      className="franchise-logo"
+                      src={team.logoUrl}
+                      alt={abbr}
+                      loading="lazy"
+                      onError={(event: { currentTarget: HTMLImageElement }) => {
+                        event.currentTarget.style.display = 'none';
+                        const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+                        if (fallback) {
+                          fallback.style.display = 'flex';
+                        }
+                      }}
+                    />
+                    <span className="logo-fallback franchise-logo-fallback" style={{ display: 'none' }}>
+                      {abbr}
+                    </span>
+                  </>
+                ) : (
+                  <span className="logo-fallback franchise-logo-fallback">{abbr}</span>
+                )}
+              </span>
+              <span className="franchise-name">{displayName}</span>
+              <span className="franchise-abbr">{abbr}</span>
+              <span className="franchise-record">{team ? `${team.wins}-${team.losses}` : '—'}</span>
             </button>
-          ))}
-        </div>
-        {userTeam&&(
-          <div className="mgr-start-bar">
-            <span className="mgr-managing-label">Managing: <strong>{userTeam}</strong></span>
-            <button className="mgr-start-btn" onClick={onStart}>Start Draft &rarr;</button>
-          </div>
-        )}
-      </section>
+          );
+        })}
+      </div>
+
+      <p className={selectedTeam ? 'mgr-selected-team' : 'mgr-selected-team mgr-selected-team--muted'}>
+        {selectedTeam ? `Managing: ${selectedTeam.name}` : 'Select a franchise to begin.'}
+      </p>
+
+      <button type="button" className="start-draft-btn" onClick={onStart} disabled={!userTeam}>
+        Start Draft &rarr;
+      </button>
     </div>
   );
 }
 
-function CompleteView({pack,userTeam,rosters:_r,log,onStartSeason,seasonErr}:{pack:DraftPack;userTeam:string;rosters:Record<string,number[]>;log:PickRecord[];onStartSeason:()=>void;seasonErr:string|null}) {
-  const [showAll,setShowAll]=useState(false);
-  const req=getReq(pack.config);
-  const userPicks=log.filter(p=>p.team===userTeam).sort((a,b)=>a.overallPick-b.overallPick);
-  return(
+function CompleteView({
+  pack,
+  userTeam,
+  rosters: _rosters,
+  log,
+  onStartSeason,
+  seasonErr,
+}: {
+  pack: DraftPack;
+  userTeam: string;
+  rosters: Record<string, number[]>;
+  log: PickRecord[];
+  onStartSeason: () => void;
+  seasonErr: string | null;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const req = getReq(pack.config);
+  const userPicks = log.filter((pick) => pick.team === userTeam).sort((pickA, pickB) => pickA.overallPick - pickB.overallPick);
+
+  return (
     <div className="mgr-complete">
       <section className="mgr-select-hero">
         <p className="mgr-eyebrow">Draft Complete</p>
-        <h1 className="mgr-title">{userTeam} &mdash; {pack.season}</h1>
+        <h1 className="mgr-title">{userTeam} - {pack.season}</h1>
         <p className="mgr-subtitle">Your {pack.config.rosterSize}-player roster is locked in.</p>
-        {seasonErr&&<p className="mgr-error" style={{marginTop:"0.5rem"}}>{seasonErr}</p>}
-        <button className="mgr-start-btn" onClick={onStartSeason} style={{marginTop:"1rem"}}>
+        {seasonErr ? <p className="mgr-error mgr-error--inline">{seasonErr}</p> : null}
+        <button type="button" className="mgr-start-btn" onClick={onStartSeason}>
           Simulate Season &rarr;
         </button>
       </section>
@@ -342,147 +1013,220 @@ function CompleteView({pack,userTeam,rosters:_r,log,onStartSeason,seasonErr}:{pa
           <table className="mgr-roster-table">
             <thead>
               <tr>
-                <th>Rd</th><th>Pick</th><th className="mgr-th-left">Player</th>
-                <th>NBA Team</th><th>Pos</th><th>Slot</th>
+                <th>Rd</th>
+                <th>Pick</th>
+                <th className="mgr-th-left">Player</th>
+                <th>NBA Team</th>
+                <th>Pos</th>
+                <th>Slot</th>
               </tr>
             </thead>
-            <tbody>{(()=>{
-              const c:Req={G:0,W:0,B:0};
-              return userPicks.map(pk=>{
-                const b=pk.bucket as Bkt;
-                const isStart=c[b]<req[b]; c[b]++;
-                return(
-                  <tr key={pk.overallPick} className={isStart?"mgr-tr-start":""}>
-                    <td className="mgr-td-dim">{pk.round}</td>
-                    <td className="mgr-td-dim">#{pk.overallPick}</td>
-                    <td className="mgr-th-left mgr-td-name">{pk.playerName}</td>
-                    <td className="mgr-td-dim">{pk.teamAbbr}</td>
-                    <td><span className={`mgr-pos-badge mgr-pos-badge--${pk.bucket}`}>{pk.bucket}</span></td>
-                    <td className={isStart?"mgr-slot-start":"mgr-slot-bench"}>{isStart?"Start":"Bench"}</td>
-                  </tr>
-                );
-              });
-            })()}</tbody>
+            <tbody>
+              {(() => {
+                const counts: Req = { G: 0, W: 0, B: 0 };
+                return userPicks.map((pick) => {
+                  const bucket = pick.bucket as Bkt;
+                  const isStarter = counts[bucket] < req[bucket];
+                  counts[bucket] += 1;
+
+                  return (
+                    <tr key={pick.overallPick} className={isStarter ? 'mgr-tr-start' : ''}>
+                      <td className="mgr-td-dim">{pick.round}</td>
+                      <td className="mgr-td-dim">#{pick.overallPick}</td>
+                      <td className="mgr-th-left mgr-td-name">{pick.playerName}</td>
+                      <td className="mgr-td-dim">{pick.teamAbbr}</td>
+                      <td><span className={`mgr-pos-badge mgr-pos-badge--${pick.bucket}`}>{pick.bucket}</span></td>
+                      <td className={isStarter ? 'mgr-slot-start' : 'mgr-slot-bench'}>{isStarter ? 'Starter' : 'Bench'}</td>
+                    </tr>
+                  );
+                });
+              })()}
+            </tbody>
           </table>
         </div>
 
-        <button className="mgr-toggle-btn" onClick={()=>setShowAll(!showAll)}>
-          {showAll?"Hide all rosters":"Show all 30 rosters"}
+        <button type="button" className="mgr-toggle-btn" onClick={() => setShowAll((current) => !current)}>
+          {showAll ? 'Hide all rosters' : 'Show all 30 rosters'}
         </button>
-        {showAll&&(
+        {showAll ? (
           <div className="mgr-all-grid">
-            {[...pack.teams].sort().map(team=>{
-              const tPicks=log.filter(p=>p.team===team).sort((a,b)=>a.overallPick-b.overallPick);
-              return(
-                <div key={team} className={`mgr-team-card${team===userTeam?" mgr-team-card--you":""}`}>
-                  <div className="mgr-team-card-hdr">{team}{team===userTeam?" (You)":""}</div>
+            {[...pack.teams].sort().map((team) => {
+              const teamPicks = log.filter((pick) => pick.team === team).sort((pickA, pickB) => pickA.overallPick - pickB.overallPick);
+              return (
+                <div key={team} className={team === userTeam ? 'mgr-team-card mgr-team-card--you' : 'mgr-team-card'}>
+                  <div className="mgr-team-card-hdr">{team}{team === userTeam ? ' (You)' : ''}</div>
                   <div className="mgr-chip-row">
-                    {tPicks.map(pk=><span key={pk.overallPick} className={`mgr-chip mgr-chip-${pk.bucket}`}>{pk.playerName}</span>)}
+                    {teamPicks.map((pick) => (
+                      <span key={pick.overallPick} className={`mgr-chip mgr-chip-${pick.bucket}`}>
+                        {pick.playerName}
+                      </span>
+                    ))}
                   </div>
                 </div>
               );
             })}
           </div>
-        )}
+        ) : null}
       </section>
     </div>
   );
 }
 
-function SeasonView({pack:_pack,userTeam,rosters:_r,seasonData,stats,bpmZ,activeTab,onTabChange}:{
-  pack:DraftPack;userTeam:string;rosters:Record<string,number[]>;
-  seasonData:SeasonData;stats:Record<string,TeamStat>;bpmZ:Record<string,number>;
-  activeTab:"standings"|"schedule";onTabChange:(t:"standings"|"schedule")=>void;
+function SeasonView({
+  pack: _pack,
+  userTeam,
+  rosters: _rosters,
+  seasonData,
+  stats,
+  bpmZ,
+  activeTab,
+  onTabChange,
+}: {
+  pack: DraftPack;
+  userTeam: string;
+  rosters: Record<string, number[]>;
+  seasonData: SeasonData;
+  stats: Record<string, TeamStat>;
+  bpmZ: Record<string, number>;
+  activeTab: 'standings' | 'schedule';
+  onTabChange: (tab: 'standings' | 'schedule') => void;
 }) {
-  const myBpmZ=bpmZ[userTeam];
-  return(
+  const myBpmZ = bpmZ[userTeam];
+
+  return (
     <div className="mgr-season">
-      <section className="mgr-season-hero">
-        <p className="mgr-eyebrow">Manager Mode &mdash; Season Simulation</p>
+      <section className="mgr-select-hero">
+        <p className="mgr-eyebrow">Manager Mode - Season Simulation</p>
         <h1 className="mgr-title">{userTeam}</h1>
         <div className="mgr-season-stats-row">
-            <span className="mgr-stat-badge">Lineup BPM-Z: {myBpmZ!=null?(myBpmZ>=0?"+":"")+myBpmZ.toFixed(2):"—"}</span>
+          <span className="mgr-stat-badge">Lineup BPM-Z: {myBpmZ != null ? `${myBpmZ >= 0 ? '+' : ''}${myBpmZ.toFixed(2)}` : '—'}</span>
         </div>
       </section>
 
       <div className="mgr-season-tabs">
-        <button className={`mgr-stab${activeTab==="standings"?" mgr-stab--on":""}`} onClick={()=>onTabChange("standings")}>Standings</button>
-        <button className={`mgr-stab${activeTab==="schedule"?" mgr-stab--on":""}`} onClick={()=>onTabChange("schedule")}>Schedule</button>
+        <button type="button" className={activeTab === 'standings' ? 'mgr-stab mgr-stab--on' : 'mgr-stab'} onClick={() => onTabChange('standings')}>
+          Standings
+        </button>
+        <button type="button" className={activeTab === 'schedule' ? 'mgr-stab mgr-stab--on' : 'mgr-stab'} onClick={() => onTabChange('schedule')}>
+          Schedule
+        </button>
       </div>
 
-      {activeTab==="standings"&&<StandingsPanel seasonData={seasonData} stats={stats} userTeam={userTeam}/>}
-      {activeTab==="schedule"&&<SchedulePanel seasonData={seasonData} userTeam={userTeam} bpmZ={bpmZ}/>}
+      {activeTab === 'standings' ? <StandingsPanel seasonData={seasonData} stats={stats} userTeam={userTeam} /> : null}
+      {activeTab === 'schedule' ? <SchedulePanel seasonData={seasonData} userTeam={userTeam} bpmZ={bpmZ} /> : null}
     </div>
   );
 }
 
-function StandingsPanel({seasonData,stats:_s,userTeam}:{seasonData:SeasonData;stats:Record<string,TeamStat>;userTeam:string}){
-  const allTeams=[...new Set(seasonData.regular_season.flatMap(g=>[g.t1,g.t2]))];
-  function confTable(conf:Set<string>,label:string){
-    const teams=allTeams.filter(t=>conf.has(t)).sort();
-    if(!teams.length) return null;
-    return(
+function StandingsPanel({
+  seasonData,
+  stats: _stats,
+  userTeam,
+}: {
+  seasonData: SeasonData;
+  stats: Record<string, TeamStat>;
+  userTeam: string;
+}) {
+  const allTeams = [...new Set(seasonData.regular_season.flatMap((game) => [game.t1, game.t2]))];
+
+  function confTable(conf: Set<string>, label: string) {
+    const teams = allTeams.filter((team) => conf.has(team)).sort();
+    if (!teams.length) {
+      return null;
+    }
+
+    return (
       <div className="mgr-conf-block">
         <div className="mgr-conf-label">{label}</div>
         <table className="mgr-standings-table">
-          <thead><tr>
-            <th className="mgr-th-left">Team</th>
-            <th>Proj W</th><th>PO%</th><th>Champ%</th>
-          </tr></thead>
-          <tbody>{teams.map(t=>{
-            const isUser=t===userTeam;
-            return(
-              <tr key={t} className={isUser?"mgr-tr-you":""}>
-                <td className="mgr-th-left mgr-td-name">{isUser?"▶ ":""}{t}</td>
-                <td className="mgr-td-num mgr-po-lo">—</td>
-                <td className="mgr-td-num mgr-po-lo">—</td>
-                <td className="mgr-td-num mgr-po-lo">—</td>
-              </tr>
-            );
-          })}</tbody>
+          <thead>
+            <tr>
+              <th className="mgr-th-left">Team</th>
+              <th>Proj W</th>
+              <th>PO%</th>
+              <th>Champ%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {teams.map((team) => {
+              const isUser = team === userTeam;
+              return (
+                <tr key={team} className={isUser ? 'mgr-tr-you' : ''}>
+                  <td className="mgr-th-left mgr-td-name">{isUser ? '▶ ' : ''}{team}</td>
+                  <td className="mgr-td-num mgr-po-lo">—</td>
+                  <td className="mgr-td-num mgr-po-lo">—</td>
+                  <td className="mgr-td-num mgr-po-lo">—</td>
+                </tr>
+              );
+            })}
+          </tbody>
         </table>
       </div>
     );
   }
-  return(
+
+  return (
     <div className="mgr-standings-wrap">
-      {confTable(EAST,"Eastern Conference")}
-      {confTable(WEST,"Western Conference")}
+      {confTable(EAST, 'Eastern Conference')}
+      {confTable(WEST, 'Western Conference')}
       <p className="mgr-standings-note">Season projections coming soon.</p>
     </div>
   );
 }
 
-function SchedulePanel({seasonData,userTeam,bpmZ}:{seasonData:SeasonData;userTeam:string;bpmZ:Record<string,number>}){
-  const byDate:Record<string,SeasonGame[]>={};
-  for(const g of seasonData.regular_season){
-    if(!byDate[g.date])byDate[g.date]=[];
-    byDate[g.date].push(g);
+function SchedulePanel({
+  seasonData,
+  userTeam,
+  bpmZ,
+}: {
+  seasonData: SeasonData;
+  userTeam: string;
+  bpmZ: Record<string, number>;
+}) {
+  const byDate: Record<string, SeasonGame[]> = {};
+  for (const game of seasonData.regular_season) {
+    if (!byDate[game.date]) {
+      byDate[game.date] = [];
+    }
+    byDate[game.date].push(game);
   }
-  const dates=Object.keys(byDate).sort();
-  if(!dates.length)return <div className="mgr-schedule-wrap"><p className="mgr-empty">No schedule data.</p></div>;
-  return(
+
+  const dates = Object.keys(byDate).sort();
+  if (!dates.length) {
+    return (
+      <div className="mgr-schedule-wrap">
+        <p className="mgr-empty">No schedule data.</p>
+      </div>
+    );
+  }
+
+  return (
     <div className="mgr-schedule-wrap">
-      {dates.map(d=>{
-        const dayGames=byDate[d].slice().sort((a,b)=>a.gid-b.gid);
-        const label=new Date(d+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
-        return(
-          <div key={d} className="mgr-sched-day">
-            <div className="mgr-sched-date">{label} <span className="mgr-sched-ngames">{dayGames.length}G</span></div>
+      {dates.map((date) => {
+        const games = byDate[date].slice().sort((gameA, gameB) => gameA.gid - gameB.gid);
+        const label = new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+        return (
+          <div key={date} className="mgr-sched-day">
+            <div className="mgr-sched-date">{label} <span className="mgr-sched-ngames">{games.length}G</span></div>
             <div className="mgr-sched-grid">
-              {dayGames.map(g=>{
-                const bDiff=(bpmZ[g.t1]??0)-(bpmZ[g.t2]??0);
-                const p1=interpWP(g.wp,bDiff);
-                const p2=1-p1;
-                const isUserGame=g.t1===userTeam||g.t2===userTeam;
-                const userIsT1=g.t1===userTeam;
-                return(
-                  <div key={g.gid} className={`mgr-matchup${isUserGame?" mgr-matchup--you":""}`}>
-                    <span className={`mgr-mu-team${userIsT1?" mgr-mu-team--you":""}`}>{g.t1}</span>
-                    <span className="mgr-mu-prob">{(p1*100).toFixed(0)}%</span>
+              {games.map((game) => {
+                const bpmDiff = (bpmZ[game.t1] ?? 0) - (bpmZ[game.t2] ?? 0);
+                const p1 = interpWP(game.wp, bpmDiff);
+                const p2 = 1 - p1;
+                const isUserGame = game.t1 === userTeam || game.t2 === userTeam;
+                const userIsT1 = game.t1 === userTeam;
+
+                return (
+                  <div key={game.gid} className={isUserGame ? 'mgr-matchup mgr-matchup--you' : 'mgr-matchup'}>
+                    <span className={userIsT1 ? 'mgr-mu-team mgr-mu-team--you' : 'mgr-mu-team'}>{game.t1}</span>
+                    <span className="mgr-mu-prob">{(p1 * 100).toFixed(0)}%</span>
                     <span className="mgr-mu-vs">vs</span>
-                    <span className="mgr-mu-prob">{(p2*100).toFixed(0)}%</span>
-                    <span className={`mgr-mu-team${!userIsT1&&g.t2===userTeam?" mgr-mu-team--you":""}`}>{g.t2}{g.loc===1?<span className="mgr-mu-home"> H</span>:null}</span>
+                    <span className="mgr-mu-prob">{(p2 * 100).toFixed(0)}%</span>
+                    <span className={!userIsT1 && game.t2 === userTeam ? 'mgr-mu-team mgr-mu-team--you' : 'mgr-mu-team'}>
+                      {game.t2}
+                      {game.loc === 1 ? <span className="mgr-mu-home"> H</span> : null}
+                    </span>
                   </div>
                 );
               })}
