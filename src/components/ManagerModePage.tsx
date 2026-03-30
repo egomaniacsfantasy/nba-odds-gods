@@ -377,6 +377,11 @@ function nextUserPick(slots: DraftSlot[], pickIndex: number, userTeam: string): 
   return null;
 }
 
+function resolveFilledSlotLabel(playerIndexes: number[], players: Player[], req: Req, draftedPlayerIdx: number): string | null {
+  const { starters, bench } = buildRosterSlots([...playerIndexes, draftedPlayerIdx], players, req);
+  return [...starters, ...bench].find((slot) => slot.player?.playerIdx === draftedPlayerIdx)?.label ?? null;
+}
+
 export default function ManagerModePage() {
   const [pack, setPack] = useState<DraftPack | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
@@ -396,8 +401,17 @@ export default function ManagerModePage() {
   const [stats, setStats] = useState<Record<string, TeamStat>>({});
   const [bpmZ, setBpmZ] = useState<Record<string, number>>({});
   const [seasonTab, setSeasonTab] = useState<'standings' | 'schedule'>('schedule');
+  const [selectionTransition, setSelectionTransition] = useState<'idle' | 'exiting'>('idle');
+  const [draftEntering, setDraftEntering] = useState(false);
+  const [justDraftedPlayerIdx, setJustDraftedPlayerIdx] = useState<number | null>(null);
+  const [justFilledSlotLabel, setJustFilledSlotLabel] = useState<string | null>(null);
+  const [latestPickOverall, setLatestPickOverall] = useState<number | null>(null);
+  const [isYourTurnEntering, setIsYourTurnEntering] = useState(false);
+  const [isListResorting, setIsListResorting] = useState(false);
   const availRef = useRef<Set<number>>(new Set());
   const reqsRef = useRef<Record<string, Req>>({});
+  const hasDraftMountedRef = useRef(false);
+  const prevUserTurnRef = useRef(false);
 
   availRef.current = avail;
   reqsRef.current = reqs;
@@ -418,28 +432,40 @@ export default function ManagerModePage() {
   }, []);
 
   const startDraft = useCallback(() => {
-    if (!pack) {
+    if (!pack || selectionTransition === 'exiting') {
       return;
     }
-    const order = shuffle(pack.teams);
-    const slots = buildSlots(order, pack.config.nRounds);
-    const initialReqs: Record<string, Req> = {};
-    const initialRosters: Record<string, number[]> = {};
-    for (const team of pack.teams) {
-      initialReqs[team] = { G: 0, W: 0, B: 0 };
-      initialRosters[team] = [];
-    }
-    setDraftSlots(slots);
-    setReqs(initialReqs);
-    setRosters(initialRosters);
-    setAvail(new Set(pack.players.map((player) => player.playerIdx)));
-    setLog([]);
-    setPickIdx(0);
-    setFilter('all');
-    setSearchQuery('');
-    setSortBy('adp');
-    setPhase('draft');
-  }, [pack]);
+    setSelectionTransition('exiting');
+
+    window.setTimeout(() => {
+      const order = shuffle(pack.teams);
+      const slots = buildSlots(order, pack.config.nRounds);
+      const initialReqs: Record<string, Req> = {};
+      const initialRosters: Record<string, number[]> = {};
+      for (const team of pack.teams) {
+        initialReqs[team] = { G: 0, W: 0, B: 0 };
+        initialRosters[team] = [];
+      }
+      prevUserTurnRef.current = false;
+      hasDraftMountedRef.current = false;
+      setDraftSlots(slots);
+      setReqs(initialReqs);
+      setRosters(initialRosters);
+      setAvail(new Set(pack.players.map((player) => player.playerIdx)));
+      setLog([]);
+      setPickIdx(0);
+      setFilter('all');
+      setSearchQuery('');
+      setSortBy('adp');
+      setJustDraftedPlayerIdx(null);
+      setJustFilledSlotLabel(null);
+      setLatestPickOverall(null);
+      setIsYourTurnEntering(false);
+      setIsListResorting(false);
+      setDraftEntering(true);
+      setPhase('draft');
+    }, 400);
+  }, [pack, selectionTransition]);
 
   const recordPick = useCallback((slotIndex: number, playerIdx: number, slots: DraftSlot[]) => {
     if (!pack) {
@@ -509,6 +535,70 @@ export default function ManagerModePage() {
     return () => window.clearTimeout(timer);
   }, [draftSlots, pack, phase, pickIdx, recordPick, userTeam]);
 
+  useEffect(() => {
+    if (!draftEntering) {
+      return;
+    }
+    const timer = window.setTimeout(() => setDraftEntering(false), 500);
+    return () => window.clearTimeout(timer);
+  }, [draftEntering]);
+
+  useEffect(() => {
+    if (!justFilledSlotLabel) {
+      return;
+    }
+    const timer = window.setTimeout(() => setJustFilledSlotLabel(null), 400);
+    return () => window.clearTimeout(timer);
+  }, [justFilledSlotLabel]);
+
+  useEffect(() => {
+    if (log.length === 0) {
+      setLatestPickOverall(null);
+      return;
+    }
+    const latestPick = log[log.length - 1]?.overallPick ?? null;
+    setLatestPickOverall(latestPick);
+    const timer = window.setTimeout(() => {
+      setLatestPickOverall((current) => (current === latestPick ? null : current));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [log]);
+
+  useEffect(() => {
+    if (phase !== 'draft' || pickIdx >= draftSlots.length) {
+      prevUserTurnRef.current = false;
+      return;
+    }
+    const isUserTurn = draftSlots[pickIdx]?.team === userTeam;
+    if (isUserTurn && !prevUserTurnRef.current) {
+      setIsYourTurnEntering(true);
+    }
+    prevUserTurnRef.current = isUserTurn;
+  }, [draftSlots, phase, pickIdx, userTeam]);
+
+  useEffect(() => {
+    if (!isYourTurnEntering) {
+      return;
+    }
+    const timer = window.setTimeout(() => setIsYourTurnEntering(false), 800);
+    return () => window.clearTimeout(timer);
+  }, [isYourTurnEntering]);
+
+  useEffect(() => {
+    if (phase !== 'draft') {
+      hasDraftMountedRef.current = false;
+      setIsListResorting(false);
+      return;
+    }
+    if (!hasDraftMountedRef.current) {
+      hasDraftMountedRef.current = true;
+      return;
+    }
+    setIsListResorting(true);
+    const timer = window.setTimeout(() => setIsListResorting(false), 200);
+    return () => window.clearTimeout(timer);
+  }, [filter, phase, searchQuery, sortBy]);
+
   const startSeason = useCallback(() => {
     if (!pack) {
       return;
@@ -535,6 +625,25 @@ export default function ManagerModePage() {
         setPhase('complete');
       });
   }, [pack, rosters]);
+
+  const handleAnimatedUserPick = useCallback((playerIdx: number) => {
+    if (phase !== 'draft' || !pack || justDraftedPlayerIdx !== null) {
+      return;
+    }
+    const slot = draftSlots[pickIdx];
+    if (!slot || slot.team !== userTeam) {
+      return;
+    }
+    const req = getReq(pack.config);
+    const slotLabel = resolveFilledSlotLabel(rosters[userTeam] ?? [], pack.players, req, playerIdx);
+    setJustDraftedPlayerIdx(playerIdx);
+
+    window.setTimeout(() => {
+      recordPick(pickIdx, playerIdx, draftSlots);
+      setJustDraftedPlayerIdx(null);
+      setJustFilledSlotLabel(slotLabel);
+    }, 600);
+  }, [draftSlots, justDraftedPlayerIdx, pack, phase, pickIdx, recordPick, rosters, userTeam]);
 
   if (phase === 'loading') {
     return (
@@ -567,7 +676,13 @@ export default function ManagerModePage() {
   if (phase === 'select') {
     return (
       <div className="mgr-page">
-        <SelectView pack={pack!} userTeam={userTeam} setUserTeam={setUserTeam} onStart={startDraft} />
+        <SelectView
+          pack={pack!}
+          userTeam={userTeam}
+          setUserTeam={setUserTeam}
+          onStart={startDraft}
+          isExiting={selectionTransition === 'exiting'}
+        />
       </div>
     );
   }
@@ -614,9 +729,12 @@ export default function ManagerModePage() {
     const nextPick = nextUserPick(draftSlots, pickIdx, userTeam);
     const needsLabel = remainingNeedsText(userRoster, currentPack.players, req, currentPack.config.rosterSize);
     const userTeamMeta = TEAM_META_BY_ABBR.get(userTeam);
+    const isDraftLocked = justDraftedPlayerIdx !== null;
+    const boardShellClassName = ['mgr-board-shell', isYourTurnEntering ? 'player-board--your-turn' : ''].filter(Boolean).join(' ');
+    const playerBoardClassName = ['mgr-player-board', isListResorting ? 'player-list--resorting' : ''].filter(Boolean).join(' ');
 
     return (
-      <div className="mgr-page mgr-page--draft">
+      <div className={draftEntering ? 'mgr-page mgr-page--draft draft-enter' : 'mgr-page mgr-page--draft'}>
         <div className="mgr-draft-bar">
           <div className="mgr-draft-bar-left">
             <span className="mgr-round-badge">Round {slot.round} of {currentPack.config.nRounds}</span>
@@ -624,7 +742,7 @@ export default function ManagerModePage() {
           </div>
           <div className="mgr-draft-bar-mid">
             {isUser ? (
-              <span className="mgr-turn-you">Your pick: {userTeam}</span>
+              <span className={isYourTurnEntering ? 'mgr-turn-you your-pick-badge--entering' : 'mgr-turn-you'}>Your pick: {userTeam}</span>
             ) : (
               <span className="mgr-turn-ai">{slot.team} is on the clock</span>
             )}
@@ -671,11 +789,20 @@ export default function ManagerModePage() {
             <div className="mgr-roster-group">
               <p className="mgr-roster-group-title">Starters (5)</p>
               {rosterSlots.starters.map((renderSlot) => (
-                <div key={renderSlot.label} className="roster-slot">
-                  <span className={renderSlot.bucket ? `slot-label slot-label--${bucketClass(renderSlot.bucket)}` : 'slot-label'}>
+                <div
+                  key={renderSlot.label}
+                  className={justFilledSlotLabel === renderSlot.label ? 'roster-slot roster-slot--just-filled' : 'roster-slot'}
+                >
+                  <span
+                    className={
+                      renderSlot.bucket
+                        ? `slot-label roster-slot-label ${bucketClass(renderSlot.bucket)} slot-label--${bucketClass(renderSlot.bucket)}`
+                        : 'slot-label roster-slot-label'
+                    }
+                  >
                     {renderSlot.label}
                   </span>
-                  <span className={renderSlot.player ? 'slot-player' : 'slot-player empty'}>
+                  <span className={renderSlot.player ? 'slot-player roster-slot-player' : 'slot-player roster-slot-player empty'}>
                     {renderSlot.player?.playerName ?? '—'}
                   </span>
                 </div>
@@ -685,9 +812,12 @@ export default function ManagerModePage() {
             <div className="mgr-roster-group">
               <p className="mgr-roster-group-title">Bench (3)</p>
               {rosterSlots.bench.map((renderSlot) => (
-                <div key={renderSlot.label} className="roster-slot">
-                  <span className="slot-label slot-label--bench">{renderSlot.label}</span>
-                  <span className={renderSlot.player ? 'slot-player' : 'slot-player empty'}>
+                <div
+                  key={renderSlot.label}
+                  className={justFilledSlotLabel === renderSlot.label ? 'roster-slot roster-slot--just-filled' : 'roster-slot'}
+                >
+                  <span className="slot-label roster-slot-label bench slot-label--bench">{renderSlot.label}</span>
+                  <span className={renderSlot.player ? 'slot-player roster-slot-player' : 'slot-player roster-slot-player empty'}>
                     {renderSlot.player?.playerName ?? '—'}
                   </span>
                 </div>
@@ -703,13 +833,14 @@ export default function ManagerModePage() {
           <section className="mgr-draft-main">
             {isUser ? (
               <>
-                <div className="mgr-board-shell">
+                <div className={boardShellClassName}>
                   <input
                     className="player-search"
                     type="text"
                     placeholder="Search players..."
                     value={searchQuery}
                     onChange={(event: { target: HTMLInputElement }) => setSearchQuery(event.target.value)}
+                    disabled={isDraftLocked}
                   />
 
                   <div className="player-sort-bar">
@@ -720,6 +851,7 @@ export default function ManagerModePage() {
                         type="button"
                         className={sortBy === option.id ? 'sort-btn active' : 'sort-btn'}
                         onClick={() => setSortBy(option.id)}
+                        disabled={isDraftLocked}
                       >
                         {option.label}
                       </button>
@@ -739,9 +871,9 @@ export default function ManagerModePage() {
                         <button
                           key={option}
                           type="button"
-                          className={classNames}
+                          className={`${classNames} filter-btn`}
                           onClick={() => setFilter(option)}
-                          disabled={disabled}
+                          disabled={disabled || isDraftLocked}
                         >
                           {label}
                         </button>
@@ -755,21 +887,22 @@ export default function ManagerModePage() {
                   </p>
                 </div>
 
-                <div className="mgr-player-board">
+                <div className={playerBoardClassName}>
                   <div className="player-list-header">
                     <span>Pos</span>
                     <span className="player-list-header__name">Player</span>
                     <span>Team</span>
-                    <span>ADP</span>
-                    <span>StdDev</span>
+                    <span title="Average Draft Position. Lower means the player typically comes off the board earlier.">ADP</span>
+                    <span title="Draft-position standard deviation. Lower values are steadier, higher values are swingier.">StdDev</span>
                   </div>
 
                   {boardPlayers.map((player) => (
                     <button
                       key={player.playerIdx}
                       type="button"
-                      className="player-row"
-                      onClick={() => recordPick(pickIdx, player.playerIdx, draftSlots)}
+                      className={player.playerIdx === justDraftedPlayerIdx ? 'player-row player-row--just-drafted' : 'player-row'}
+                      onClick={() => handleAnimatedUserPick(player.playerIdx)}
+                      disabled={isDraftLocked}
                     >
                       <span className={`player-pos-badge ${bucketClass(player.bucket as Bkt)}`}>{player.bucket}</span>
                       <span className="player-name">{player.playerName}</span>
@@ -789,7 +922,7 @@ export default function ManagerModePage() {
             ) : (
               <div className="mgr-ai-center">
                 <div className="ai-turn-info">
-                  <p className="ai-turn-team">{slot.team} is on the clock</p>
+                  <p className="ai-turn-message">{slot.team} is on the clock <span className="ai-thinking-dot" /></p>
                   <p className="ai-turn-countdown">
                     {nextPick
                       ? `Your next pick: #${nextPick.slot.overallPick} (in ${nextPick.picksUntil} pick${nextPick.picksUntil === 1 ? '' : 's'})`
@@ -830,10 +963,17 @@ export default function ManagerModePage() {
             <div className="mgr-panel-title">Recent Picks</div>
             <div className="recent-picks-list">
               {recent.map((pick) => (
-                <div key={pick.overallPick} className={pick.isUser ? 'recent-pick-item recent-pick-item--you' : 'recent-pick-item'}>
+                <div
+                  key={pick.overallPick}
+                  className={[
+                    'recent-pick-item',
+                    pick.isUser ? 'recent-pick-item--you' : '',
+                    latestPickOverall === pick.overallPick ? 'recent-pick-item--new' : '',
+                  ].filter(Boolean).join(' ')}
+                >
                   <span className="recent-pick-round">R{pick.round}</span>
                   <span className="recent-pick-team">{pick.team}</span>
-                  <span className="recent-pick-player">{pick.playerName}</span>
+                  <span className="recent-pick-name">{pick.playerName}</span>
                   <span className={`player-pos-badge ${bucketClass(pick.bucket as Bkt)}`}>{pick.bucket}</span>
                 </div>
               ))}
@@ -881,11 +1021,13 @@ function SelectView({
   userTeam,
   setUserTeam,
   onStart,
+  isExiting,
 }: {
   pack: DraftPack;
   userTeam: string;
   setUserTeam: (team: string) => void;
   onStart: () => void;
+  isExiting: boolean;
 }) {
   const teams = useMemo(
     () => [...pack.teams].sort((teamA, teamB) => {
@@ -899,7 +1041,7 @@ function SelectView({
   const selectedTeam = TEAM_META_BY_ABBR.get(userTeam);
 
   return (
-    <div className="mgr-select">
+    <div className={isExiting ? 'mgr-select franchise-exit' : 'mgr-select'}>
       <section className="manager-intro">
         <p className="mgr-section-eyebrow">Manager Mode</p>
         <h3>Choose Your Franchise</h3>
@@ -916,16 +1058,22 @@ function SelectView({
       </section>
 
       <div className="franchise-grid">
-        {teams.map((abbr) => {
+        {teams.map((abbr, index) => {
           const team = TEAM_META_BY_ABBR.get(abbr);
           const displayName = team?.city ?? abbr;
+          const recordDelta = (team?.wins ?? 0) - (team?.losses ?? 0);
+          const recordTone = !team ? '' : recordDelta > 3 ? 'winning' : recordDelta < -3 ? 'losing' : 'close';
+          const className = userTeam === abbr
+            ? 'franchise-card franchise-card--entering selected'
+            : 'franchise-card franchise-card--entering';
 
           return (
             <button
               key={abbr}
               type="button"
-              className={userTeam === abbr ? 'franchise-card selected' : 'franchise-card'}
+              className={className}
               onClick={() => setUserTeam(abbr)}
+              style={{ animationDelay: `${index * 25}ms` }}
             >
               <span className="franchise-logo-wrap">
                 {team ? (
@@ -954,7 +1102,9 @@ function SelectView({
               </span>
               <span className="franchise-name">{displayName}</span>
               <span className="franchise-abbr">{abbr}</span>
-              <span className="franchise-record">{team ? `${team.wins}-${team.losses}` : '—'}</span>
+              <span className={recordTone ? `franchise-record ${recordTone}` : 'franchise-record'}>
+                {team ? `${team.wins}-${team.losses}` : '—'}
+              </span>
             </button>
           );
         })}
@@ -964,7 +1114,7 @@ function SelectView({
         {selectedTeam ? `Managing: ${selectedTeam.name}` : 'Select a franchise to begin.'}
       </p>
 
-      <button type="button" className="start-draft-btn" onClick={onStart} disabled={!userTeam}>
+      <button type="button" className="start-draft-btn" onClick={onStart} disabled={!userTeam || isExiting}>
         Start Draft &rarr;
       </button>
     </div>
