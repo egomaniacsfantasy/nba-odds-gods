@@ -25,13 +25,20 @@ const COL_LABELS: Record<SortKey, string> = {
 };
 
 const COL_DESCS: Record<SortKey, string> = {
-  markovRank: 'Markov ranking (lower = better)',
-  elo: 'Elo rating',
-  offRtg: 'Season offensive rating', defRtg: 'Season defensive rating', netRtg: 'Season net rating',
-  l10Off: 'Last-10 offensive rating', l10Def: 'Last-10 defensive rating', l10Net: 'Last-10 net rating',
-  l10EfgPct: 'Last-10 effective FG%',
-  efgPct: 'Season effective FG%', orebPct: 'Offensive rebound rate', threePaRate: '3-point attempt rate',
-  bpm: 'Team box plus/minus', pace: 'Pace (possessions/48)',
+  markovRank: 'Markov chain ranking — probabilistic model estimating team strength from game-by-game results; lower is better',
+  elo: 'Elo rating — strength estimate updated by opponent quality and game results',
+  offRtg: 'Offensive rating — points scored per 100 possessions',
+  defRtg: 'Defensive rating — points allowed per 100 possessions',
+  netRtg: 'Net rating — offensive rating minus defensive rating',
+  l10Off: 'Last 10 games offensive rating — points scored per 100 possessions',
+  l10Def: 'Last 10 games defensive rating — points allowed per 100 possessions',
+  l10Net: 'Last 10 games net rating — offensive rating minus defensive rating',
+  l10EfgPct: 'Last 10 games effective field goal percentage',
+  efgPct: 'Effective field goal percentage — adjusts for the added value of 3-pointers',
+  orebPct: 'Offensive rebound percentage — share of available offensive rebounds secured',
+  threePaRate: '3-point attempt rate — share of field-goal attempts taken from 3',
+  bpm: 'Box Plus/Minus — estimated point differential contribution per 100 possessions',
+  pace: 'Pace — estimated possessions per 48 minutes',
 };
 
 // Columns where lower value = better (sort ascending by default)
@@ -47,8 +54,6 @@ function fmt(key: SortKey, val: number): string {
   if (SIGNED_COLS.has(key)) return (val >= 0 ? '+' : '') + val.toFixed(1);
   return val.toFixed(1);
 }
-
-const COL_W = 58; // px per stat column
 
 export function TeamDataTab() {
   const [activeGroup, setActiveGroup] = useState(0);
@@ -69,7 +74,7 @@ export function TeamDataTab() {
 
   const group  = COL_GROUPS[activeGroup];
   const ncols  = group.cols.length;
-  const gridCols = `28px 56px repeat(${ncols}, ${COL_W}px)`;
+  const gridCols = `32px minmax(120px, 1.5fr) repeat(${ncols}, minmax(86px, 1fr))`;
 
   const sorted = [...NBA_TEAM_DATA].sort((a, b) => {
     const d = (a[sortKey] as number) - (b[sortKey] as number);
@@ -83,7 +88,7 @@ export function TeamDataTab() {
   };
 
   return (
-    <div style={{ maxWidth: 100 + 56 + ncols * COL_W + 32, margin: '0 auto', padding: '0 16px 32px' }}>
+    <div className="stats-table-container">
       <section className="side-panel-section">
         <div className="panel-header">
           <div>
@@ -93,7 +98,7 @@ export function TeamDataTab() {
         </div>
 
         {/* Group selector */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
+        <div className="stats-group-selector">
           {COL_GROUPS.map((g, i) => (
             <button
               key={g.label}
@@ -107,14 +112,14 @@ export function TeamDataTab() {
         </div>
 
         {/* Table */}
-        <div className="standings-table">
+        <div className="standings-table stats-table">
           {/* Header row */}
           <div
-            className="standings-table__header"
+            className="standings-table__header stats-table__header"
             style={{ gridTemplateColumns: gridCols }}
           >
             <span />
-            <span style={{ textAlign: 'left', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Team</span>
+            <span className="stats-team-header">Team</span>
             {group.cols.map((col) => (
               <button
                 key={col}
@@ -134,25 +139,43 @@ export function TeamDataTab() {
           {/* Data rows */}
           {sorted.map((row) => {
             const team = NBA_TEAM_LOOKUP.get(row.id);
+            const shortName = team ? team.name.replace(`${team.city} `, '') : row.abbr;
+
             return (
-              <div key={row.id} className="standings-row" style={{ gridTemplateColumns: gridCols }}>
+              <div key={row.id} className="standings-row stats-table__row" style={{ gridTemplateColumns: gridCols }}>
                 <span className="logo-col">
                   {team && (
-                    <img src={team.logoUrl} alt={row.abbr} width="20" height="20" loading="lazy"
-                      style={{ display: 'block' }}
-                    />
+                    <span className="team-logo-wrap">
+                      <img
+                        className="standings-logo"
+                        src={team.logoUrl}
+                        alt={row.abbr}
+                        width="20"
+                        height="20"
+                        loading="lazy"
+                        onError={(event: { currentTarget: HTMLImageElement }) => {
+                          event.currentTarget.style.display = 'none';
+                          const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+                          if (fallback) {
+                            fallback.style.display = 'flex';
+                          }
+                        }}
+                      />
+                      <span className="logo-fallback standings-logo-fallback" style={{ display: 'none' }}>
+                        {row.abbr}
+                      </span>
+                    </span>
                   )}
                 </span>
-                <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{row.abbr}</span>
+                <span className="stats-team-cell">
+                  <span className="stats-team-abbr">{row.abbr}</span>
+                  <span className="stats-team-name">{shortName}</span>
+                </span>
                 {group.cols.map((col) => (
                   <span
                     key={col}
-                    style={{
-                      textAlign: 'center',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '12px',
-                      color: sortKey === col ? 'var(--text-amber)' : 'var(--text-secondary)',
-                    }}
+                    className={sortKey === col ? 'stats-cell stats-cell--active' : 'stats-cell'}
                   >
                     {fmt(col, row[col] as number)}
                   </span>

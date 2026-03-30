@@ -4,6 +4,7 @@
 // Updated: 2026-03-29
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdvancementPanel } from './components/AdvancementPanel';
+import { OddsTicker } from './components/OddsTicker';
 import { PlayoffSection } from './components/PlayoffSection';
 import { ProgressBar } from './components/ProgressBar';
 import { ScheduleView } from './components/ScheduleView';
@@ -91,6 +92,7 @@ export default function App(_props: AppProps) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [showPickHint, setShowPickHint] = useState(() => localStorage.getItem('nba-oracle-hint-seen') !== '1');
   const [resetOpen, setResetOpen] = useState(false);
+  const [showOracleReveal, setShowOracleReveal] = useState(false);
   const [justPickedKey, setJustPickedKey] = useState<string | null>(null);
   const [changedTeamIds, setChangedTeamIds] = useState<number[]>([]);
   const [deltaMap, setDeltaMap] = useState<Map<string, number>>(new Map());
@@ -105,6 +107,9 @@ export default function App(_props: AppProps) {
   const deltaTimeoutRef = useRef<number | null>(null);
   const pickFlashTimeoutRef = useRef<number | null>(null);
   const standingsTimeoutRef = useRef<number | null>(null);
+  const desktopPlayoffSectionRef = useRef<HTMLDivElement | null>(null);
+  const mobilePlayoffSectionRef = useRef<HTMLDivElement | null>(null);
+  const revealShownRef = useRef(false);
 
   const scheduleGroups = useMemo(
     () => Array.from(groupGamesByDate(NBA_SCHEDULE).entries()).map(([date, games]) => ({ date, games })),
@@ -123,6 +128,42 @@ export default function App(_props: AppProps) {
   const currentExpWins = noPicks ? NBA_MC_EXP_WINS : (simResult?.expWins ?? NBA_MC_EXP_WINS);
   const displayEast = noPicks ? NBA_MC_EAST_STANDINGS : projectedStandings.east;
   const displayWest = noPicks ? NBA_MC_WEST_STANDINGS : projectedStandings.west;
+  const tickerItems = useMemo(
+    () => NBA_TEAMS
+      .map((team) => ({
+        teamId: team.id,
+        abbr: team.abbr,
+        logoUrl: team.logoUrl,
+        probability: currentAdvancements.get(team.id)?.pChampion ?? 0,
+      }))
+      .sort((itemA, itemB) => itemB.probability - itemA.probability)
+      .slice(0, 12),
+    [currentAdvancements],
+  );
+  const projectedChampion = useMemo(() => {
+    const topEntry = [...currentAdvancements.values()]
+      .sort((rowA, rowB) => rowB.pChampion - rowA.pChampion)[0];
+
+    if (!topEntry) {
+      return null;
+    }
+
+    const team = NBA_TEAM_LOOKUP.get(topEntry.teamId);
+    const standingsRow = [...displayEast, ...displayWest].find((row) => row.teamId === topEntry.teamId);
+
+    if (!team || !standingsRow) {
+      return null;
+    }
+
+    const seedValue = topEntry.seed ?? standingsRow.projectedSeed;
+    const seedLabel = seedValue ? `No. ${seedValue} seed` : standingsRow.seedLabel;
+    return {
+      ...topEntry,
+      team,
+      record: `${standingsRow.wins}-${standingsRow.losses}`,
+      summary: `${standingsRow.wins}-${standingsRow.losses} projected record • ${seedLabel} in the ${team.conference}`,
+    };
+  }, [currentAdvancements, displayEast, displayWest]);
 
   const advancementRows = useMemo(() => {
     const rows = NBA_TEAMS.map(
@@ -236,6 +277,20 @@ export default function App(_props: AppProps) {
   useEffect(() => { localStorage.setItem('nba-odds-format', oddsFormat); }, [oddsFormat]);
 
   useEffect(() => {
+    if (!noPicks) {
+      return;
+    }
+
+    previousAdvancementsRef.current = currentAdvancements;
+    setDeltaMap(new Map());
+
+    if (deltaTimeoutRef.current) {
+      window.clearTimeout(deltaTimeoutRef.current);
+      deltaTimeoutRef.current = null;
+    }
+  }, [currentAdvancements, noPicks]);
+
+  useEffect(() => {
     function handleResize() { setIsMobile(window.innerWidth < 768); }
     function handleScroll() { setIsScrolled(window.scrollY > 10); }
     function handlePopState() { /* single-page layout — no tab switching */ }
@@ -267,6 +322,19 @@ export default function App(_props: AppProps) {
   }, [projectedStandings]);
 
   useEffect(() => { if (mobileTab === 'standings') setStandingsDirty(false); }, [mobileTab]);
+
+  useEffect(() => {
+    if (allGamesPicked && !revealShownRef.current) {
+      revealShownRef.current = true;
+      setShowOracleReveal(true);
+      return;
+    }
+
+    if (!allGamesPicked) {
+      revealShownRef.current = false;
+      setShowOracleReveal(false);
+    }
+  }, [allGamesPicked]);
 
   useEffect(() => {
     if (pickFlashTimeoutRef.current) window.clearTimeout(pickFlashTimeoutRef.current);
@@ -374,6 +442,32 @@ export default function App(_props: AppProps) {
     },
     [advancementSort],
   );
+  const handleGoToPlayoffs = useCallback(() => {
+    const scrollToPlayoffs = () => {
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const target = (isMobile ? mobilePlayoffSectionRef.current : desktopPlayoffSectionRef.current)
+        ?? desktopPlayoffSectionRef.current
+        ?? mobilePlayoffSectionRef.current;
+
+      if (target) {
+        target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+        return;
+      }
+
+      window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+    };
+
+    setShowOracleReveal(false);
+    setMainTab('oracle');
+
+    if (isMobile) {
+      setMobileTab('schedule');
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(scrollToPlayoffs);
+    });
+  }, [isMobile]);
 
   return (
     <>
@@ -384,6 +478,7 @@ export default function App(_props: AppProps) {
         onNavigate={handleNavigate}
         isScrolled={isScrolled}
       />
+      <OddsTicker items={tickerItems} oddsFormat={oddsFormat} />
       <main className="app-shell">
         {mainTab === 'oracle' ? (
           <section className="oracle-hero">
@@ -415,7 +510,7 @@ export default function App(_props: AppProps) {
         ) : (
           <section className="tab-header">
             <h1 className="tab-header__title">
-              {mainTab === 'teamdata' ? 'Team Stats' : mainTab === 'predictor' ? 'Predictor' : 'Manager'}
+              {mainTab === 'teamdata' ? 'Team Stats' : mainTab === 'predictor' ? 'Matchup Predictor' : 'Manager Mode'}
             </h1>
           </section>
         )}
@@ -436,13 +531,12 @@ export default function App(_props: AppProps) {
               onReSimulate={() => {}}
               onUndo={handleUndo}
               onReset={() => setResetOpen(true)}
-              onGoToPlayoffs={() => {}}
             />
             <ProgressBar
               pickedCount={pickedCount}
               totalCount={totalPickableGames}
               unlocked={allGamesPicked}
-              onGoToPlayoffs={() => {}}
+              onGoToPlayoffs={handleGoToPlayoffs}
             />
             <div className="main-layout desktop-layout">
               <section className="schedule-panel">
@@ -458,17 +552,19 @@ export default function App(_props: AppProps) {
                   disableInteractions={isSimulating}
                   onPick={handlePick}
                 />
-                <PlayoffSection
-                  lockedPicks={lockedPicks}
-                  east={projectedStandings.east}
-                  west={projectedStandings.west}
-                  teamsById={NBA_TEAM_LOOKUP}
-                  advancements={currentAdvancements}
-                  allGamesPicked={allGamesPicked}
-                  oddsFormat={oddsFormat}
-                  justPickedKey={justPickedKey}
-                  onPick={handlePick}
-                />
+                <div ref={desktopPlayoffSectionRef} className="playoff-anchor">
+                  <PlayoffSection
+                    lockedPicks={lockedPicks}
+                    east={projectedStandings.east}
+                    west={projectedStandings.west}
+                    teamsById={NBA_TEAM_LOOKUP}
+                    advancements={currentAdvancements}
+                    allGamesPicked={allGamesPicked}
+                    oddsFormat={oddsFormat}
+                    justPickedKey={justPickedKey}
+                    onPick={handlePick}
+                  />
+                </div>
               </section>
               <aside className="side-panel">
                 <StandingsTable
@@ -508,17 +604,19 @@ export default function App(_props: AppProps) {
                     disableInteractions={isSimulating}
                     onPick={handlePick}
                   />
-                  <PlayoffSection
-                    lockedPicks={lockedPicks}
-                    east={projectedStandings.east}
-                    west={projectedStandings.west}
-                    teamsById={NBA_TEAM_LOOKUP}
-                    advancements={currentAdvancements}
-                    allGamesPicked={allGamesPicked}
-                    oddsFormat={oddsFormat}
-                    justPickedKey={justPickedKey}
-                    onPick={handlePick}
-                  />
+                  <div ref={mobilePlayoffSectionRef} className="playoff-anchor">
+                    <PlayoffSection
+                      lockedPicks={lockedPicks}
+                      east={projectedStandings.east}
+                      west={projectedStandings.west}
+                      teamsById={NBA_TEAM_LOOKUP}
+                      advancements={currentAdvancements}
+                      allGamesPicked={allGamesPicked}
+                      oddsFormat={oddsFormat}
+                      justPickedKey={justPickedKey}
+                      onPick={handlePick}
+                    />
+                  </div>
                 </section>
               ) : (
                 <section className="mobile-panel">
@@ -556,6 +654,43 @@ export default function App(_props: AppProps) {
             </div>
           </>}
       </main>
+      {showOracleReveal && projectedChampion ? (
+        <div className="oracle-reveal" role="presentation" onClick={() => setShowOracleReveal(false)}>
+          <div className="oracle-reveal-backdrop" />
+          <div
+            className="oracle-reveal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="oracle-reveal-title"
+            onClick={(event: { stopPropagation: () => void }) => event.stopPropagation()}
+          >
+            <p className="reveal-eyebrow">THE ORACLE HAS SPOKEN</p>
+            <div className="reveal-logo-wrap">
+              <img
+                className="reveal-champ-logo"
+                src={projectedChampion.team.logoUrl}
+                alt={projectedChampion.team.name}
+                onError={(event: { currentTarget: HTMLImageElement }) => {
+                  event.currentTarget.style.display = 'none';
+                  const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+                  if (fallback) {
+                    fallback.style.display = 'flex';
+                  }
+                }}
+              />
+              <span className="logo-fallback reveal-logo-fallback" style={{ display: 'none' }}>
+                {projectedChampion.team.abbr}
+              </span>
+            </div>
+            <h2 id="oracle-reveal-title" className="reveal-champ-name">{projectedChampion.team.name}</h2>
+            <p className="reveal-champ-odds">{(projectedChampion.pChampion * 100).toFixed(1)}% championship probability</p>
+            <p className="reveal-summary">{projectedChampion.summary}</p>
+            <button type="button" className="reveal-cta" onClick={handleGoToPlayoffs}>View Playoff Bracket →</button>
+            <button type="button" className="reveal-dismiss" onClick={() => setShowOracleReveal(false)}>Continue Editing</button>
+          </div>
+        </div>
+      ) : null}
       {resetOpen ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setResetOpen(false)}>
           <div className="modal-card" role="dialog" aria-modal="true" onClick={(event: { stopPropagation: () => void }) => event.stopPropagation()}>

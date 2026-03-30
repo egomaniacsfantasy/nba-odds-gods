@@ -16,15 +16,15 @@ export function ProgressBar({ pickedCount, totalCount, unlocked, onGoToPlayoffs 
           style={{ width: `${percentage}%` }}
         />
       </div>
-      <p className="progress-copy">
+      <div className="progress-copy">
         {unlocked ? (
-          <button type="button" className="playoffs-cta playoffs-unlocked-cta" onClick={onGoToPlayoffs}>
+          <button type="button" className="playoffs-unlocked-cta" onClick={onGoToPlayoffs}>
             The Oracle has spoken — Playoffs unlocked! →
           </button>
         ) : (
-          `${pickedCount} / ${totalCount} games picked (${percentage}%)`
+          <span>{pickedCount} / {totalCount} games picked ({percentage}%)</span>
         )}
-      </p>
+      </div>
     </div>
   );
 }

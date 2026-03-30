@@ -13,7 +13,6 @@ interface SimControlsProps {
   onReSimulate: () => void;
   onUndo: () => void;
   onReset: () => void;
-  onGoToPlayoffs: () => void;
 }
 
 export function SimControls({
@@ -31,7 +30,6 @@ export function SimControls({
   onReSimulate,
   onUndo,
   onReset,
-  onGoToPlayoffs,
 }: SimControlsProps) {
   const percentage = totalCount === 0 ? 0 : Math.round((pickedCount / totalCount) * 100);
   const showResimulate = allGamesPicked && canResimulate;
@@ -77,13 +75,7 @@ export function SimControls({
           <div className="sim-controls-progress-fill" style={{ width: `${percentage}%` }} />
         </div>
 
-        {allGamesPicked ? (
-          <button type="button" className="playoffs-cta playoffs-unlocked-cta" onClick={onGoToPlayoffs}>
-            The Oracle has spoken — Playoffs unlocked! →
-          </button>
-        ) : (
-          <div className="sim-controls-progress">{pickedCount}/{totalCount} ({percentage}%)</div>
-        )}
+        <div className="sim-controls-progress">{pickedCount}/{totalCount} ({percentage}%)</div>
       </div>
 
       {isSimulating && !isAutoFilling ? <span className="sim-controls-live-indicator">Odds updating…</span> : null}

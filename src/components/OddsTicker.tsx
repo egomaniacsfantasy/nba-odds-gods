@@ -1,3 +1,6 @@
+import { formatOdds } from '../lib/formatOdds';
+import type { OddsFormat } from '../types';
+
 interface OddsTickerItem {
   teamId: number;
   abbr: string;
@@ -7,9 +10,10 @@ interface OddsTickerItem {
 
 interface OddsTickerProps {
   items: OddsTickerItem[];
+  oddsFormat: OddsFormat;
 }
 
-export function OddsTicker({ items }: OddsTickerProps) {
+export function OddsTicker({ items, oddsFormat }: OddsTickerProps) {
   if (items.length === 0) {
     return null;
   }
@@ -19,12 +23,12 @@ export function OddsTicker({ items }: OddsTickerProps) {
       <div className="odds-ticker-track">
         <div className="odds-ticker-group">
           {items.map((item) => (
-            <TickerItem key={item.teamId} item={item} />
+            <TickerItem key={item.teamId} item={item} oddsFormat={oddsFormat} />
           ))}
         </div>
         <div className="odds-ticker-group" aria-hidden="true">
           {items.map((item) => (
-            <TickerItem key={`dup-${item.teamId}`} item={item} />
+            <TickerItem key={`dup-${item.teamId}`} item={item} oddsFormat={oddsFormat} />
           ))}
         </div>
       </div>
@@ -32,7 +36,7 @@ export function OddsTicker({ items }: OddsTickerProps) {
   );
 }
 
-function TickerItem({ item }: { item: OddsTickerItem }) {
+function TickerItem({ item, oddsFormat }: { item: OddsTickerItem; oddsFormat: OddsFormat }) {
   return (
     <div className="ticker-item">
       <span className="ticker-logo-wrap">
@@ -55,7 +59,7 @@ function TickerItem({ item }: { item: OddsTickerItem }) {
         </span>
       </span>
       <span className="ticker-abbr">{item.abbr}</span>
-      <span className="ticker-prob">{(item.probability * 100).toFixed(1)}%</span>
+      <span className="ticker-prob">{formatOdds(item.probability, oddsFormat)}</span>
     </div>
   );
 }

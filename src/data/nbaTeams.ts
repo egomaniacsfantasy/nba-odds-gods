@@ -535,8 +535,22 @@ const TEAM_PROFILES: TeamProfile[] = [
   },
 ];
 
+const ESPN_LOGO_SLUG_OVERRIDES: Record<string, string> = {
+  NYK: 'ny',
+  WAS: 'wsh',
+  UTA: 'utah',
+  GSW: 'gs',
+  NOP: 'no',
+  SAS: 'sa',
+};
+
+export function getLogoUrl(abbr: string): string {
+  const slug = ESPN_LOGO_SLUG_OVERRIDES[abbr] ?? abbr.toLowerCase();
+  return `https://a.espncdn.com/i/teamlogos/nba/500/${slug}.png`;
+}
+
 function logoUrl(profile: TeamProfile): string {
-  return `https://a.espncdn.com/i/teamlogos/nba/500/${profile.logoId}.png`;
+  return getLogoUrl(profile.abbr);
 }
 
 function createTeam(profile: TeamProfile): NbaTeam {

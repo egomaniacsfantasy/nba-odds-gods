@@ -32,11 +32,17 @@ function computeSeriesOutcomes(
 }
 
 const SORTED_TEAMS = [...NBA_TEAMS].sort((a, b) => a.name.localeCompare(b.name));
-const SEL_STYLE = {
-  flex: 1, minWidth: 130, padding: '6px 8px', borderRadius: 6,
-  background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border)',
-  fontFamily: 'var(--font-sans)', fontSize: 13,
-} as const;
+
+function alternateOddsFormat(oddsFormat: OddsFormat): OddsFormat {
+  return oddsFormat === 'implied' ? 'american' : 'implied';
+}
+
+function oddsPair(probability: number, oddsFormat: OddsFormat): { primary: string; secondary: string } {
+  return {
+    primary: formatOdds(probability, oddsFormat),
+    secondary: formatOdds(probability, alternateOddsFormat(oddsFormat)),
+  };
+}
 
 export function PredictorTab({ oddsFormat }: PredictorTabProps) {
   const defaultA = SORTED_TEAMS.find(t => t.abbr === 'OKC')?.id ?? SORTED_TEAMS[0].id;
@@ -81,28 +87,82 @@ export function PredictorTab({ oddsFormat }: PredictorTabProps) {
   };
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 16px 32px' }}>
+    <div className="predictor-shell">
       <section className="side-panel-section">
         <div className="panel-header">
           <div>
             <p className="panel-kicker">Oracle Analytics</p>
-            <h2 className="panel-title">Predictor</h2>
+            <h2 className="panel-title">Matchup Predictor</h2>
           </div>
         </div>
 
         {/* Team selectors */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-          <select value={teamAId} onChange={(e: { target: { value: string } }) => handleTeamAChange(Number(e.target.value))} style={SEL_STYLE}>
+        <div className="predictor-select-row">
+          <select className="predictor-select" value={teamAId} onChange={(e: { target: { value: string } }) => handleTeamAChange(Number(e.target.value))}>
             {SORTED_TEAMS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
-          <span style={{ color: 'var(--text-tertiary)', fontWeight: 700, fontSize: 12 }}>vs</span>
-          <select value={teamBId} onChange={(e: { target: { value: string } }) => handleTeamBChange(Number(e.target.value))} style={SEL_STYLE}>
+          <span className="predictor-select-vs">vs</span>
+          <select className="predictor-select" value={teamBId} onChange={(e: { target: { value: string } }) => handleTeamBChange(Number(e.target.value))}>
             {SORTED_TEAMS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </div>
 
+        <div className="predictor-matchup">
+          <div className="predictor-team">
+            <span className="predictor-logo-wrap">
+              <img
+                className="predictor-logo"
+                src={teamA.logoUrl}
+                alt={teamA.abbr}
+                loading="lazy"
+                onError={(event: { currentTarget: HTMLImageElement }) => {
+                  event.currentTarget.style.display = 'none';
+                  const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+                  if (fallback) {
+                    fallback.style.display = 'flex';
+                  }
+                }}
+              />
+              <span className="logo-fallback predictor-logo-fallback" style={{ display: 'none' }}>
+                {teamA.abbr}
+              </span>
+            </span>
+            <span className="predictor-team-copy">
+              <span className="predictor-name">{teamA.name}</span>
+              <span className="predictor-abbr">{teamA.abbr}</span>
+            </span>
+          </div>
+          <span className="predictor-vs">vs</span>
+          <div className="predictor-team predictor-team--reverse">
+            <span className="predictor-team-copy">
+              <span className="predictor-name">{teamB.name}</span>
+              <span className="predictor-abbr">{teamB.abbr}</span>
+            </span>
+            <span className="predictor-logo-wrap">
+              <img
+                className="predictor-logo"
+                src={teamB.logoUrl}
+                alt={teamB.abbr}
+                loading="lazy"
+                onError={(event: { currentTarget: HTMLImageElement }) => {
+                  event.currentTarget.style.display = 'none';
+                  const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+
+                  if (fallback) {
+                    fallback.style.display = 'flex';
+                  }
+                }}
+              />
+              <span className="logo-fallback predictor-logo-fallback" style={{ display: 'none' }}>
+                {teamB.abbr}
+              </span>
+            </span>
+          </div>
+        </div>
+
         {/* Home court toggle */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+        <div className="predictor-homecourt-toggle">
           {(['A', 'neutral', 'B'] as HomeCourt[]).map(hc => (
             <button
               key={hc}
@@ -118,19 +178,23 @@ export function PredictorTab({ oddsFormat }: PredictorTabProps) {
         {/* Single game */}
         <div style={{ marginBottom: 24 }}>
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8 }}>Single Game</p>
-          {([{ team: teamA, p: pA }, { team: teamB, p: pB }]).map(({ team, p }) => (
-            <div key={team.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <img src={team.logoUrl} alt={team.abbr} width={24} height={24} style={{ display: 'block' }} />
-                <span style={{ fontWeight: 600, fontSize: 14 }}>{team.abbr}</span>
-                <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{team.name.replace(team.city + ' ', '')}</span>
+          {([{ team: teamA, p: pA }, { team: teamB, p: pB }]).map(({ team, p }) => {
+            const values = oddsPair(p, oddsFormat);
+
+            return (
+              <div key={team.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <img src={team.logoUrl} alt={team.abbr} width={24} height={24} style={{ display: 'block' }} />
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{team.abbr}</span>
+                  <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{team.name.replace(team.city + ' ', '')}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-amber)', minWidth: 52, textAlign: 'right' }}>{values.primary}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', minWidth: 52, textAlign: 'right' }}>{values.secondary}</span>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)' }}>{(p * 100).toFixed(1)}%</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-amber)', minWidth: 52, textAlign: 'right' }}>{formatOdds(p, oddsFormat)}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Series */}
@@ -140,38 +204,42 @@ export function PredictorTab({ oddsFormat }: PredictorTabProps) {
             {([
               { team: teamA, p: pAWinsSeries, outs: OUTCOMES_A, isA: true },
               { team: teamB, p: pBWinsSeries, outs: OUTCOMES_B, isA: false },
-            ]).map(({ team, p, outs, isA }) => (
-              <div key={team.id} style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <img src={team.logoUrl} alt={team.abbr} width={20} height={20} style={{ display: 'block' }} />
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>{team.abbr} wins series</span>
+            ]).map(({ team, p, outs, isA }) => {
+              const values = oddsPair(p, oddsFormat);
+
+              return (
+                <div key={team.id} style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <img src={team.logoUrl} alt={team.abbr} width={20} height={20} style={{ display: 'block' }} />
+                      <span style={{ fontWeight: 600, fontSize: 13 }}>{team.abbr} wins series</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-amber)', minWidth: 52, textAlign: 'right' }}>{values.primary}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', minWidth: 52, textAlign: 'right' }}>{values.secondary}</span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)' }}>{(p * 100).toFixed(1)}%</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-amber)', minWidth: 52, textAlign: 'right' }}>{formatOdds(p, oddsFormat)}</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                    {outs.map(k => {
+                      const [hw, lw] = k.split('-').map(Number);
+                      const games = hw + lw;
+                      const score = isA ? `${teamA.abbr} 4-${lw}` : `${teamB.abbr} 4-${hw}`;
+                      return (
+                        <div key={k} style={cellStyle}>
+                          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>
+                            {games === 4 ? 'Sweep' : `In ${games}`}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>{score}</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {((series[k] ?? 0) * 100).toFixed(1)}%
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-                  {outs.map(k => {
-                    const [hw, lw] = k.split('-').map(Number);
-                    const games = hw + lw;
-                    const score = isA ? `${teamA.abbr} 4-${lw}` : `${teamB.abbr} 4-${hw}`;
-                    return (
-                      <div key={k} style={cellStyle}>
-                        <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginBottom: 2 }}>
-                          {games === 4 ? 'Sweep' : `In ${games}`}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>{score}</div>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {((series[k] ?? 0) * 100).toFixed(1)}%
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>

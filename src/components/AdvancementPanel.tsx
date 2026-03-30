@@ -1,6 +1,6 @@
 // Auto-generated AdvancementPanel.tsx — do not edit manually
 // Updated: 2026-03-29
-import { formatDelta, formatProbabilityCell } from '../lib/formatOdds';
+import { formatProbabilityCell } from '../lib/formatOdds';
 import type {
   AdvancementSortKey,
   NbaTeam,
@@ -121,7 +121,7 @@ export function AdvancementPanel({
                       }`}
                     >
                       <span>{formatProbabilityCell(row[column.key as keyof TeamAdvancement] as number, oddsFormat)}</span>
-                      {renderDelta(deltaMap.get(`${row.teamId}:${column.key}`), oddsFormat)}
+                      {renderDelta(deltaMap.get(`${row.teamId}:${column.key}`))}
                     </td>
                   ))}
                 </tr>
@@ -135,7 +135,7 @@ export function AdvancementPanel({
 }
 
 function sortHeaderClass(activeSort: AdvancementSortKey, headerKey: AdvancementSortKey): string {
-  return activeSort === headerKey ? 'sorted' : '';
+  return activeSort === headerKey ? 'sort-active' : '';
 }
 
 function sortIndicator(
@@ -166,12 +166,17 @@ function probabilityClassName(value: number): string {
   return value < 0.01 ? 'prob-zero' : '';
 }
 
-function renderDelta(delta: number | undefined, oddsFormat: OddsFormat) {
+function renderDelta(delta: number | undefined) {
   if (!delta || Math.abs(delta) < 0.005) {
     return null;
   }
 
-  return <span className={delta >= 0 ? 'delta-badge delta-up' : 'delta-badge delta-down'}>{formatDelta(delta, oddsFormat)}</span>;
+  return (
+    <span className={delta >= 0 ? 'delta-badge delta-up' : 'delta-badge delta-down'}>
+      {delta >= 0 ? '+' : ''}
+      {(delta * 100).toFixed(1)}
+    </span>
+  );
 }
 
 function formatSeed(row: TeamAdvancement): string {
