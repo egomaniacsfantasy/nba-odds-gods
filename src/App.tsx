@@ -96,6 +96,7 @@ export default function App(_props: AppProps) {
   const [changedTeamIds, setChangedTeamIds] = useState<number[]>([]);
   const [deltaMap, setDeltaMap] = useState<Map<string, number>>(new Map());
   const [standingsDirty, setStandingsDirty] = useState(false);
+  const [managerHeaderVisible, setManagerHeaderVisible] = useState(true);
   const simCacheRef = useRef(new Map<string, SimulationResult>());
   const previousAdvancementsRef = useRef<Map<number, TeamAdvancement> | null>(null);
   const previousSeedsRef = useRef<Map<number, string> | null>(null);
@@ -326,6 +327,12 @@ export default function App(_props: AppProps) {
   useEffect(() => { if (mobileTab === 'standings') setStandingsDirty(false); }, [mobileTab]);
 
   useEffect(() => {
+    if (mainTab !== 'manager') {
+      setManagerHeaderVisible(true);
+    }
+  }, [mainTab]);
+
+  useEffect(() => {
     if (mainTab !== 'oracle' || isMobile) {
       setShowFuturesTeaser(false);
       return;
@@ -539,7 +546,7 @@ export default function App(_props: AppProps) {
             </h1>
             <p className="hero-subtitle">Pick every game. Watch the playoff picture shift. The Oracle sees all.</p>
           </section>
-        ) : (
+        ) : mainTab === 'manager' && !managerHeaderVisible ? null : (
           <section className="tab-header">
             <h1 className="tab-header__title">
               {mainTab === 'teamdata' ? 'Team Stats' : mainTab === 'predictor' ? 'Matchup Predictor' : 'Manager Mode'}
@@ -547,7 +554,7 @@ export default function App(_props: AppProps) {
           </section>
         )}
 
-        {mainTab === 'manager' ? <ManagerModePage /> : mainTab === 'predictor' ? <PredictorTab oddsFormat={oddsFormat} /> : mainTab === 'teamdata' ? <TeamDataTab /> : <>
+        {mainTab === 'manager' ? <ManagerModePage onHeaderVisibilityChange={setManagerHeaderVisible} /> : mainTab === 'predictor' ? <PredictorTab oddsFormat={oddsFormat} /> : mainTab === 'teamdata' ? <TeamDataTab /> : <>
             <SimControls
               canUndo={undoStack.length > 0}
               canReset={lockedPicks.size > 0}
