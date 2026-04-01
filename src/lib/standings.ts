@@ -1,8 +1,20 @@
 // Auto-generated standings.ts — do not edit manually
 // Updated: 2026-04-01
-// Full NBA tiebreaker: H2H → div leader → div record → conf record → random
+// Full NBA tiebreaker: H2H → div leader → div record → conf record → stable sort
 // Matches Python CELL 12 _tiebreak() exactly.
+// Projected standings use a fixed-seed LCG so tied teams always resolve to the
+// same seed regardless of how many times the component re-renders.
 import type { LockedPicks, NbaGame, NbaTeam, StandingsRow } from '../types';
+
+// Deterministic LCG — used as the fallback RNG for projected standings tiebreaks.
+// Fixed seed ensures tied teams always resolve to the same order across re-renders.
+function _lcg(seed: number): () => number {
+  let s = seed;
+  return (): number => {
+    s = Math.imul(1664525, s) + 1013904223 | 0;
+    return (s >>> 0) / 0x100000000;
+  };
+}
 
 function _wlPct(w: number, l: number): number {
   return w + l > 0 ? w / (w + l) : 0;
@@ -251,7 +263,7 @@ function _runStandings(
     }
   }
 
-  const rng = random ?? (() => Math.random());
+  const rng = random ?? _lcg(0x4e424120); // fixed seed → deterministic projected tiebreaker
   const east = teams.filter((t) => t.conference === 'East');
   const west = teams.filter((t) => t.conference === 'West');
   return {
