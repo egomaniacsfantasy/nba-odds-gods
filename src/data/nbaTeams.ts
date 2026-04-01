@@ -1,5 +1,5 @@
 // Auto-generated from nba_snapshot.xlsx + nba_standings.xlsx — do not edit manually
-// Updated: 2026-03-31
+// Updated: 2026-04-01
 
 import type { HeadToHeadRecord, NbaTeam } from '../types';
 import { clamp, clampInt, fnv1a, mulberry32 } from '../lib/rng';
@@ -117,9 +117,9 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Central',
     logoId: 5,
     primaryColor: '#860038',
-    elo: 1641.9,
+    elo: 1642.8,
     baselineWins: 47,
-    baselineLosses: 28,
+    baselineLosses: 29,
     baselineConfWins: 30,
     baselineConfLosses: 18,
     baselineDivWins: 10,
@@ -355,11 +355,11 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Pacific',
     logoId: 12,
     primaryColor: '#c8102e',
-    elo: 1557.2,
+    elo: 1559.9,
     baselineWins: 39,
-    baselineLosses: 36,
+    baselineLosses: 37,
     baselineConfWins: 22,
-    baselineConfLosses: 23,
+    baselineConfLosses: 24,
     baselineDivWins: 8,
     baselineDivLosses: 6,
   },
@@ -372,8 +372,8 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Pacific',
     logoId: 13,
     primaryColor: '#552583',
-    elo: 1563.0,
-    baselineWins: 49,
+    elo: 1563.8,
+    baselineWins: 50,
     baselineLosses: 26,
     baselineConfWins: 30,
     baselineConfLosses: 16,
@@ -474,10 +474,10 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Northwest',
     logoId: 22,
     primaryColor: '#e03a3e',
-    elo: 1461.2,
-    baselineWins: 38,
+    elo: 1463.0,
+    baselineWins: 39,
     baselineLosses: 38,
-    baselineConfWins: 25,
+    baselineConfWins: 26,
     baselineConfLosses: 21,
     baselineDivWins: 7,
     baselineDivLosses: 8,

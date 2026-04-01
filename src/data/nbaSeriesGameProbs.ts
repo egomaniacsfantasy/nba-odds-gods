@@ -1,7 +1,7 @@
 // Auto-generated nbaSeriesGameProbs.ts — do not edit manually
 // Encodes P(hs wins game) keyed by (roundKey, hsId, lsId, gameNum, hsWins, lsWins).
 // Uses ACTUAL playoff game DayNums per round — identical to Python CELL 11b.
-// Updated: 2026-03-31
+// Updated: 2026-04-01
 
 const _T = [] as const;
 const _TI = new Map<number, number>((_T as unknown as number[]).map((id, i) => [id, i]));
