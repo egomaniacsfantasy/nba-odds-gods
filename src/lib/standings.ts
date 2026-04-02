@@ -5,6 +5,7 @@
 // Projected standings use a fixed-seed LCG so tied teams always resolve to the
 // same seed regardless of how many times the component re-renders.
 import type { LockedPicks, NbaGame, NbaTeam, StandingsRow } from '../types';
+import { NBA_BASELINE_HEAD_TO_HEAD } from '../data/nbaTeams';
 
 // Deterministic LCG — used as the fallback RNG for projected standings tiebreaks.
 // Fixed seed ensures tied teams always resolve to the same order across re-renders.
@@ -175,12 +176,14 @@ function _seedConference(
     i = j;
   }
 
-  const best = state.get(result[0])!.wins;
+  const bestState = state.get(result[0])!;
+  const best = bestState.wins;
   return result.map((teamId, idx) => {
     const s = state.get(teamId)!;
     const seed = idx + 1;
     const seedLbl = seed >= 7 && seed <= 10 ? `${seed} (PI)` : `${seed}`;
-    const gb = best - s.wins;
+    // Standard NBA games-back formula: ((W_leader - W) + (L - L_leader)) / 2
+    const gb = ((best - s.wins) + (s.losses - bestState.losses)) / 2;
     return {
       teamId,
       wins: s.wins,
@@ -216,7 +219,15 @@ function _runStandings(
 
   const teamConf = new Map(teams.map((t) => [t.id, t.conference]));
   const teamDiv  = new Map(teams.map((t) => [t.id, t.division]));
+
+  // Seed H2H from pre-snapshot historical records so already-played mutual games
+  // count toward Step 1 of the tiebreaker. Baseline key format is "loId-hiId";
+  // standings internal format is "loId:hiId" — translate on the way in.
   const h2h = new Map<string, [number, number]>();
+  for (const [key, rec] of NBA_BASELINE_HEAD_TO_HEAD) {
+    const [lo, hi] = key.split('-').map(Number);
+    h2h.set(`${lo}:${hi}`, [rec.w, rec.l]);
+  }
 
   for (const game of schedule) {
     const homeState = state.get(game.homeTeamId);
