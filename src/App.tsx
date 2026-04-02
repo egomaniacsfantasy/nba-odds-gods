@@ -28,6 +28,10 @@ import type {
   TeamAdvancement,
 } from './types';
 
+// Playoff game IDs start at 9001 — exclude them from standings so that locking
+// a playoff game result never changes a team's regular-season win total or seed.
+const NBA_REGULAR_SEASON = NBA_SCHEDULE.filter((g) => g.gameId < 9001);
+
 interface AppProps {
   initialPath: string;
 }
@@ -120,7 +124,7 @@ export default function App(_props: AppProps) {
   );
 
   const projectedStandings = useMemo(
-    () => computeProjectedStandings(lockedPicks, NBA_SCHEDULE, NBA_TEAMS),
+    () => computeProjectedStandings(lockedPicks, NBA_REGULAR_SEASON, NBA_TEAMS),
     [lockedPicks],
   );
 
@@ -456,7 +460,7 @@ export default function App(_props: AppProps) {
         next.set(game.gameId, random() < game.pHomeWins ? game.homeTeamId : game.awayTeamId);
       }
       // 2. Fill all playoff games deterministically (favorite wins each game)
-      const standings = computeProjectedStandings(next, NBA_SCHEDULE, NBA_TEAMS);
+      const standings = computeProjectedStandings(next, NBA_REGULAR_SEASON, NBA_TEAMS);
       return buildPlayoffPicks(next, standings, NBA_TEAM_LOOKUP);
     });
     setJustPickedKey(null);
