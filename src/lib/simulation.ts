@@ -10,6 +10,8 @@
 // Updated: 2026-04-03
 import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { getPlayinProb } from '../data/nbaPlayinProbs';
+import { getSeriesGameProb } from '../data/nbaSeriesGameProbs';
+import type { RoundKey } from '../data/nbaSeriesGameProbs';
 import type {
   LockedPicks,
   NbaGame,
@@ -108,23 +110,24 @@ function simulateSeries(
   teamB: SeededTeam,
   regularSeasonWins: Map<number, number>,
   random: () => number,
+  roundKey: RoundKey,
   lockedPicks?: LockedPicks,
   gameIds?: readonly number[],
 ): number {
   const homeCourtTeamId = decideHomeCourt(teamA, teamB, regularSeasonWins, random);
   const challengerId = homeCourtTeamId === teamA.teamId ? teamB.teamId : teamA.teamId;
-  // Use matchup win probabilities — home/away location follows standard NBA 2-2-1-1-1 pattern.
+  // Use per-round per-state series game probabilities (date-aware, injury-aware).
   // Always run all 7 games to keep RNG stream length constant.
   // Per-game picks (gameIds) override random draws for individual games.
   let hsW = 0;
   let lsW = 0;
   for (let g = 1; g <= 7; g++) {
     const seriesOver = hsW === 4 || lsW === 4;
-    const p = seriesOver ? 0.5 : getMatchupProb(homeCourtTeamId, challengerId, _HS_HOME_G.has(g) ? 'home' : 'away');
+    const pHsWins = seriesOver ? 0.5 : getSeriesGameProb(roundKey, homeCourtTeamId, challengerId, g, hsW, lsW);
     const r = random();
     if (!seriesOver) {
       const pick = gameIds && lockedPicks ? lockedPicks.get(gameIds[g - 1]) : undefined;
-      const hsWins = pick !== undefined ? pick === homeCourtTeamId : r < p;
+      const hsWins = pick !== undefined ? pick === homeCourtTeamId : r < pHsWins;
       if (hsWins) hsW += 1; else lsW += 1;
     }
   }
@@ -212,8 +215,12 @@ function simulateConferenceBracket(
     [seededTeams[2], seededTeams[5], r1Keys.s3v6],
   ];
 
+  const r1Key: RoundKey = isEast ? 'east_r1' : 'west_r1';
+  const r2Key: RoundKey = isEast ? 'east_r2' : 'west_r2';
+  const cfKey: RoundKey = isEast ? 'east_cf' : 'west_cf';
+
   const roundOneWinners = quarterfinals.map(([teamA, teamB, gameIds]) => {
-    const winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random, lockedPicks, gameIds);
+    const winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random, r1Key, lockedPicks, gameIds);
     const counter = counters.get(winnerId);
     if (counter) counter.r1Count += 1;
     return {
@@ -229,7 +236,7 @@ function simulateConferenceBracket(
   ];
 
   const conferenceFinalists = semifinals.map(([teamA, teamB, gameIds]) => {
-    const winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random, lockedPicks, gameIds);
+    const winnerId = simulateSeries(teamA, teamB, regularSeasonWins, random, r2Key, lockedPicks, gameIds);
     const counter = counters.get(winnerId);
     if (counter) counter.confFinalsCount += 1;
     return {
@@ -244,6 +251,7 @@ function simulateConferenceBracket(
     conferenceFinalists[1],
     regularSeasonWins,
     random,
+    cfKey,
     lockedPicks,
     cfIds,
   );
@@ -340,6 +348,7 @@ export function simulateNbaFullSeason(
       { seed: 1, teamId: westChampionId },
       regularSeasonWins,
       random,
+      'finals',
       lockedPicks,
       FINALS_GAME_IDS,
     );
@@ -386,6 +395,7 @@ function _pickSeriesDet(
   hsId: number,
   lsId: number,
   picks: LockedPicks,
+  roundKey: RoundKey,
 ): number {
   let hw = 0, lw = 0;
   for (let g = 1; g <= 7; g++) {
@@ -395,10 +405,10 @@ function _pickSeriesDet(
       if (w === hsId) hw++; else lw++;
       continue;
     }
+    const pHsWins = getSeriesGameProb(roundKey, hsId, lsId, g, hw, lw);
+    const p = _HS_HOME_G.has(g) ? pHsWins : 1 - pHsWins;
     const hId = _HS_HOME_G.has(g) ? hsId : lsId;
-    const aId = _HS_HOME_G.has(g) ? lsId : hsId;
-    const p = getMatchupProb(hId, aId, 'home');
-    const winner = Math.random() < p ? hId : aId;
+    const winner = Math.random() < p ? hId : (hId === hsId ? lsId : hsId);
     picks.set(gameIds[g - 1], winner);
     if (winner === hsId) hw++; else lw++;
   }
@@ -446,6 +456,9 @@ export function buildPlayoffPicks(
     const r1k = isEast ? R1_GAME_IDS.east : R1_GAME_IDS.west;
     const r2k = isEast ? R2_GAME_IDS.east : R2_GAME_IDS.west;
     const cfk = isEast ? CF_GAME_IDS.east : CF_GAME_IDS.west;
+    const r1Key: RoundKey = isEast ? 'east_r1' : 'west_r1';
+    const r2Key: RoundKey = isEast ? 'east_r2' : 'west_r2';
+    const cfKey: RoundKey = isEast ? 'east_cf' : 'west_cf';
 
     const s = rows.map((r, i) => ({ teamId: r.teamId, seed: i + 1 }));
     if (s.length < 10) return null;
@@ -471,7 +484,7 @@ export function buildPlayoffPicks(
       const [hs, ls] = _detHomeCourt(a.teamId, a.seed, b.teamId, b.seed, wins);
       const hSeed = hs === a.teamId ? a.seed : b.seed;
       const lSeed = hs === a.teamId ? b.seed : a.seed;
-      const wId = _pickSeriesDet(ids, hs, ls, picks);
+      const wId = _pickSeriesDet(ids, hs, ls, picks, r1Key);
       return { teamId: wId, seed: wId === hs ? hSeed : lSeed };
     });
 
@@ -484,13 +497,13 @@ export function buildPlayoffPicks(
       const [hs, ls] = _detHomeCourt(a.teamId, a.seed, b.teamId, b.seed, wins);
       const hSeed = hs === a.teamId ? a.seed : b.seed;
       const lSeed = hs === a.teamId ? b.seed : a.seed;
-      const wId = _pickSeriesDet(ids, hs, ls, picks);
+      const wId = _pickSeriesDet(ids, hs, ls, picks, r2Key);
       return { teamId: wId, seed: wId === hs ? hSeed : lSeed };
     });
 
     // CF
     const [cfHs, cfLs] = _detHomeCourt(r2w[0].teamId, r2w[0].seed, r2w[1].teamId, r2w[1].seed, wins);
-    const cfWinnerId = _pickSeriesDet(cfk, cfHs, cfLs, picks);
+    const cfWinnerId = _pickSeriesDet(cfk, cfHs, cfLs, picks, cfKey);
     const cfSeed = cfWinnerId === r2w[0].teamId ? r2w[0].seed : r2w[1].seed;
     return { teamId: cfWinnerId, seed: cfSeed };
   }
@@ -517,7 +530,7 @@ export function buildPlayoffPicks(
     const [finHs, finLs] = finHsEast
       ? [eastChamp.teamId, westChamp.teamId]
       : [westChamp.teamId, eastChamp.teamId];
-    _pickSeriesDet(FINALS_GAME_IDS, finHs, finLs, picks);
+    _pickSeriesDet(FINALS_GAME_IDS, finHs, finLs, picks, 'finals');
   }
 
   return picks;
