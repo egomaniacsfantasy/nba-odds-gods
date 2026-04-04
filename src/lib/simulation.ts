@@ -8,7 +8,6 @@
 //   East R2: 9301-9307=sAB, 9321-9327=sCD; West R2: 9341-9347=sAB, 9361-9367=sCD
 //   East CF: 9401-9407; West CF: 9411-9417; Finals: 9501-9507
 // Updated: 2026-04-03
-import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { getPlayinProb } from '../data/nbaPlayinProbs';
 import { getSeriesGameProb } from '../data/nbaSeriesGameProbs';
 import type { RoundKey } from '../data/nbaSeriesGameProbs';
