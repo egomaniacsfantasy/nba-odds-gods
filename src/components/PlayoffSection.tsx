@@ -1,9 +1,10 @@
 // Auto-generated PlayoffSection.tsx — do not edit manually
-// Updated: 2026-03-29
+// Updated: 2026-04-03
 import { useMemo } from 'react';
 import { DateGroup } from './DateGroup';
-import { getMatchupProb } from '../data/nbaMatchupProbs';
 import { getPlayinProb } from '../data/nbaPlayinProbs';
+import { getSeriesGameProb } from '../data/nbaSeriesGameProbs';
+import type { RoundKey } from '../data/nbaSeriesGameProbs';
 import {
   CF_GAME_IDS, FINALS_GAME_IDS, PLAYIN_GAME_IDS, R1_GAME_IDS, R2_GAME_IDS,
 } from '../lib/simulation';
@@ -39,6 +40,7 @@ function _buildSeries(
   dates: readonly string[], days: readonly number[], picks: LockedPicks,
   teamsById: Map<number, NbaTeam>,
   seedMap: Map<number, number>,
+  roundKey: RoundKey,
 ): NbaGame[] {
   if (!hsId || !lsId) return [];
   const hsAbbr = teamsById.get(hsId)?.abbr ?? '???';
@@ -51,7 +53,10 @@ function _buildSeries(
     const g = i + 1;
     const hId = _HS_HOME_R.has(g) ? hsId : lsId;
     const aId = _HS_HOME_R.has(g) ? lsId : hsId;
-    const game = _mkGame(gameIds[i], dates[i], days[i], hId, aId, getMatchupProb(hId, aId, 'home'));
+    // P(hs wins game g | series state) — date-aware, injury reinstatement baked in
+    const pHsWins = getSeriesGameProb(roundKey, hsId, lsId, g, aw, bw);
+    const pH = hId === hsId ? pHsWins : 1 - pHsWins;
+    const game = _mkGame(gameIds[i], dates[i], days[i], hId, aId, pH);
     game.homeSeed = seedMap.get(hId);
     game.awaySeed = seedMap.get(aId);
     if (aw > 0 || bw > 0) {
@@ -186,17 +191,17 @@ export function PlayoffSection({
     if (wSeed8) seedMap.set(wSeed8, 8);
 
     // ── R1: group by date ─────────────────────────────────────────
-    function addSeries(ids: readonly number[], hs: number | null, ls: number | null, dates: readonly string[], days: readonly number[]) {
-      for (const g of _buildSeries(ids, hs, ls, dates, days, lockedPicks, teamsById, seedMap)) addToDate(g);
+    function addSeries(ids: readonly number[], hs: number | null, ls: number | null, dates: readonly string[], days: readonly number[], roundKey: RoundKey) {
+      for (const g of _buildSeries(ids, hs, ls, dates, days, lockedPicks, teamsById, seedMap, roundKey)) addToDate(g);
     }
-    addSeries(R1_GAME_IDS.east.s1v8, eS[0], eS[7], _E_R1_DATES, _E_R1_DAYS);
-    addSeries(R1_GAME_IDS.east.s4v5, eS[3], eS[4], _E_R1_DATES, _E_R1_DAYS);
-    addSeries(R1_GAME_IDS.east.s2v7, eS[1], eS[6], _E_R1_DATES, _E_R1_DAYS);
-    addSeries(R1_GAME_IDS.east.s3v6, eS[2], eS[5], _E_R1_DATES, _E_R1_DAYS);
-    addSeries(R1_GAME_IDS.west.s1v8, wS[0], wS[7], _W_R1_DATES, _W_R1_DAYS);
-    addSeries(R1_GAME_IDS.west.s4v5, wS[3], wS[4], _W_R1_DATES, _W_R1_DAYS);
-    addSeries(R1_GAME_IDS.west.s2v7, wS[1], wS[6], _W_R1_DATES, _W_R1_DAYS);
-    addSeries(R1_GAME_IDS.west.s3v6, wS[2], wS[5], _W_R1_DATES, _W_R1_DAYS);
+    addSeries(R1_GAME_IDS.east.s1v8, eS[0], eS[7], _E_R1_DATES, _E_R1_DAYS, 'east_r1');
+    addSeries(R1_GAME_IDS.east.s4v5, eS[3], eS[4], _E_R1_DATES, _E_R1_DAYS, 'east_r1');
+    addSeries(R1_GAME_IDS.east.s2v7, eS[1], eS[6], _E_R1_DATES, _E_R1_DAYS, 'east_r1');
+    addSeries(R1_GAME_IDS.east.s3v6, eS[2], eS[5], _E_R1_DATES, _E_R1_DAYS, 'east_r1');
+    addSeries(R1_GAME_IDS.west.s1v8, wS[0], wS[7], _W_R1_DATES, _W_R1_DAYS, 'west_r1');
+    addSeries(R1_GAME_IDS.west.s4v5, wS[3], wS[4], _W_R1_DATES, _W_R1_DAYS, 'west_r1');
+    addSeries(R1_GAME_IDS.west.s2v7, wS[1], wS[6], _W_R1_DATES, _W_R1_DAYS, 'west_r1');
+    addSeries(R1_GAME_IDS.west.s3v6, wS[2], wS[5], _W_R1_DATES, _W_R1_DAYS, 'west_r1');
     flushDates([..._E_R1_DATES, ..._W_R1_DATES]);
 
     // ── R1 completion check ───────────────────────────────────────
@@ -227,10 +232,10 @@ export function PlayoffSection({
     const eSI = (id: number | null) => id ? eS.indexOf(id) : 99;
     const wSI = (id: number | null) => id ? wS.indexOf(id) : 99;
     // R2 East sAB: 1/8w vs 4/5w
-    addSeries(R2_GAME_IDS.east.sAB, _hsOf(eR1w.s1v8, eSI(eR1w.s1v8), eR1w.s4v5, eSI(eR1w.s4v5)), _lsOf(eR1w.s1v8, eSI(eR1w.s1v8), eR1w.s4v5, eSI(eR1w.s4v5)), _R2_DATES, _R2_DAYS);
-    addSeries(R2_GAME_IDS.east.sCD, _hsOf(eR1w.s2v7, eSI(eR1w.s2v7), eR1w.s3v6, eSI(eR1w.s3v6)), _lsOf(eR1w.s2v7, eSI(eR1w.s2v7), eR1w.s3v6, eSI(eR1w.s3v6)), _R2_DATES, _R2_DAYS);
-    addSeries(R2_GAME_IDS.west.sAB, _hsOf(wR1w.s1v8, wSI(wR1w.s1v8), wR1w.s4v5, wSI(wR1w.s4v5)), _lsOf(wR1w.s1v8, wSI(wR1w.s1v8), wR1w.s4v5, wSI(wR1w.s4v5)), _R2_DATES, _R2_DAYS);
-    addSeries(R2_GAME_IDS.west.sCD, _hsOf(wR1w.s2v7, wSI(wR1w.s2v7), wR1w.s3v6, wSI(wR1w.s3v6)), _lsOf(wR1w.s2v7, wSI(wR1w.s2v7), wR1w.s3v6, wSI(wR1w.s3v6)), _R2_DATES, _R2_DAYS);
+    addSeries(R2_GAME_IDS.east.sAB, _hsOf(eR1w.s1v8, eSI(eR1w.s1v8), eR1w.s4v5, eSI(eR1w.s4v5)), _lsOf(eR1w.s1v8, eSI(eR1w.s1v8), eR1w.s4v5, eSI(eR1w.s4v5)), _R2_DATES, _R2_DAYS, 'east_r2');
+    addSeries(R2_GAME_IDS.east.sCD, _hsOf(eR1w.s2v7, eSI(eR1w.s2v7), eR1w.s3v6, eSI(eR1w.s3v6)), _lsOf(eR1w.s2v7, eSI(eR1w.s2v7), eR1w.s3v6, eSI(eR1w.s3v6)), _R2_DATES, _R2_DAYS, 'east_r2');
+    addSeries(R2_GAME_IDS.west.sAB, _hsOf(wR1w.s1v8, wSI(wR1w.s1v8), wR1w.s4v5, wSI(wR1w.s4v5)), _lsOf(wR1w.s1v8, wSI(wR1w.s1v8), wR1w.s4v5, wSI(wR1w.s4v5)), _R2_DATES, _R2_DAYS, 'west_r2');
+    addSeries(R2_GAME_IDS.west.sCD, _hsOf(wR1w.s2v7, wSI(wR1w.s2v7), wR1w.s3v6, wSI(wR1w.s3v6)), _lsOf(wR1w.s2v7, wSI(wR1w.s2v7), wR1w.s3v6, wSI(wR1w.s3v6)), _R2_DATES, _R2_DAYS, 'west_r2');
     flushDates(_R2_DATES);
 
     const r2Done = _seriesDone(R2_GAME_IDS.east.sAB, eR1w.s1v8, eR1w.s4v5, lockedPicks) &&
@@ -244,8 +249,8 @@ export function PlayoffSection({
     const eR2wCD = _seriesWinner(R2_GAME_IDS.east.sCD, eR1w.s2v7, eR1w.s3v6, lockedPicks);
     const wR2wAB = _seriesWinner(R2_GAME_IDS.west.sAB, wR1w.s1v8, wR1w.s4v5, lockedPicks);
     const wR2wCD = _seriesWinner(R2_GAME_IDS.west.sCD, wR1w.s2v7, wR1w.s3v6, lockedPicks);
-    addSeries(CF_GAME_IDS.east, _hsOf(eR2wAB, eSI(eR2wAB), eR2wCD, eSI(eR2wCD)), _lsOf(eR2wAB, eSI(eR2wAB), eR2wCD, eSI(eR2wCD)), _CF_DATES, _CF_DAYS);
-    addSeries(CF_GAME_IDS.west, _hsOf(wR2wAB, wSI(wR2wAB), wR2wCD, wSI(wR2wCD)), _lsOf(wR2wAB, wSI(wR2wAB), wR2wCD, wSI(wR2wCD)), _CF_DATES, _CF_DAYS);
+    addSeries(CF_GAME_IDS.east, _hsOf(eR2wAB, eSI(eR2wAB), eR2wCD, eSI(eR2wCD)), _lsOf(eR2wAB, eSI(eR2wAB), eR2wCD, eSI(eR2wCD)), _CF_DATES, _CF_DAYS, 'east_cf');
+    addSeries(CF_GAME_IDS.west, _hsOf(wR2wAB, wSI(wR2wAB), wR2wCD, wSI(wR2wCD)), _lsOf(wR2wAB, wSI(wR2wAB), wR2wCD, wSI(wR2wCD)), _CF_DATES, _CF_DAYS, 'west_cf');
     flushDates(_CF_DATES);
 
     const cfDone = _seriesDone(CF_GAME_IDS.east, eR2wAB, eR2wCD, lockedPicks) &&
@@ -272,7 +277,7 @@ export function PlayoffSection({
     else _finHsEast = true; // east by convention
     const finHs = _finHsEast ? eastChamp : westChamp;
     const finLs = finHs === eastChamp ? westChamp : eastChamp;
-    addSeries(FINALS_GAME_IDS, finHs, finLs, _FIN_DATES, _FIN_DAYS);
+    addSeries(FINALS_GAME_IDS, finHs, finLs, _FIN_DATES, _FIN_DAYS, 'finals');
     flushDates(_FIN_DATES);
 
     return result;
