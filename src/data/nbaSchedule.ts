@@ -5,7 +5,7 @@ import type { NbaGame } from '../types';
 
 export const NBA_SCHEDULE: NbaGame[] = [
   { gameId: 1, gameDate: "2026-04-05", daynum: 166, homeTeamId: 2, awayTeamId: 14, pHomeWins: 0.7837, isCompleted: false },
-  { gameId: 2, gameDate: "2026-04-05", daynum: 166, homeTeamId: 3, awayTeamId: 15, pHomeWins: 0.5981, isCompleted: false },
+  { gameId: 2, gameDate: "2026-04-05", daynum: 166, homeTeamId: 3, awayTeamId: 15, pHomeWins: 0.6219, isCompleted: false },
   { gameId: 3, gameDate: "2026-04-05", daynum: 166, homeTeamId: 5, awayTeamId: 26, pHomeWins: 0.3877, isCompleted: false },
   { gameId: 4, gameDate: "2026-04-05", daynum: 166, homeTeamId: 10, awayTeamId: 22, pHomeWins: 0.5914, isCompleted: false },
   { gameId: 5, gameDate: "2026-04-05", daynum: 166, homeTeamId: 6, awayTeamId: 8, pHomeWins: 0.8343, isCompleted: false },
