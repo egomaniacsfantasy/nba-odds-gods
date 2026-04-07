@@ -28,7 +28,7 @@ interface Player {
   playerName: string;
   teamAbbr: string;
   bucket: string;
-  bpmC: number;
+  qualC: number;
   adp?: number;
   adpStd?: number;
 }
@@ -99,7 +99,7 @@ interface PlayInGame {
 
 interface SeasonData {
   season: string;
-  bpm_grid: number[];
+  quality_grid: number[];
   regular_season: SeasonGame[];
   play_in: Record<string, PlayInGame>;
   playoffs: PoData;
@@ -130,7 +130,7 @@ interface TeamProjection {
   titleOdds: number;
   rating: number;
   conference: 'East' | 'West';
-  bpmZ: number;
+  qualZ: number;
 }
 
 type Phase = 'loading' | 'select' | 'draft' | 'complete' | 'season_load' | 'season';
@@ -241,9 +241,9 @@ function interpWP(wp: number[], diff: number): number {
   return wp[low] * (1 - mix) + wp[high] * mix;
 }
 
-function computeBpmZ(rosters: Record<string, number[]>, players: Player[]): Record<string, number> {
+function computeQualZ(rosters: Record<string, number[]>, players: Player[]): Record<string, number> {
   const teams = Object.keys(rosters);
-  const totals = teams.map((team) => (rosters[team] ?? []).reduce((sum, index) => sum + (players[index]?.bpmC ?? 0), 0));
+  const totals = teams.map((team) => (rosters[team] ?? []).reduce((sum, index) => sum + (players[index]?.qualC ?? 0), 0));
   const mean = totals.reduce((sum, value) => sum + value, 0) / Math.max(1, totals.length);
   const std = Math.sqrt(totals.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, totals.length)) || 1;
   const result: Record<string, number> = {};
@@ -253,7 +253,7 @@ function computeBpmZ(rosters: Record<string, number[]>, players: Player[]): Reco
   return result;
 }
 
-function runSeasonStats(games: SeasonGame[], _bpmZ: Record<string, number>): Record<string, TeamStat> {
+function runSeasonStats(games: SeasonGame[], _qualZ: Record<string, number>): Record<string, TeamStat> {
   const allTeams = [...new Set(games.flatMap((game) => [game.t1, game.t2]))];
   const result: Record<string, TeamStat> = {};
   for (const team of allTeams) {
@@ -332,24 +332,24 @@ function teamConference(teamAbbr: string): 'East' | 'West' {
   return EAST.has(teamAbbr) ? 'East' : 'West';
 }
 
-function getBpmLabel(bpmZ: number): { label: string; color: string } {
-  if (bpmZ >= 1.5) {
+function getBpmLabel(qualZ: number): { label: string; color: string } {
+  if (qualZ >= 1.5) {
     return { label: 'Elite', color: 'var(--green-win)' };
   }
-  if (bpmZ >= 0.5) {
+  if (qualZ >= 0.5) {
     return { label: 'Strong', color: '#4ade80' };
   }
-  if (bpmZ >= -0.5) {
+  if (qualZ >= -0.5) {
     return { label: 'Average', color: 'var(--text-amber)' };
   }
-  if (bpmZ >= -1.5) {
+  if (qualZ >= -1.5) {
     return { label: 'Below Average', color: 'var(--red-loss)' };
   }
   return { label: 'Rebuilding', color: 'var(--red-loss)' };
 }
 
 function totalRosterValue(playerIndexes: number[], players: Player[]): number {
-  return playerIndexes.reduce((sum, index) => sum + (players[index]?.bpmC ?? 0), 0);
+  return playerIndexes.reduce((sum, index) => sum + (players[index]?.qualC ?? 0), 0);
 }
 
 function buildTeamProjection(teamAbbr: string, rosters: Record<string, number[]>, players: Player[]): TeamProjection | null {
@@ -373,7 +373,7 @@ function buildTeamProjection(teamAbbr: string, rosters: Record<string, number[]>
   const mean = totalValues.reduce((sum, value) => sum + value, 0) / Math.max(1, totalValues.length);
   const variance = totalValues.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, totalValues.length);
   const std = Math.sqrt(variance) || 1;
-  const bpmZ = (userOverall.total - mean) / std;
+  const qualZ = (userOverall.total - mean) / std;
 
   const minTotal = Math.min(...totalValues);
   const maxTotal = Math.max(...totalValues);
@@ -384,7 +384,7 @@ function buildTeamProjection(teamAbbr: string, rosters: Record<string, number[]>
   const conferenceTeams = sortedOverall.filter((team) => teamConference(team.team) === conference);
   const seed = Math.max(1, conferenceTeams.findIndex((team) => team.team === teamAbbr) + 1);
 
-  const projectedWins = Math.max(18, Math.min(64, Math.round(41 + bpmZ * 8)));
+  const projectedWins = Math.max(18, Math.min(64, Math.round(41 + qualZ * 8)));
   const projectedLosses = 82 - projectedWins;
   const overallRank = Math.max(1, sortedOverall.findIndex((team) => team.team === teamAbbr) + 1);
   const titleOdds = Number(Math.max(0.2, (((teams.length - overallRank) / Math.max(1, teams.length - 1)) ** 2) * 18).toFixed(1));
@@ -396,7 +396,7 @@ function buildTeamProjection(teamAbbr: string, rosters: Record<string, number[]>
     titleOdds,
     rating,
     conference,
-    bpmZ,
+    qualZ,
   };
 }
 
@@ -415,10 +415,10 @@ function comparePlayers(a: Player, b: Player, sortBy: PlayerSort): number {
 
   if (sortBy === 'adp') {
     const delta = (a.adp ?? Number.POSITIVE_INFINITY) - (b.adp ?? Number.POSITIVE_INFINITY);
-    return delta || b.bpmC - a.bpmC || a.playerName.localeCompare(b.playerName);
+    return delta || b.qualC - a.qualC || a.playerName.localeCompare(b.playerName);
   }
 
-  return b.bpmC - a.bpmC || (a.adp ?? Number.POSITIVE_INFINITY) - (b.adp ?? Number.POSITIVE_INFINITY) || a.playerName.localeCompare(b.playerName);
+  return b.qualC - a.qualC || (a.adp ?? Number.POSITIVE_INFINITY) - (b.adp ?? Number.POSITIVE_INFINITY) || a.playerName.localeCompare(b.playerName);
 }
 
 function buildRosterSlots(playerIndexes: number[], players: Player[], req: Req): { starters: RenderSlot[]; bench: RenderSlot[] } {
@@ -561,7 +561,7 @@ export default function ManagerModePage({
   const [seasonData, setSeasonData] = useState<SeasonData | null>(null);
   const [seasonErr, setSeasonErr] = useState<string | null>(null);
   const [stats, setStats] = useState<Record<string, TeamStat>>({});
-  const [bpmZ, setBpmZ] = useState<Record<string, number>>({});
+  const [qualZ, setBpmZ] = useState<Record<string, number>>({});
   const [seasonTab, setSeasonTab] = useState<'standings' | 'schedule'>('schedule');
   const [selectionTransition, setSelectionTransition] = useState<'idle' | 'exiting'>('idle');
   const [draftEntering, setDraftEntering] = useState(false);
@@ -790,7 +790,7 @@ export default function ManagerModePage({
         return response.json();
       })
       .then((data: SeasonData) => {
-        const zScores = computeBpmZ(rosters, pack.players);
+        const zScores = computeQualZ(rosters, pack.players);
         const seasonStats = runSeasonStats(data.regular_season, zScores);
         setBpmZ(zScores);
         setSeasonData(data);
@@ -1137,7 +1137,7 @@ export default function ManagerModePage({
                         <span className="player-name player-name--board">{player.playerName}</span>
                         <span className="player-team-sub player-team-sub--board">{player.teamAbbr}</span>
                       </div>
-                      <span className={`player-value player-value--board ${valueTierClass(player.bpmC)}`}>{formatOracleValue(player.bpmC)}</span>
+                      <span className={`player-value player-value--board ${valueTierClass(player.qualC)}`}>{formatOracleValue(player.qualC)}</span>
                       <span className="player-adp">{player.adp != null ? player.adp.toFixed(1) : '—'}</span>
                       <span className="player-rec-cell">
                         {recommendedPlayerIds.has(player.playerIdx) ? (
@@ -1190,7 +1190,7 @@ export default function ManagerModePage({
                         <span className="player-name">{player.playerName}</span>
                         <span className="player-team-sub">{player.teamAbbr}</span>
                       </div>
-                      <span className="player-value">{formatOracleValue(player.bpmC)}</span>
+                      <span className="player-value">{formatOracleValue(player.qualC)}</span>
                       <span className="player-adp">{player.adp != null ? player.adp.toFixed(1) : '—'}</span>
                       <span className="player-rec-cell" aria-hidden="true" />
                     </div>
@@ -1265,7 +1265,7 @@ export default function ManagerModePage({
           rosters={rosters}
           seasonData={seasonData}
           stats={stats}
-          bpmZ={bpmZ}
+          qualZ={qualZ}
           activeTab={seasonTab}
           onTabChange={setSeasonTab}
         />
@@ -1401,7 +1401,7 @@ function CompleteView({
       const bucket = pick.bucket as Bkt;
       const isStarter = counts[bucket] < req[bucket];
       counts[bucket] += 1;
-      const enrichedPick = { ...pick, value: pack.players[pick.playerIdx]?.bpmC ?? 0 };
+      const enrichedPick = { ...pick, value: pack.players[pick.playerIdx]?.qualC ?? 0 };
 
       if (isStarter) {
         starters.push(enrichedPick);
@@ -1549,7 +1549,7 @@ function SeasonView({
   rosters,
   seasonData,
   stats,
-  bpmZ,
+  qualZ,
   activeTab,
   onTabChange,
 }: {
@@ -1558,12 +1558,12 @@ function SeasonView({
   rosters: Record<string, number[]>;
   seasonData: SeasonData;
   stats: Record<string, TeamStat>;
-  bpmZ: Record<string, number>;
+  qualZ: Record<string, number>;
   activeTab: 'standings' | 'schedule';
   onTabChange: (tab: 'standings' | 'schedule') => void;
 }) {
   const projection = buildTeamProjection(userTeam, rosters, pack.players);
-  const myBpmZ = bpmZ[userTeam];
+  const myBpmZ = qualZ[userTeam];
   const bpmLabel = getBpmLabel(myBpmZ ?? 0);
   const summaryText = projection
     ? `Projected Record: ${projection.projectedWins}-${projection.projectedLosses} · ${projection.seed}${projection.seed === 1 ? 'st' : projection.seed === 2 ? 'nd' : projection.seed === 3 ? 'rd' : 'th'} Seed ${projection.conference} · ${projection.titleOdds.toFixed(1)}% Title Odds`
@@ -1595,7 +1595,7 @@ function SeasonView({
       </div>
 
       {activeTab === 'standings' ? <StandingsPanel seasonData={seasonData} stats={stats} userTeam={userTeam} /> : null}
-      {activeTab === 'schedule' ? <SchedulePanel seasonData={seasonData} userTeam={userTeam} bpmZ={bpmZ} /> : null}
+      {activeTab === 'schedule' ? <SchedulePanel seasonData={seasonData} userTeam={userTeam} qualZ={qualZ} /> : null}
     </div>
   );
 }
@@ -1659,11 +1659,11 @@ function StandingsPanel({
 function SchedulePanel({
   seasonData,
   userTeam,
-  bpmZ,
+  qualZ,
 }: {
   seasonData: SeasonData;
   userTeam: string;
-  bpmZ: Record<string, number>;
+  qualZ: Record<string, number>;
 }) {
   const [showAllGames, setShowAllGames] = useState(true);
   const byDate: Record<string, SeasonGame[]> = {};
@@ -1684,7 +1684,7 @@ function SchedulePanel({
     }))
     .filter(({ games }) => games.length > 0);
 
-  const strengthLabel = getBpmLabel(bpmZ[userTeam] ?? 0);
+  const strengthLabel = getBpmLabel(qualZ[userTeam] ?? 0);
   if (!dates.length) {
     return (
       <div className="mgr-schedule-wrap">
@@ -1703,7 +1703,7 @@ function SchedulePanel({
           My Games
         </button>
       </div>
-      <p className="mgr-schedule-strength" title={bpmZ[userTeam] != null ? `Lineup BPM-Z: ${bpmZ[userTeam] >= 0 ? '+' : ''}${bpmZ[userTeam].toFixed(2)}` : 'Lineup BPM-Z unavailable'}>
+      <p className="mgr-schedule-strength" title={qualZ[userTeam] != null ? `Lineup BPM-Z: ${qualZ[userTeam] >= 0 ? '+' : ''}${qualZ[userTeam].toFixed(2)}` : 'Lineup BPM-Z unavailable'}>
         Roster Strength: <span style={{ color: strengthLabel.color }}>{strengthLabel.label}</span>
       </p>
       {visibleDates.map(({ date, games }) => {
@@ -1717,8 +1717,8 @@ function SchedulePanel({
             </div>
             <div className="mgr-sched-grid">
               {games.map((game) => {
-                const bpmDiff = (bpmZ[game.t1] ?? 0) - (bpmZ[game.t2] ?? 0);
-                const p1 = interpWP(game.wp, bpmDiff);
+                const qualDiff = (qualZ[game.t1] ?? 0) - (qualZ[game.t2] ?? 0);
+                const p1 = interpWP(game.wp, qualDiff);
                 const p2 = 1 - p1;
                 const isUserGame = game.t1 === userTeam || game.t2 === userTeam;
                 const userIsT1 = game.t1 === userTeam;
