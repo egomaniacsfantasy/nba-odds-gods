@@ -4,8 +4,8 @@ import { NBA_TEAMS } from '../data/nbaTeams';
 const BUCKETS = ['G', 'W', 'B'] as const;
 const POSITION_FILTERS = ['all', 'G', 'W', 'B'] as const;
 const PLAYER_SORTS = [
-  { id: 'value', label: 'Value' },
   { id: 'adp', label: 'ADP' },
+  { id: 'value', label: 'Quality' },
   { id: 'name', label: 'Name' },
 ] as const;
 type Bkt = typeof BUCKETS[number];
@@ -123,14 +123,13 @@ interface RenderSlot {
   bucket: Bkt | null;
 }
 
-interface TeamProjection {
-  projectedWins: number;
-  projectedLosses: number;
-  seed: number;
-  titleOdds: number;
-  rating: number;
-  conference: 'East' | 'West';
-  qualZ: number;
+interface SimStats {
+  expW: number;
+  po: number;
+  r2: number;
+  cf: number;
+  fin: number;
+  champ: number;
 }
 
 type Phase = 'loading' | 'select' | 'draft' | 'complete' | 'season_load' | 'season';
@@ -331,56 +330,155 @@ function getBpmLabel(qualZ: number): { label: string; color: string } {
   return { label: 'Rebuilding', color: 'var(--red-loss)' };
 }
 
-function totalRosterValue(playerIndexes: number[], players: Player[]): number {
-  return playerIndexes.reduce((sum, index) => sum + (players[index]?.qualC ?? 0), 0);
+function simMgrSeries(
+  hs: string,
+  ls: string,
+  poGames: PoGame[] | undefined,
+  qualZ: Record<string, number>,
+  rand: () => number,
+): string {
+  if (!poGames || !poGames.length) return rand() < 0.5 ? hs : ls;
+  let hsW = 0;
+  let lsW = 0;
+  for (let gn = 1; gn <= 7; gn++) {
+    if (hsW === 4 || lsW === 4) break;
+    const game = poGames[gn - 1];
+    if (!game) break;
+    const ssd = hsW - lsW;
+    const state = game.states.find((st) => st.ssd === ssd);
+    const pHsWins = state ? interpWP(state.wp, (qualZ[hs] ?? 0) - (qualZ[ls] ?? 0)) : 0.5;
+    if (rand() < pHsWins) hsW += 1; else lsW += 1;
+  }
+  return hsW >= 4 ? hs : ls;
 }
 
-function buildTeamProjection(teamAbbr: string, rosters: Record<string, number[]>, players: Player[]): TeamProjection | null {
-  const teams = Object.keys(rosters);
-  if (!teams.length || !rosters[teamAbbr]) {
-    return null;
+function simulateMgrSeason(
+  seasonData: SeasonData,
+  qualZ: Record<string, number>,
+  nSims: number,
+): Record<string, SimStats> {
+  const allTeams = [...new Set(seasonData.regular_season.flatMap((g) => [g.t1, g.t2]))];
+  const eastTeams = allTeams.filter((t) => EAST.has(t));
+  const westTeams = allTeams.filter((t) => WEST.has(t));
+
+  const acc: Record<string, { expW: number; po: number; r2: number; cf: number; fin: number; champ: number }> =
+    Object.fromEntries(allTeams.map((t) => [t, { expW: 0, po: 0, r2: 0, cf: 0, fin: 0, champ: 0 }]));
+
+  const baseW: Record<string, number> = Object.fromEntries(allTeams.map((t) => [t, 0]));
+  for (const g of seasonData.regular_season) {
+    if (g.done && g.t1w !== null) {
+      if (g.t1w === 1) baseW[g.t1] = (baseW[g.t1] ?? 0) + 1;
+      else baseW[g.t2] = (baseW[g.t2] ?? 0) + 1;
+    }
   }
 
-  const totals = teams.map((team) => ({
-    team,
-    total: totalRosterValue(rosters[team] ?? [], players),
-  }));
+  const remaining = seasonData.regular_season.filter((g) => !g.done);
+  const piData = seasonData.play_in;
+  const poData = seasonData.playoffs;
 
-  const sortedOverall = [...totals].sort((teamA, teamB) => teamB.total - teamA.total);
-  const userOverall = sortedOverall.find((team) => team.team === teamAbbr);
-  if (!userOverall) {
-    return null;
-  }
-
-  const totalValues = totals.map((team) => team.total);
-  const mean = totalValues.reduce((sum, value) => sum + value, 0) / Math.max(1, totalValues.length);
-  const variance = totalValues.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, totalValues.length);
-  const std = Math.sqrt(variance) || 1;
-  const qualZ = (userOverall.total - mean) / std;
-
-  const minTotal = Math.min(...totalValues);
-  const maxTotal = Math.max(...totalValues);
-  const normalized = (userOverall.total - minTotal) / Math.max(1, maxTotal - minTotal);
-  const rating = Math.max(1, Math.min(100, Math.round(normalized * 99) + 1));
-
-  const conference = teamConference(teamAbbr);
-  const conferenceTeams = sortedOverall.filter((team) => teamConference(team.team) === conference);
-  const seed = Math.max(1, conferenceTeams.findIndex((team) => team.team === teamAbbr) + 1);
-
-  const projectedWins = Math.max(18, Math.min(64, Math.round(41 + qualZ * 8)));
-  const projectedLosses = 82 - projectedWins;
-  const overallRank = Math.max(1, sortedOverall.findIndex((team) => team.team === teamAbbr) + 1);
-  const titleOdds = Number(Math.max(0.2, (((teams.length - overallRank) / Math.max(1, teams.length - 1)) ** 2) * 18).toFixed(1));
-
-  return {
-    projectedWins,
-    projectedLosses,
-    seed,
-    titleOdds,
-    rating,
-    conference,
-    qualZ,
+  // Fast LCG RNG
+  let rngState = 0x4d2aff49 | 0;
+  const rand = (): number => {
+    rngState = (Math.imul(rngState, 1664525) + 1013904223) | 0;
+    return (rngState >>> 0) / 0x100000000;
   };
+
+  for (let i = 0; i < nSims; i++) {
+    const w: Record<string, number> = { ...baseW };
+
+    for (const g of remaining) {
+      const qd = (qualZ[g.t1] ?? 0) - (qualZ[g.t2] ?? 0);
+      if (rand() < interpWP(g.wp, qd)) w[g.t1] = (w[g.t1] ?? 0) + 1;
+      else w[g.t2] = (w[g.t2] ?? 0) + 1;
+    }
+
+    for (const t of allTeams) acc[t].expW += w[t] ?? 0;
+
+    const seedConf = (pool: string[]): string[] =>
+      [...pool].sort((a, b) => {
+        const dw = (w[b] ?? 0) - (w[a] ?? 0);
+        return dw !== 0 ? dw : (rand() < 0.5 ? -1 : 1);
+      });
+
+    const simConf = (seeds: string[], ew: 'east' | 'west'): string => {
+      if (seeds.length < 6) return seeds[0] ?? '';
+
+      for (let k = 0; k < 6; k++) acc[seeds[k]].po++;
+
+      let seed7 = seeds[6] ?? '';
+      let seed8 = seeds[7] ?? '';
+
+      if (
+        seeds.length >= 10 &&
+        piData['7v8'] && piData['9v10'] && piData['final']
+      ) {
+        const t7 = seeds[6], t8 = seeds[7], t9 = seeds[8], t10 = seeds[9];
+        const p7v8 = interpWP(piData['7v8'].wp, (qualZ[t7] ?? 0) - (qualZ[t8] ?? 0));
+        const w7v8 = rand() < p7v8 ? t7 : t8;
+        const l7v8 = w7v8 === t7 ? t8 : t7;
+        const p9v10 = interpWP(piData['9v10'].wp, (qualZ[t9] ?? 0) - (qualZ[t10] ?? 0));
+        const w9v10 = rand() < p9v10 ? t9 : t10;
+        const pFin = interpWP(piData['final'].wp, (qualZ[l7v8] ?? 0) - (qualZ[w9v10] ?? 0));
+        const s8 = rand() < pFin ? l7v8 : w9v10;
+        seed7 = w7v8;
+        seed8 = s8;
+      }
+
+      if (seed7) acc[seed7].po++;
+      if (seed8) acc[seed8].po++;
+
+      const bracket = [seeds[0], seeds[1], seeds[2], seeds[3], seeds[4], seeds[5], seed7, seed8];
+
+      const r1w = ([
+        [bracket[0], bracket[7]],
+        [bracket[3], bracket[4]],
+        [bracket[1], bracket[6]],
+        [bracket[2], bracket[5]],
+      ] as [string, string][]).map(([hs, ls]) => {
+        const winner = simMgrSeries(hs, ls, poData[`${ew}_r1`], qualZ, rand);
+        acc[winner].r2++;
+        return winner;
+      });
+
+      const r2w = ([
+        [r1w[0], r1w[1]],
+        [r1w[2], r1w[3]],
+      ] as [string, string][]).map(([a, b]) => {
+        const [hs, ls] = (w[a] ?? 0) >= (w[b] ?? 0) ? [a, b] : [b, a];
+        const winner = simMgrSeries(hs, ls, poData[`${ew}_r2`], qualZ, rand);
+        acc[winner].cf++;
+        return winner;
+      });
+
+      const [cfHs, cfLs] = (w[r2w[0]] ?? 0) >= (w[r2w[1]] ?? 0) ? [r2w[0], r2w[1]] : [r2w[1], r2w[0]];
+      const cfWinner = simMgrSeries(cfHs, cfLs, poData[`${ew}_cf`], qualZ, rand);
+      acc[cfWinner].fin++;
+      return cfWinner;
+    };
+
+    const eastChamp = simConf(seedConf(eastTeams), 'east');
+    const westChamp = simConf(seedConf(westTeams), 'west');
+
+    const [finHs, finLs] = (w[eastChamp] ?? 0) >= (w[westChamp] ?? 0)
+      ? [eastChamp, westChamp]
+      : [westChamp, eastChamp];
+    const champ = simMgrSeries(finHs, finLs, poData['finals'], qualZ, rand);
+    acc[champ].champ++;
+  }
+
+  const result: Record<string, SimStats> = {};
+  for (const t of allTeams) {
+    const a = acc[t];
+    result[t] = {
+      expW: Math.round((a.expW / nSims) * 10) / 10,
+      po: Math.round((a.po / nSims) * 1000) / 10,
+      r2: Math.round((a.r2 / nSims) * 1000) / 10,
+      cf: Math.round((a.cf / nSims) * 1000) / 10,
+      fin: Math.round((a.fin / nSims) * 1000) / 10,
+      champ: Math.round((a.champ / nSims) * 1000) / 10,
+    };
+  }
+  return result;
 }
 
 function searchMatches(player: Player, query: string): boolean {
@@ -540,7 +638,7 @@ export default function ManagerModePage({
   const [log, setLog] = useState<PickRecord[]>([]);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<PlayerSort>('value');
+  const [sortBy, setSortBy] = useState<PlayerSort>('adp');
   const [seasonData, setSeasonData] = useState<SeasonData | null>(null);
   const [seasonErr, setSeasonErr] = useState<string | null>(null);
   const [stats, setStats] = useState<Record<string, TeamStat>>({});
@@ -1239,9 +1337,7 @@ export default function ManagerModePage({
     return (
       <div className="mgr-page">
         <SeasonView
-          pack={pack!}
           userTeam={userTeam}
-          rosters={rosters}
           seasonData={seasonData}
           stats={stats}
           qualZ={qualZ}
@@ -1370,7 +1466,6 @@ function CompleteView({
   const req = getReq(pack.config);
   const userPicks = log.filter((pick) => pick.team === userTeam).sort((pickA, pickB) => pickA.overallPick - pickB.overallPick);
   const userTeamMeta = TEAM_META_BY_ABBR.get(userTeam);
-  const projection = buildTeamProjection(userTeam, rosters, pack.players);
   const rosterSections = (() => {
     const counts: Req = { G: 0, W: 0, B: 0 };
     const starters: Array<PickRecord & { value: number | null }> = [];
@@ -1412,25 +1507,6 @@ function CompleteView({
       </section>
 
       <section className="mgr-complete-body">
-        {projection ? (
-          <div className="dc-projection">
-            <div className="dc-projection-item">
-              <span className="dc-proj-value">{projection.projectedWins}-{projection.projectedLosses}</span>
-              <span className="dc-proj-label">Proj. Record</span>
-            </div>
-            <div className="dc-projection-divider" />
-            <div className="dc-projection-item">
-              <span className="dc-proj-value">#{projection.seed}</span>
-              <span className="dc-proj-label">Proj. Seed</span>
-            </div>
-            <div className="dc-projection-divider" />
-            <div className="dc-projection-item">
-              <span className="dc-proj-value">{projection.titleOdds.toFixed(1)}%</span>
-              <span className="dc-proj-label">Title Odds</span>
-            </div>
-          </div>
-        ) : null}
-
         <div className="dc-roster">
           <div className="dc-roster-section">
             <h4 className="dc-section-label">Starters</h4>
@@ -1523,30 +1599,23 @@ function CompleteView({
 }
 
 function SeasonView({
-  pack,
   userTeam,
-  rosters,
   seasonData,
   stats,
   qualZ,
   activeTab,
   onTabChange,
 }: {
-  pack: DraftPack;
   userTeam: string;
-  rosters: Record<string, number[]>;
   seasonData: SeasonData;
   stats: Record<string, TeamStat>;
   qualZ: Record<string, number>;
   activeTab: 'standings' | 'schedule';
   onTabChange: (tab: 'standings' | 'schedule') => void;
 }) {
-  const projection = buildTeamProjection(userTeam, rosters, pack.players);
   const myBpmZ = qualZ[userTeam];
   const bpmLabel = getBpmLabel(myBpmZ ?? 0);
-  const summaryText = projection
-    ? `Projected Record: ${projection.projectedWins}-${projection.projectedLosses} · ${projection.seed}${projection.seed === 1 ? 'st' : projection.seed === 2 ? 'nd' : projection.seed === 3 ? 'rd' : 'th'} Seed ${projection.conference} · ${projection.titleOdds.toFixed(1)}% Title Odds`
-    : `Roster Strength: ${bpmLabel.label}`;
+  const summaryText = `Roster Strength: ${bpmLabel.label}`;
 
   return (
     <div className="mgr-season">
@@ -1557,7 +1626,7 @@ function SeasonView({
           <span
             className="mgr-stat-badge mgr-stat-badge--summary"
             title={myBpmZ != null ? `Lineup BPM-Z: ${myBpmZ >= 0 ? '+' : ''}${myBpmZ.toFixed(2)}` : 'Lineup BPM-Z unavailable'}
-            style={!projection ? { color: bpmLabel.color } : undefined}
+            style={{ color: bpmLabel.color }}
           >
             {summaryText}
           </span>
@@ -1573,7 +1642,7 @@ function SeasonView({
         </button>
       </div>
 
-      {activeTab === 'standings' ? <StandingsPanel seasonData={seasonData} stats={stats} userTeam={userTeam} /> : null}
+      {activeTab === 'standings' ? <StandingsPanel seasonData={seasonData} stats={stats} qualZ={qualZ} userTeam={userTeam} /> : null}
       {activeTab === 'schedule' ? <SchedulePanel seasonData={seasonData} userTeam={userTeam} qualZ={qualZ} /> : null}
     </div>
   );
@@ -1582,19 +1651,44 @@ function SeasonView({
 function StandingsPanel({
   seasonData,
   stats: _stats,
+  qualZ,
   userTeam,
 }: {
   seasonData: SeasonData;
   stats: Record<string, TeamStat>;
+  qualZ: Record<string, number>;
   userTeam: string;
 }) {
+  const [simResults, setSimResults] = useState<Record<string, SimStats> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSimResults(null);
+    timerRef.current = setTimeout(() => {
+      const results = simulateMgrSeason(seasonData, qualZ, 10000);
+      setSimResults(results);
+    }, 30);
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    };
+  }, [seasonData, qualZ]);
+
   const allTeams = [...new Set(seasonData.regular_season.flatMap((game) => [game.t1, game.t2]))];
 
+  function pctClass(val: number): string {
+    if (val >= 60) return 'mgr-pct-hi';
+    if (val >= 30) return 'mgr-pct-mid';
+    return 'mgr-pct-lo';
+  }
+
   function confTable(conf: Set<string>, label: string) {
-    const teams = allTeams.filter((team) => conf.has(team)).sort();
-    if (!teams.length) {
-      return null;
-    }
+    const teams = allTeams
+      .filter((team) => conf.has(team))
+      .sort((a, b) => {
+        if (!simResults) return a.localeCompare(b);
+        return (simResults[b]?.expW ?? 0) - (simResults[a]?.expW ?? 0);
+      });
+    if (!teams.length) return null;
 
     return (
       <div className="mgr-conf-block">
@@ -1603,20 +1697,27 @@ function StandingsPanel({
           <thead>
             <tr>
               <th className="mgr-th-left">Team</th>
-              <th>Proj W</th>
-              <th>PO%</th>
-              <th>Champ%</th>
+              <th title="Projected wins">W</th>
+              <th title="Make playoffs %">PO%</th>
+              <th title="Advance to Round 2 %">R2%</th>
+              <th title="Conference Finals %">CF%</th>
+              <th title="Finals %">Fin%</th>
+              <th title="Championship %">Chmp%</th>
             </tr>
           </thead>
           <tbody>
             {teams.map((team) => {
               const isUser = team === userTeam;
+              const s = simResults?.[team];
               return (
                 <tr key={team} className={isUser ? 'mgr-tr-you' : ''}>
                   <td className="mgr-th-left mgr-td-name">{isUser ? '▶ ' : ''}{team}</td>
-                  <td className="mgr-td-num mgr-po-lo">—</td>
-                  <td className="mgr-td-num mgr-po-lo">—</td>
-                  <td className="mgr-td-num mgr-po-lo">—</td>
+                  <td className="mgr-td-num">{s ? s.expW.toFixed(1) : '—'}</td>
+                  <td className={`mgr-td-num ${s ? pctClass(s.po) : 'mgr-pct-lo'}`}>{s ? `${s.po.toFixed(1)}%` : '—'}</td>
+                  <td className={`mgr-td-num ${s ? pctClass(s.r2) : 'mgr-pct-lo'}`}>{s ? `${s.r2.toFixed(1)}%` : '—'}</td>
+                  <td className={`mgr-td-num ${s ? pctClass(s.cf) : 'mgr-pct-lo'}`}>{s ? `${s.cf.toFixed(1)}%` : '—'}</td>
+                  <td className={`mgr-td-num ${s ? pctClass(s.fin) : 'mgr-pct-lo'}`}>{s ? `${s.fin.toFixed(1)}%` : '—'}</td>
+                  <td className={`mgr-td-num ${s ? pctClass(s.champ) : 'mgr-pct-lo'}`}>{s ? `${s.champ.toFixed(1)}%` : '—'}</td>
                 </tr>
               );
             })}
@@ -1628,9 +1729,10 @@ function StandingsPanel({
 
   return (
     <div className="mgr-standings-wrap">
+      {!simResults && <p className="mgr-standings-note">Running 10,000 simulations…</p>}
       {confTable(EAST, 'Eastern Conference')}
       {confTable(WEST, 'Western Conference')}
-      <p className="mgr-standings-note">Season projections coming soon.</p>
+      {simResults && <p className="mgr-standings-note">Based on 10,000 Monte Carlo season simulations.</p>}
     </div>
   );
 }
