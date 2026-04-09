@@ -282,23 +282,6 @@ function bucketLabel(bucket: Bkt): string {
   return 'Big';
 }
 
-function formatOracleValue(value: number): string {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`;
-}
-
-function valueTierClass(value: number): 'elite' | 'strong' | 'decent' | 'role' {
-  if (value >= 3.5) {
-    return 'elite';
-  }
-  if (value >= 2.5) {
-    return 'strong';
-  }
-  if (value >= 1.5) {
-    return 'decent';
-  }
-  return 'role';
-}
-
 function playerInitials(playerName: string): string {
   return playerName
     .split(' ')
