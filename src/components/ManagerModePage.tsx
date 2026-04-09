@@ -1106,8 +1106,7 @@ export default function ManagerModePage({
                     <span aria-hidden="true" />
                     <span>Pos</span>
                     <span className="player-list-header__name">Player</span>
-                    <span className="player-list-header__metric" title="Oracle projected value added. Higher is better, with elite players usually landing around +3 to +5.">Value</span>
-                    <span className="player-list-header__metric" title="Average Draft Position. Lower means the player typically comes off the board earlier.">ADP</span>
+                    <span className="player-list-header__metric" title="Average Draft Position from 10,000 simulated drafts. Lower means the player typically comes off the board earlier.">ADP</span>
                     <span aria-hidden="true" />
                   </div>
 
@@ -1137,7 +1136,6 @@ export default function ManagerModePage({
                         <span className="player-name player-name--board">{player.playerName}</span>
                         <span className="player-team-sub player-team-sub--board">{player.teamAbbr}</span>
                       </div>
-                      <span className={`player-value player-value--board ${valueTierClass(player.qualC)}`}>{formatOracleValue(player.qualC)}</span>
                       <span className="player-adp">{player.adp != null ? player.adp.toFixed(1) : '—'}</span>
                       <span className="player-rec-cell">
                         {recommendedPlayerIds.has(player.playerIdx) ? (
@@ -1171,7 +1169,6 @@ export default function ManagerModePage({
                     <span aria-hidden="true" />
                     <span>Pos</span>
                     <span className="player-list-header__name">Player</span>
-                    <span className="player-list-header__metric">Value</span>
                     <span className="player-list-header__metric">ADP</span>
                     <span aria-hidden="true" />
                   </div>
@@ -1190,7 +1187,6 @@ export default function ManagerModePage({
                         <span className="player-name">{player.playerName}</span>
                         <span className="player-team-sub">{player.teamAbbr}</span>
                       </div>
-                      <span className="player-value">{formatOracleValue(player.qualC)}</span>
                       <span className="player-adp">{player.adp != null ? player.adp.toFixed(1) : '—'}</span>
                       <span className="player-rec-cell" aria-hidden="true" />
                     </div>
@@ -1394,14 +1390,14 @@ function CompleteView({
   const projection = buildTeamProjection(userTeam, rosters, pack.players);
   const rosterSections = (() => {
     const counts: Req = { G: 0, W: 0, B: 0 };
-    const starters: Array<PickRecord & { value: number }> = [];
-    const bench: Array<PickRecord & { value: number }> = [];
+    const starters: Array<PickRecord & { value: number | null }> = [];
+    const bench: Array<PickRecord & { value: number | null }> = [];
 
     userPicks.forEach((pick) => {
       const bucket = pick.bucket as Bkt;
       const isStarter = counts[bucket] < req[bucket];
       counts[bucket] += 1;
-      const enrichedPick = { ...pick, value: pack.players[pick.playerIdx]?.qualC ?? 0 };
+      const enrichedPick = { ...pick, value: pack.players[pick.playerIdx]?.adp ?? null };
 
       if (isStarter) {
         starters.push(enrichedPick);
@@ -1477,8 +1473,8 @@ function CompleteView({
                   </div>
                 </div>
                 <div className="dc-player-value">
-                  <span className="dc-value-num">{formatOracleValue(pick.value)}</span>
-                  <span className="dc-value-label">Value</span>
+                  <span className="dc-value-num">{pick.value != null ? pick.value.toFixed(1) : '—'}</span>
+                  <span className="dc-value-label">ADP</span>
                 </div>
               </div>
             ))}
@@ -1508,8 +1504,8 @@ function CompleteView({
                   </div>
                 </div>
                 <div className="dc-player-value">
-                  <span className="dc-value-num">{formatOracleValue(pick.value)}</span>
-                  <span className="dc-value-label">Value</span>
+                  <span className="dc-value-num">{pick.value != null ? pick.value.toFixed(1) : '—'}</span>
+                  <span className="dc-value-label">ADP</span>
                 </div>
               </div>
             ))}
