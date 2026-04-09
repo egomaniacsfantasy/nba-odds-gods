@@ -306,14 +306,6 @@ function teamDisplayName(teamAbbr: string): string {
   return TEAM_META_BY_ABBR.get(teamAbbr)?.name ?? teamAbbr;
 }
 
-function teamConference(teamAbbr: string): 'East' | 'West' {
-  const metaConference = TEAM_META_BY_ABBR.get(teamAbbr)?.conference;
-  if (metaConference === 'East' || metaConference === 'West') {
-    return metaConference;
-  }
-  return EAST.has(teamAbbr) ? 'East' : 'West';
-}
-
 function getBpmLabel(qualZ: number): { label: string; color: string } {
   if (qualZ >= 1.5) {
     return { label: 'Elite', color: 'var(--green-win)' };
@@ -1353,7 +1345,6 @@ export default function ManagerModePage({
       <CompleteView
         pack={pack!}
         userTeam={userTeam}
-        rosters={rosters}
         log={log}
         onStartSeason={startSeason}
         seasonErr={seasonErr}
@@ -1450,14 +1441,12 @@ function SelectView({
 function CompleteView({
   pack,
   userTeam,
-  rosters,
   log,
   onStartSeason,
   seasonErr,
 }: {
   pack: DraftPack;
   userTeam: string;
-  rosters: Record<string, number[]>;
   log: PickRecord[];
   onStartSeason: () => void;
   seasonErr: string | null;
