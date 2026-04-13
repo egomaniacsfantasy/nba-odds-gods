@@ -1,6 +1,6 @@
 // Auto-generated standings.ts — do not edit manually
 // Updated: 2026-04-13
-// Full NBA tiebreaker: H2H → div leader → div record → conf record → random
+// Full NBA tiebreaker: H2H → div record (same div only) → conf record → random
 // Matches Python CELL 12 _tiebreak() exactly.
 import type { LockedPicks, NbaGame, NbaTeam, StandingsRow } from '../types';
 
@@ -77,18 +77,7 @@ function _tiebreak(
     return result;
   }
 
-  // Step 2: Division leader status
-  const nLead = group.filter((t) => divLeaders.has(t)).length;
-  if (nLead > 0 && nLead < group.length) {
-    const lead = group.filter((t) => divLeaders.has(t));
-    const rest = group.filter((t) => !divLeaders.has(t));
-    return [
-      ..._tiebreak(lead, state, h2h, divLeaders, divMap, random),
-      ..._tiebreak(rest, state, h2h, divLeaders, divMap, random),
-    ];
-  }
-
-  // Step 3: Division record (only when all in same division)
+  // Step 2: Division record (only when all in same division)
   const divs = new Set(group.map((t) => divMap.get(t) ?? ''));
   if (divs.size === 1) {
     const divPcts = group.map((t) => {
