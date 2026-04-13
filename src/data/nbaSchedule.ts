@@ -3,4 +3,5 @@
 
 import type { NbaGame } from '../types';
 
-export const NBA_SCHEDULE: NbaGame[] = [];
+export const NBA_SCHEDULE: NbaGame[] = [
+];
