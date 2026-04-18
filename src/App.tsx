@@ -14,6 +14,7 @@ import { PredictorTab } from './components/PredictorTab';
 import { ToolNav } from './components/ToolNav';
 import ManagerModePage from './components/ManagerModePage';
 import { NBA_MC_ADVANCEMENT, NBA_MC_EAST_STANDINGS, NBA_MC_EXP_WINS, NBA_MC_WEST_STANDINGS } from './data/nbaMcResults';
+import { NBA_COMPLETED_PICKS } from './data/nbaCompletedPicks';
 import { NBA_SCHEDULE } from './data/nbaSchedule';
 import { NBA_TEAMS, NBA_TEAM_LOOKUP } from './data/nbaTeams';
 import { buildPlayoffPicks, getSimIterations, simulateNbaFullSeason } from './lib/simulation';
@@ -78,7 +79,7 @@ function compareAdvancementRows(
 }
 
 export default function App(_props: AppProps) {
-  const [lockedPicks, setLockedPicks] = useState<LockedPicks>(new Map());
+  const [lockedPicks, setLockedPicks] = useState<LockedPicks>(() => new Map(NBA_COMPLETED_PICKS));
   const [undoStack, setUndoStack] = useState<LockedPicks[]>([]);
   const [simResult, setSimResult] = useState<SimulationResult | null>(null);
   const [oddsFormat, setOddsFormat] = useState<OddsFormat>(() => {
@@ -478,7 +479,7 @@ export default function App(_props: AppProps) {
     });
   }, []);
 
-  const handleReset = useCallback(() => { setLockedPicks(new Map()); setUndoStack([]); setResetOpen(false); }, []);
+  const handleReset = useCallback(() => { setLockedPicks(new Map(NBA_COMPLETED_PICKS)); setUndoStack([]); setResetOpen(false); }, []);
 
   const handleSort = useCallback(
     (sortKey: AdvancementSortKey) => {
