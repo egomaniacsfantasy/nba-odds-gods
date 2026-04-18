@@ -1,5 +1,5 @@
 // Auto-generated standings.ts — do not edit manually
-// Updated: 2026-04-13
+// Updated: 2026-04-18
 // Full NBA tiebreaker: H2H → div record (same div only) → conf record → random
 // Matches Python CELL 12 _tiebreak() exactly.
 import type { LockedPicks, NbaGame, NbaTeam, StandingsRow } from '../types';

@@ -1,5 +1,5 @@
 // Auto-generated from nba_snapshot.xlsx + nba_standings.xlsx — do not edit manually
-// Updated: 2026-04-13
+// Updated: 2026-04-18
 
 import type { HeadToHeadRecord, NbaTeam } from '../types';
 import { clamp, clampInt, fnv1a, mulberry32 } from '../lib/rng';
@@ -83,7 +83,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southeast',
     logoId: 30,
     primaryColor: '#1d1160',
-    elo: 1585.1,
+    elo: 1595.9,
     baselineWins: 44,
     baselineLosses: 38,
     baselineConfWins: 26,
@@ -168,7 +168,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southeast',
     logoId: 14,
     primaryColor: '#98002e',
-    elo: 1522.6,
+    elo: 1527.6,
     baselineWins: 43,
     baselineLosses: 39,
     baselineConfWins: 27,
@@ -219,7 +219,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southeast',
     logoId: 19,
     primaryColor: '#0077c0',
-    elo: 1527.0,
+    elo: 1518.6,
     baselineWins: 45,
     baselineLosses: 37,
     baselineConfWins: 26,
@@ -236,7 +236,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Atlantic',
     logoId: 20,
     primaryColor: '#006bb6',
-    elo: 1473.1,
+    elo: 1475.3,
     baselineWins: 45,
     baselineLosses: 37,
     baselineConfWins: 27,
@@ -321,7 +321,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Pacific',
     logoId: 9,
     primaryColor: '#1d428a',
-    elo: 1465.0,
+    elo: 1471.6,
     baselineWins: 37,
     baselineLosses: 45,
     baselineConfWins: 24,
@@ -355,7 +355,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Pacific',
     logoId: 12,
     primaryColor: '#c8102e',
-    elo: 1546.1,
+    elo: 1547.6,
     baselineWins: 42,
     baselineLosses: 40,
     baselineConfWins: 25,
@@ -457,7 +457,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Pacific',
     logoId: 21,
     primaryColor: '#1d1160',
-    elo: 1499.2,
+    elo: 1507.0,
     baselineWins: 45,
     baselineLosses: 37,
     baselineConfWins: 29,
@@ -474,7 +474,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Northwest',
     logoId: 22,
     primaryColor: '#e03a3e',
-    elo: 1471.6,
+    elo: 1472.6,
     baselineWins: 42,
     baselineLosses: 40,
     baselineConfWins: 29,
