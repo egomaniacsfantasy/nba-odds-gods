@@ -1,5 +1,5 @@
 // Auto-generated lib/formatOdds.ts — do not edit manually
-// Updated: 2026-04-18
+// Updated: 2026-04-22
 import type { OddsFormat } from '../types';
 
 export function formatOdds(probability: number, format: OddsFormat): string {
