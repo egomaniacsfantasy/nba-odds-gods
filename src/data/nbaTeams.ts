@@ -1,5 +1,5 @@
 // Auto-generated from nba_snapshot.xlsx + nba_standings.xlsx — do not edit manually
-// Updated: 2026-04-22
+// Updated: 2026-04-23
 
 import type { HeadToHeadRecord, NbaTeam } from '../types';
 import { clamp, clampInt, fnv1a, mulberry32 } from '../lib/rng';
@@ -134,7 +134,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Central',
     logoId: 8,
     primaryColor: '#1d42ba',
-    elo: 1688.7,
+    elo: 1675.0,
     baselineWins: 60,
     baselineLosses: 22,
     baselineConfWins: 39,
@@ -219,7 +219,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Southeast',
     logoId: 19,
     primaryColor: '#0077c0',
-    elo: 1535.8,
+    elo: 1549.6,
     baselineWins: 45,
     baselineLosses: 37,
     baselineConfWins: 26,
@@ -440,7 +440,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Northwest',
     logoId: 25,
     primaryColor: '#007ac1',
-    elo: 1749.1,
+    elo: 1755.5,
     baselineWins: 64,
     baselineLosses: 18,
     baselineConfWins: 41,
@@ -457,7 +457,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     division: 'Pacific',
     logoId: 21,
     primaryColor: '#1d1160',
-    elo: 1513.0,
+    elo: 1506.7,
     baselineWins: 45,
     baselineLosses: 37,
     baselineConfWins: 29,
